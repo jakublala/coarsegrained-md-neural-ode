@@ -17,7 +17,8 @@ class VelVerlet_NVE(FixedGridODESolver):
     """
 
     def step_func(self, diffeq, dt, state):
-        """Propagates state vectors and ajoints one step in time
+        """
+        Propagates state vectors and ajoints one step in time
         
         Args:
             diffeq: simple ODE for forward step and augmented ODE for backward step
@@ -30,19 +31,25 @@ class VelVerlet_NVE(FixedGridODESolver):
         Raises:
             -
         """
-        NUM_VAR = 2 # vels and coords for NVE
-
+        NUM_VAR = 4 # vels and coords for NVE
+        
         if len(state) == NUM_VAR: # integrator in the forward call 
-            # print('===INSIDE DIFFMD===')
-            dvdt_0, dqdt_0 = diffeq(state)
+            print(diffeq)
+            dvdt_0, dwdt_0, _, _ = diffeq(state)
 
             v_step_half = 1/2 * dvdt_0 * dt 
+            w_step_half = 1/2 * dwdt_0 * dt # how?
  
-            # explicitly defined change in q
-            q_step_full = (state[0] + v_step_half) * dt 
+            # explicitly defined change in x and q
+            x_step_full = (state[0] + v_step_half) * dt 
+            q_step_full = 0.5 * (state[1] + w_step_half) * dt
+
+            # print(dwdt_0)
             
             # gradient full at t + dt 
-            dvdt_full, dqdt_half = diffeq((state[0] + v_step_half, state[1] + q_step_full))
+            # HACK: skip converting angular velocity back to body frame, as we do not use change in rotation
+            # TODO: send something to diffeq
+            dvdt_full, dwdt_full, _, _ = diffeq((state[0] + v_step_half, state[1] + w_step_half, state[2] + x_step_full, state[3] + q_step_full))
  
             v_step_full = v_step_half + 1/2 * dvdt_full * dt
             # print('vstepfull', v_step_full)
@@ -70,19 +77,20 @@ class VelVerlet_NVE(FixedGridODESolver):
                  state[4] + dLdpar_half))
 
             v_step_full = v_step_half + 1/2 * dvdt_mid * dt 
-
+            
             # half step adjoint update 
             vadjoint_step = v_adj_mid * dt 
             qadjoint_step = q_adj_mid * dt  
-            dLdpar_step   = dLdpar_mid * dt         
-
+            dLdpar_step   = dLdpar_mid * dt    
+            
             return (v_step_full, q_step_full, vadjoint_step, qadjoint_step, dLdpar_step)
         else:
             raise ValueError("received {} argumets integration, but should be {} for the forward call or {} for the backward call".format(len(state), NUM_VAR, 2 * NUM_VAR + 1))
-            
+
     
 def odeint(diffeq, state, t, method=None, options=None):
-    """Calls the correct integrator for the specific ODE, performs sanity checks
+    """
+    Calls the correct integrator for the specific ODE, performs sanity checks
     
     Args:
         diffeq (nn.module): function that yields acceleration and velocoties
