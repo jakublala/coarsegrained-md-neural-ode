@@ -131,7 +131,8 @@ def odeint(diffeq, state, t, method=None, options=None):
 
 
 def odeint_adjoint(diffeq, state, t, method=None, options=None):
-    """Wrapper function calling on the complex forward/backward pass of the adjoint method, insures that everything is handled as tuples
+    """
+    Wrapper function calling on the complex forward/backward pass of the adjoint method, insures that everything is handled as tuples
     
     Args:
         diffeq (nn.module): function that yields acceleration and velocoties
@@ -164,7 +165,8 @@ def odeint_adjoint(diffeq, state, t, method=None, options=None):
 
 
 class OdeintAdjointMethod(torch.autograd.Function):
-    """Expanded torch.autograd class, can perform forward and backward pass in time, 
+    """
+    Expanded torch.autograd class, can perform forward and backward pass in time, 
     shares parameters and information via the autograd context (ctx)
     """
 

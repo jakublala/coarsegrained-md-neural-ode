@@ -30,7 +30,8 @@ def lab_to_body_frame(W):
     return torch.Tensor([-first_row[1], -first_row[2], -first_row[3]])
         
 def compute_grad(inputs, output, create_graph=True, retain_graph=True):
-    """Compute gradient of the scalar output with respect to inputs.
+    """
+    Compute gradient of the scalar output with respect to inputs.
     
     Args:
         inputs (torch.Tensor): torch tensor, requires_grad=True
