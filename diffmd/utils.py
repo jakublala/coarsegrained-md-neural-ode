@@ -42,6 +42,17 @@ def lab_to_body_frame(W):
     first_row = W[0]
     return torch.Tensor([-first_row[1], -first_row[2], -first_row[3]])
         
+def quat_to_euler_angles(q):
+    # TODO: documentation
+    q0 = q[:, :, -1]
+    q1 = q[:, :, 0]
+    q2 = q[:, :, 1]
+    q3 = q[:, :, 2]
+    eul1 = torch.atan2(2*(q0*q1 + q2*q3), 1 - 2*(q1**2 + q2**2))
+    eul2 = torch.asin(2*(q0*q2 - q3*q1))
+    eul3 = torch.atan2(2*(q0*q3 + q1*q2), 1 - 2*(q2**2 + q3**2))
+    return torch.stack([eul1, eul2, eul3], dim=2)
+
 def compute_grad(inputs, output, create_graph=True, retain_graph=True, allow_unused=False):
     """
     Compute gradient of the scalar output with respect to inputs.

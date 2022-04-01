@@ -1,5 +1,6 @@
 from diffmd.solver_base import FixedGridODESolver
 from diffmd.solver_base import _check_inputs, _flatten, _flatten_convert_none_to_zeros
+from diffmd.utils import body_to_lab_frame
 
 import torch
 from torch import nn
@@ -34,56 +35,67 @@ class VelVerlet_NVE(FixedGridODESolver):
         NUM_VAR = 4 # vels and coords for NVE
         
         if len(state) == NUM_VAR: # integrator in the forward call 
-            print(diffeq)
-            dvdt_0, dwdt_0, _, _ = diffeq(state)
+            dvdt_0, dwdt_0, dxdt_0, dqdt_0 = diffeq(state)
 
+            # angular/translational velocity half-step
             v_step_half = 1/2 * dvdt_0 * dt 
-            w_step_half = 1/2 * dwdt_0 * dt # how?
+            w_step_half = 1/2 * dwdt_0 * dt
  
-            # explicitly defined change in x and q
+            # full-step change in position/rotation
             x_step_full = (state[0] + v_step_half) * dt 
-            q_step_full = 0.5 * (state[1] + w_step_half) * dt
-
-            # print(dwdt_0)
+            q_step_full = 0.5 * body_to_lab_frame((state[1] + w_step_half)) @ state[3][:, :, :, None] * dt # is this correct?
+            # TODO: avoid assigning of q_step_full to optimize speed?
+            q_step_full = q_step_full.squeeze(3)
             
             # gradient full at t + dt 
-            # HACK: skip converting angular velocity back to body frame, as we do not use change in rotation
-            # TODO: send something to diffeq
-            dvdt_full, dwdt_full, _, _ = diffeq((state[0] + v_step_half, state[1] + w_step_half, state[2] + x_step_full, state[3] + q_step_full))
+            dvdt_full, dwdt_full, dxdt_full, dqdt_0 = diffeq((state[0] + v_step_half, state[1] + w_step_half, state[2] + x_step_full, state[3] + q_step_full))
  
             v_step_full = v_step_half + 1/2 * dvdt_full * dt
-            # print('vstepfull', v_step_full)
-            # print('qstepfull', q_step_full)
-            return tuple((v_step_full, q_step_full))
+            w_step_full = w_step_half + 1/2 * dwdt_full * dt
+            
+            return tuple((v_step_full, w_step_full, x_step_full, q_step_full))
         
         elif len(state) == NUM_VAR * 2 + 1: # integrator in the backward call 
+            # TODO: rewrite to capture rotational kinetics
             # diffeq is the automatically generated ODE for adjoints (returns more than the original forward ODE)
-            dvdt_0, dqdt_0, v_adj_0, q_adj_0, dLdpar_0  = diffeq(state) 
+            dvdt_0, dwdt_0, dxdt_0, dqdt_0, v_adj_0, w_adj_0, x_adj_0, q_adj_0, dLdpar_0  = diffeq(state) 
 
             # more importantly are there better way to integrate the adjoint state other than midpoint integration 
 
             v_step_half = 1/2 * dvdt_0 * dt 
-
-            q_step_full = (state[0] + v_step_half) * dt 
+            w_step_half = 1/2 * dwdt_0 * dt
+ 
+            x_step_full = (state[0] + v_step_half) * dt 
+            q_step_full = 0.5 * body_to_lab_frame((state[1] + w_step_half)) @ state[3][:, :, :, None] * dt # is this correct?
+            # TODO: avoid assigning of q_step_full to optimize speed?
+            q_step_full = q_step_full.squeeze(3)
+            
 
             # half step adjoint update 
-            vadjoint_half = v_adj_0 * 0.5 * dt 
+            # TODO: check that ang velocity and quaternions dont have a different type of integration of adjoint
+            vadjoint_half = v_adj_0 * 0.5 * dt
+            wadjoint_half = w_adj_0 * 0.5 * dt
+            xadjoint_half = x_adj_0 * 0.5 * dt 
             qadjoint_half = q_adj_0 * 0.5 * dt 
             dLdpar_half   = dLdpar_0 * 0.5 * dt 
 
-            dvdt_mid, dqdt_mid, v_adj_mid, q_adj_mid, dLdpar_mid = diffeq(
-                (state[0] + v_step_half, state[1] + q_step_full, 
-                 state[2] + vadjoint_half, state[3] + qadjoint_half, 
-                 state[4] + dLdpar_half))
+            dvdt_mid, dwdt_mid, dxdt_mid, dqdt_mid, v_adj_mid, w_adj_mid, x_adj_0, q_adj_mid, dLdpar_mid = diffeq(
+                (state[0] + v_step_half, state[1] + w_step_half, state[2] + x_step_full, state[3] + q_step_full,  
+                 state[4] +  vadjoint_half, state[5] + wadjoint_half, state[6] + xadjoint_half, state[7] + qadjoint_half, 
+                 state[8] + dLdpar_half))
 
             v_step_full = v_step_half + 1/2 * dvdt_mid * dt 
-            
+            w_step_full = w_step_half + 1/2 * dwdt_mid * dt
+     
             # half step adjoint update 
-            vadjoint_step = v_adj_mid * dt 
+            # TODO: check that ang velocity and quaternions dont have a different type of integration of adjoint
+            vadjoint_step = v_adj_mid * dt
+            wadjoint_step = w_adj_mid * dt
+            xadjoint_step = x_adj_0 * dt 
             qadjoint_step = q_adj_mid * dt  
             dLdpar_step   = dLdpar_mid * dt    
             
-            return (v_step_full, q_step_full, vadjoint_step, qadjoint_step, dLdpar_step)
+            return (v_step_full, w_step_full, x_step_full, q_step_full, vadjoint_step, wadjoint_step, xadjoint_step, qadjoint_step, dLdpar_step)
         else:
             raise ValueError("received {} argumets integration, but should be {} for the forward call or {} for the backward call".format(len(state), NUM_VAR, 2 * NUM_VAR + 1))
 
@@ -176,7 +188,7 @@ class OdeintAdjointMethod(torch.autograd.Function):
         
         Args:
             state: expanded tuple of state vectors
-            diffeq: diffeq (nn.module): function that yields acceleration and velocoties
+            diffeq: diffeq (nn.module): function that yields acceleration and velocities
             t (torch.Tensor): time line
             flate_params: torch.Tensor of diffeq parameters
             method (string): specifying the fitting integrator for diffeq
@@ -200,7 +212,7 @@ class OdeintAdjointMethod(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, *grad_output):
-
+      
         t, flat_params, *traj = ctx.saved_tensors
         traj = tuple(traj)
         diffeq, method, options = ctx.diffeq, ctx.method, ctx.options
@@ -270,6 +282,7 @@ class OdeintAdjointMethod(torch.autograd.Function):
                 if adj_params.numel() == 0:
                     adj_params = torch.tensor(0.).to(adj_state[0])
                 aug_state = (*state_i, *adj_state, adj_params)
+
                 aug_traj = odeint(augmented_dynamics, aug_state,
                     torch.tensor([t[i], t[i - 1]]), method=method, options=options)
 
