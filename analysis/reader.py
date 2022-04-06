@@ -10,7 +10,7 @@ class Reader():
         self.timestep, self.runsteps, self.log_frequency = self.get_metadata()
         self.n_logged_timesteps = int(self.runsteps/self.log_frequency + 1)
         self.logged_timesteps = np.arange(0, self.runsteps+1, self.log_frequency)
-    
+       
     def read_original_traj(self, save=True):
         subfix = '-traj.dump'
         lines = []

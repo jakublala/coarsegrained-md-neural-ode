@@ -1,6 +1,6 @@
 from diffmd.solver_base import FixedGridODESolver
-from diffmd.solver_base import _check_inputs, _flatten, _flatten_convert_none_to_zeros
-from diffmd.utils import body_to_lab_frame
+from diffmd.solver_base import _check_inputs, _flatten, _flatten_convert_none_to_zeros, _assert_increasing
+from diffmd.utils import body_to_lab_frame, normalize_quat, quat_rotation
 
 import torch
 from torch import nn
@@ -15,6 +15,7 @@ from torch import nn
 class VelVerlet_NVE(FixedGridODESolver):
     """
     Velocity Verlet updater for NVE ODE forward and backward with translational and rotational motion
+    # TODO: rename so that it's clear that it has a kinetic (quaternion) component
     """
 
     def step_func(self, diffeq, dt, state):
@@ -35,7 +36,7 @@ class VelVerlet_NVE(FixedGridODESolver):
         NUM_VAR = 4 # vels and coords for NVE
         
         if len(state) == NUM_VAR: # integrator in the forward call 
-            print('-forward call-')
+            # print('-forward call-')
             dvdt_0, dwdt_0, dxdt_0, dqdt_0 = diffeq(state)
 
             # angular/translational velocity half-step
@@ -46,6 +47,7 @@ class VelVerlet_NVE(FixedGridODESolver):
             x_step_full = (state[0] + v_step_half) * dt 
             q_step_full = 0.5 * body_to_lab_frame((state[1] + w_step_half)) @ state[3][:, :, :, None] * dt # is this correct?
             # TODO: avoid assigning of q_step_full to optimize speed?
+            # TODO: is the first normalization unnecessary?
             q_step_full = q_step_full.squeeze(3)
             
             # gradient full at t + dt 
@@ -54,10 +56,12 @@ class VelVerlet_NVE(FixedGridODESolver):
             v_step_full = v_step_half + 1/2 * dvdt_full * dt
             w_step_full = w_step_half + 1/2 * dwdt_full * dt
             
+            # print(torch.norm(q_step_full, dim=2).mean())
+            
             return tuple((v_step_full, w_step_full, x_step_full, q_step_full))
         
         elif len(state) == NUM_VAR * 2 + 1: # integrator in the backward call 
-            print('-backward call-')
+            # print('-backward call-')
             # TODO: rewrite to capture rotational kinetics
             # diffeq is the automatically generated ODE for adjoints (returns more than the original forward ODE)
             dvdt_0, dwdt_0, dxdt_0, dqdt_0, v_adj_0, w_adj_0, x_adj_0, q_adj_0, dLdpar_0  = diffeq(state) 
@@ -100,6 +104,41 @@ class VelVerlet_NVE(FixedGridODESolver):
             return (v_step_full, w_step_full, x_step_full, q_step_full, vadjoint_step, wadjoint_step, xadjoint_step, qadjoint_step, dLdpar_step)
         else:
             raise ValueError("received {} argumets integration, but should be {} for the forward call or {} for the backward call".format(len(state), NUM_VAR, 2 * NUM_VAR + 1))
+
+    def integrate(self, t):
+        """Integrator performing all time steps, adjusted for quaternion normalization
+        
+        Args:
+            t: array of time points
+            
+        Returns:
+            time series (tuple) of state vectors (torch vectors)
+            
+        Raises:
+            AssertionError: if timeline is not strictly ascending
+            AssertionError: if ends of the time grid do not match the time array end points
+        
+        """
+        _assert_increasing(t)
+        t = t.type_as(self.state[0])
+        time_grid = self.grid_constructor(t)
+        assert time_grid[0] == t[0] and time_grid[-1] == t[-1]
+        time_grid = time_grid.to(self.state[0])
+
+        solution = [self.state]
+
+        state = self.state
+        for t0, t1 in zip(time_grid[:-1], time_grid[1:]):
+            dt = t1 - t0
+            step_state = self.step_func(self.diffeq, dt, state)
+            new_state = [state_ + step_ for state_, step_ in zip(state, step_state)]
+            # normalize the quaternion
+            new_state[3] = normalize_quat(new_state[3], dim=2)
+            state = tuple(new_state)
+
+            solution.append(new_state)
+
+        return tuple(map(torch.stack, tuple(zip(*solution))))  
 
     
 def odeint(diffeq, state, t, method=None, options=None):

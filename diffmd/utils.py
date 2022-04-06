@@ -16,10 +16,22 @@ def body_to_lab_frame(w):
     # TODO: comment on dimensions of w [nparticles, number of trajectory points, 3]
     # TODO: comment on return dimensions [nparticles, number of trajectory points, 4, 4]
     zeros = torch.zeros((w.shape[0], w.shape[1])).to(w.device)
-    row_1 = torch.stack([zeros, -w[:, :, 0], -w[:, :, 1], -w[:, :, 2]], dim=2)
-    row_2 = torch.stack([w[:, :, 0], zeros, w[:, :, 2], -w[:, :, 1]], dim=2)
-    row_3 = torch.stack([w[:, :, 1], -w[:, :, 2], zeros, w[:, :, 0]], dim=2)
-    row_4 = torch.stack([w[:, :, 2], w[:, :, 1], -w[:, :, 0], zeros], dim=2)
+    # using ? convention
+    # row_1 = torch.stack([zeros, -w[:, :, 0], -w[:, :, 1], -w[:, :, 2]], dim=2)
+    # row_2 = torch.stack([w[:, :, 0], zeros, w[:, :, 2], -w[:, :, 1]], dim=2)
+    # row_3 = torch.stack([w[:, :, 1], -w[:, :, 2], zeros, w[:, :, 0]], dim=2)
+    # row_4 = torch.stack([w[:, :, 2], w[:, :, 1], -w[:, :, 0], zeros], dim=2)
+    # using Omelyan convention
+    # TODO: maybe it does not matter which convention?
+    # row_1 = torch.stack([zeros, w[:, :, 2], -w[:, :, 0], -w[:, :, 1]], dim=2)
+    # row_2 = torch.stack([-w[:, :, 2], zeros, -w[:, :, 1], w[:, :, 0]], dim=2)
+    # row_3 = torch.stack([w[:, :, 0], w[:, :, 1], zeros, w[:, :, 2]], dim=2)
+    # row_4 = torch.stack([w[:, :, 1], -w[:, :, 0], -w[:, :, 2], zeros], dim=2)
+    # using Kou 2018 convention
+    row_1 = torch.stack([zeros, w[:, :, 2], -w[:, :, 1], w[:, :, 0]], dim=2)
+    row_2 = torch.stack([-w[:, :, 2], zeros, w[:, :, 0], w[:, :, 1]], dim=2)
+    row_3 = torch.stack([w[:, :, 1], -w[:, :, 0], zeros, w[:, :, 2]], dim=2)
+    row_4 = torch.stack([-w[:, :, 0], -w[:, :, 1], -w[:, :, 2], zeros], dim=2)
     return torch.stack([row_1, row_2, row_3, row_4], dim=3)
 # TODO: implement skew symmetric matrix this faster using the below
 # def skew(v):
@@ -52,6 +64,27 @@ def quat_to_euler_angles(q):
     eul2 = torch.asin(2*(q0*q2 - q3*q1))
     eul3 = torch.atan2(2*(q0*q3 + q1*q2), 1 - 2*(q2**2 + q3**2))
     return torch.stack([eul1, eul2, eul3], dim=2)
+
+def normalize_quat(q, dim):
+    # TODO: documentation
+    return q / torch.norm(q, dim=dim).unsqueeze(2)
+
+def quat_rotation(v, q, dim, is_vector=True):
+    # TODO; documentation and improve generalizibility
+    if is_vector:
+        shape = [*v.shape]
+        assert shape[dim] == 3, 'vector must be 3D' 
+        shape[dim] = 1
+        v = torch.cat([torch.zeros(shape).to(v.get_device()), v], dim=dim)
+
+    assert q.shape[dim] == 4, 'quaternion must be 4D'
+    assert q.shape == v.shape, 'quaternion and vector must have same shape'
+    
+    return q * v * conjugate_quat(q)
+
+def conjugate_quat(q):
+    assert q.shape[-1] == 4, 'quaternion must be 4D in the last dimension'
+    return torch.cat((q[:, :, 0:1], -q[:, :, 1:]), dim=-1)
 
 def compute_grad(inputs, output, create_graph=True, retain_graph=True, allow_unused=False):
     """
