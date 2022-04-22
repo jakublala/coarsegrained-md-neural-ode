@@ -39,7 +39,7 @@ class Reader():
                         labels = line.split()
                         labels.remove('type')
                         labels = ['timestep', 'body_id'] + labels
-                    if (i-9) % 23 == 0:
+                    if (i-9) % (self.nparticles + 9) == 0:
                         line = line.rstrip(' \n')
                         line = line.split()
                         line.pop(1) # remove 'type' column

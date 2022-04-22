@@ -2,6 +2,30 @@ import torch
 from torch.autograd import grad
 import numpy as np
 
+def vecquat(a, b):
+    # TODO: add documentation
+    c = torch.zeros(b.shape).to(b.device).type(torch.float64)
+    c[:, :, 0] = -a[:, :, 0] * b[:, :, 1] - a[:, :, 1] * b[:, :, 2] - a[:, :, 2] * b[:, :, 3]
+    c[:, :, 1] = b[:, :, 0] * a[:, :, 0] + a[:, :, 1] * b[:, :, 3] - a[:, :, 2] * b[:, :, 2]
+    c[:, :, 2] = b[:, :, 0] * a[:, :, 1] + a[:, :, 2] * b[:, :, 1] - a[:, :, 0] * b[:, :, 3]
+    c[:, :, 3] = b[:, :, 0] * a[:, :, 2] + a[:, :, 0] * b[:, :, 2] - a[:, :, 1] * b[:, :, 1]
+    return c
+
+def quatvec(a, b):
+    # TODO: add documentation
+    c = torch.zeros(a.shape).to(a.device).type(torch.float64)
+    c[:, :, 0] = -a[:, :, 1] * b[:, :, 0] - a[:, :, 2] * b[:, :, 1] - a[:, :, 3] * b[:, :, 2]
+    c[:, :, 1] = a[:, :, 0] * b[:, :, 0] + a[:, :, 2] * b[:, :, 2] - a[:, :, 3] * b[:, :, 1]
+    c[:, :, 2] = a[:, :, 0] * b[:, :, 1] + a[:, :, 3] * b[:, :, 0] - a[:, :, 1] * b[:, :, 2]
+    c[:, :, 3] = a[:, :, 0] * b[:, :, 2] + a[:, :, 1] * b[:, :, 1] - a[:, :, 2] * b[:, :, 0]
+    return c
+
+def quatquat(a, b):
+    # TODO: add documentation
+    # TODO: add this
+    return 
+
+
 def body_to_lab_frame(w):
     """
     Converts angular velocity from body frame reference to lab frame reference
@@ -41,19 +65,11 @@ def body_to_lab_frame(w):
 #     return skv - skv.T
 
 
-def lab_to_body_frame(W):
-    """
-    Converts angular velocity from lab frame reference to body frame reference
+def lab_to_body_frame(a, q):
+    # TODO: documentation
+    q_conj = conjugate_quat(q)
+    return vecquat(quatvec(q_conj, a), q)[:, :, 1:]
 
-    Args:
-        W (torch.Tensor): angular velocity skewsymmetric matrix (lab frame), requires_grad=True
-    
-    Returns:
-        torch.Tensor: angular velocity (body frame)
-    """ 
-    first_row = W[0]
-    return torch.Tensor([-first_row[1], -first_row[2], -first_row[3]])
-        
 def quat_to_euler_angles(q):
     # TODO: documentation
     q0 = q[:, :, -1]
