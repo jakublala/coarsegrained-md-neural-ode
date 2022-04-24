@@ -1,7 +1,9 @@
 import torch
 from torch.autograd import grad
 import numpy as np
-
+def G(q):
+        return np.array([[-q[1], q[0], q[3], -q[2]], [-q[2], -q[3], q[0], q[1]], [-q[3], q[2], -q[1], q[0]]]).squeeze()
+    
 def vecquat(a, b):
     # TODO: add documentation
     c = torch.zeros(b.shape).to(b.device).type(torch.float64)

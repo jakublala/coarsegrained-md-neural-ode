@@ -1,6 +1,6 @@
 from diffmd.solver_base import FixedGridODESolver
 from diffmd.solver_base import _check_inputs, _flatten, _flatten_convert_none_to_zeros, _assert_increasing
-from diffmd.utils import vecquat, body_to_lab_frame, normalize_quat, quat_rotation
+from diffmd.utils import quatvec, body_to_lab_frame, normalize_quat, quat_rotation
 
 import torch
 from torch import nn
@@ -45,11 +45,11 @@ class VelVerlet_NVE(FixedGridODESolver):
  
             # full-step change in position/rotation
             x_step_full = (state[0] + v_step_half) * dt 
-            q_step_full =  0.5 * vecquat(state[1] + w_step_half, state[3]) * dt # is this correct?
+            q_step_full =  0.5 * quatvec(state[3], state[1] + w_step_half) * dt
             
             # gradient full at t + dt 
             dvdt_full, dwdt_full, dxdt_full, dqdt_0 = diffeq((state[0] + v_step_half, state[1] + w_step_half, state[2] + x_step_full, state[3] + q_step_full))
- 
+            
             v_step_full = v_step_half + 1/2 * dvdt_full * dt
             w_step_full = w_step_half + 1/2 * dwdt_full * dt
             
@@ -69,10 +69,7 @@ class VelVerlet_NVE(FixedGridODESolver):
             w_step_half = 1/2 * dwdt_0 * dt
  
             x_step_full = (state[0] + v_step_half) * dt 
-            q_step_full = 0.5 * body_to_lab_frame((state[1] + w_step_half)) @ state[3][:, :, :, None] * dt # is this correct?
-            # TODO: avoid assigning of q_step_full to optimize speed?
-            q_step_full = q_step_full.squeeze(3)
-            
+            q_step_full = 0.5 * quatvec(state[3], state[1] + w_step_half) * dt # is this correct?
 
             # half step adjoint update 
             # TODO: check that ang velocity and quaternions dont have a different type of integration of adjoint
