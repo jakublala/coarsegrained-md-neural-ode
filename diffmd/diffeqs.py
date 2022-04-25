@@ -60,33 +60,7 @@ class ODEFunc(nn.Module):
             # TODO: check that harmonic restraint is calculated correctly
             u = self.net(rq) + self.harmonic_restraint(r) # [potential energy, number of trajectories]
             # TODO: check that gradient is calculated correctly
-            # grad = compute_grad(inputs=rq, output=u) # [force _ torque, number of trajectories]
-            # print('INPUTS')
-            # print(rq)
-            # print(rq.shape)
-            # print('OUTPUTS')
-            # print(u)
-            # print(u.shape)
-            
-            # print('PyTorch grad')
-            # print(grad)
-            
-            def finite_diff(r, rq, drq):
-                return ((self.net(rq + drq) + self.harmonic_restraint(r + drq[:, 0]) - (self.net(rq - drq) - self.harmonic_restraint(r - drq[:, 0])))) / (2 * drq.max())
-
-            # compute grad manually
-            delta = torch.zeros(rq.shape).to(rq.device).type(torch.float64)
-            grads = []
-            for i in range(self.dim):
-                delta[:, i] = 0.00001
-                grads.append(finite_diff(r, rq, delta))                
-                delta[:, i] = 0.0
-                print(grads)
-            
-            
-            grad = torch.cat(grads, dim=1)
-            print(grad.shape)
-            assert 0 == 1
+            grad = compute_grad(inputs=rq, output=u) # [force _ torque, number of trajectories]
             grad_r, grad_q = torch.split(grad, [1, self.dim-1], dim=1)
             grad_q = torch.swapaxes(grad_q.view(-1, self.nparticles, 4), 0, 1)
             
@@ -126,9 +100,3 @@ class ODEFunc(nn.Module):
     def Omega(self, q, dqdt):
         # TODO: move this somewhere
         return 2 * torch.matmul(self.G(q), torch.transpose(self.G(dqdt), 2, 3))
-
-
-    # def compute_grad(self, q, dq):
-    #     # using this over compute_grad from nff seems to make no difference
-    #     # HACK: does this only work with q_n => n=1? 
-    #     return (self.net(q+dq) - self.net(q-dq)) / (2 * dq)
