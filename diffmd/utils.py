@@ -104,7 +104,7 @@ def conjugate_quat(q):
     assert q.shape[-1] == 4, 'quaternion must be 4D in the last dimension'
     return torch.cat((q[:, :, 0:1], -q[:, :, 1:]), dim=-1)
 
-def compute_grad(inputs, output, create_graph=True, retain_graph=True, allow_unused=False):
+def compute_grad(inputs, output, create_graph=True, retain_graph=True, allow_unused=False, is_grads_batched=True):
     """
     Compute gradient of the scalar output with respect to inputs.
     

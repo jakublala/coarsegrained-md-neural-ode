@@ -69,8 +69,8 @@ class VelVerlet_NVE(FixedGridODESolver):
             w_step_half = 1/2 * dwdt_0 * dt
  
             x_step_full = (state[0] + v_step_half) * dt 
-            q_step_full = 0.5 * quatvec(state[3], state[1] + w_step_half) * dt # is this correct?
-
+            q_step_full = 0.5 * quatvec(state[3], state[1] + w_step_half) * dt 
+            
             # half step adjoint update 
             # TODO: check that ang velocity and quaternions dont have a different type of integration of adjoint
             vadjoint_half = v_adj_0 * 0.5 * dt
