@@ -78,7 +78,7 @@ class Reader():
 
     def read_simulation_log(self):
         # TODO: is this useful for anything? make this useful
-        # FIX: it does not even work
+        # TODO: it does not even work
         subfix = '-sim.log'
         lines = np.zeros([])
         with open(self.file_name+subfix, 'r') as f:

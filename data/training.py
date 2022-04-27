@@ -3,7 +3,8 @@ import quaternion
 import pandas as pd
 import numpy as np
 
-def get_batch_mod(traj, batch_size, batch_length, dt):
+def get_batch_mod(traj, batch_size, batch_length, dt, device):
+    # TODO: move this to the trainer class or create a BATCHING class
     """
     Get a batch of data from a trajectory.
         
