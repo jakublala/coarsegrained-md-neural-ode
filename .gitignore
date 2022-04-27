@@ -125,3 +125,7 @@ dmypy.json
 # Custom folders
 rubbish/
 temp/
+results/
+
+# Custom files
+run.sh

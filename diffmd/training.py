@@ -23,14 +23,16 @@ class Trainer():
         self.learning_rate = config['learning_rate']
         self.batch_length = config['batch_length']
         self.nbatches = config['nbatches']
+        self.nn_width = config['nn_width']
+        self.nn_depth = config['nn_depth']
 
         self.dataset = Dataset(config)
         self.loss_meter = RunningAverageMeter()
         
         self.nparticles = 2
         self.dim = 1 + (2*4)
-        self.nn_width = 50
-        self.nn_depth = 1
+        self.printing_freq = 25
+        self.plotting_freq = 100
 
         self.func = ODEFunc(self.nparticles, self.dataset.inertia, self.dataset.k, self.dim, self.nn_width, self.nn_depth).to(self.device)
         self.optimizer = self.set_optimizer(config['optimizer'])
@@ -59,14 +61,14 @@ class Trainer():
             self.optimizer.step()
             self.loss_meter.update(loss.item())
             
-            if itr % 10 == 0:
+            if itr % self.printing_freq == 0:
                 self.print_loss(itr, start_time)
 
-            if itr % 100 == 0:
+            if itr % self.plotting_freq == 0:
                 self.plot_traj(itr)
         
         # TODO add checkpointing
-        # TODO: add logging in and model saving
+        # TODO: add logging in
 
         return self.func, self.loss_meter
 
@@ -75,18 +77,23 @@ class Trainer():
         print('current loss: {:.4f}'.format(self.loss_meter.val))
         print('Last iteration took:     ', time.perf_counter() - start_time)
 
-    def plot_traj(self, itr):
+    def plot_traj(self, itr, subfolder='temp'):
 
-        if itr == 100:
-            if os.path.exists('temp'):
-                shutil.rmtree('temp')
+        if itr == self.plotting_freq:
+            if os.path.exists(f'{subfolder}'):
+                shutil.rmtree(f'{subfolder}')
 
-            if not os.path.exists('temp'):
-                os.makedirs('temp')
+            if not os.path.exists(f'{subfolder}'):
+                os.makedirs(f'{subfolder}')
 
-        traj_length = 100
+        if subfolder == 'temp':
+            traj_length = 100
+        else:
+            traj_length = 1000
+
         with torch.no_grad():
-            batch_t, batch_y0, batch_y = get_batch_mod(self.dataset.traj, 1, traj_length, self.dataset.dt, self.device)   
+            nbatches = 1
+            batch_t, batch_y0, batch_y = get_batch_mod(self.dataset.traj, nbatches, traj_length, self.dataset.dt, self.device)   
 
             pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
 
@@ -100,58 +107,58 @@ class Trainer():
             
             for i in ind_vel:
                 plt.title('velocities')
-                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,0,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,0,0,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'temp/{itr}_vel1.png')
+                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,0,:,i], 'k--', alpha=0.3, label=f'true {i}')
+                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,0,:,i], 'r-', alpha=0.5, label=f'pred {i}')
+            plt.savefig(f'{subfolder}/{itr}_vel1.png')
             plt.close()
             
             for i in ind_vel:
                 plt.title('velocities')
-                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,1,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,1,0,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'temp/{itr}_vel2.png')
+                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,1,:,i], 'k--', alpha=0.3, label=f'true {i}')
+                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,1,:,i], 'r-', alpha=0.5, label=f'pred {i}')
+            plt.savefig(f'{subfolder}/{itr}_vel2.png')
             plt.close()
             
             for i in ind_ang:
                 plt.title('angular velocities')
                 plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,0,0,i], 'k--', alpha=0.3, label=f'true {i}')
                 plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,0,0,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'temp/{itr}_angvel1.png')
+            plt.savefig(f'{subfolder}/{itr}_angvel1.png')
             plt.close()
             
             for i in ind_ang:
                 plt.title('angular velocities')
                 plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,1,0,i], 'k--', alpha=0.3, label=f'true {i}')
                 plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,1,0,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'temp/{itr}_angvel2.png')
+            plt.savefig(f'{subfolder}/{itr}_angvel2.png')
             plt.close()
             
             for i in ind_pos:
                 plt.title('positions')
                 plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,0,0,i], 'k--', alpha=0.3, label=f'true {i}')
                 plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,0,0,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'temp/{itr}_pos1.png')
+            plt.savefig(f'{subfolder}/{itr}_pos1.png')
             plt.close()
             
             for i in ind_pos:
                 plt.title('positions')
                 plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,1,0,i], 'k--', alpha=0.3, label=f'true {i}')
                 plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,1,0,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'temp/{itr}_pos2.png')
+            plt.savefig(f'{subfolder}/{itr}_pos2.png')
             plt.close()
             
             for i in ind_quat:
                 plt.title('quaternions')
                 plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,0,0,i], 'k--', alpha=0.3, label=f'true {i}')
                 plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,0,0,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'temp/{itr}_quat1.png')
+            plt.savefig(f'{subfolder}/{itr}_quat1.png')
             plt.close() 
             
             for i in ind_quat:
                 plt.title('quaternions')
                 plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,1,0,i], 'k--', alpha=0.3, label=f'true {i}')
                 plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,1,0,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'temp/{itr}_quat2.png')
+            plt.savefig(f'{subfolder}/{itr}_quat2.png')
             plt.close() 
 
     def set_optimizer(self, optimizer):
@@ -159,6 +166,15 @@ class Trainer():
             return torch.optim.Adam(self.func.parameters(), lr=self.learning_rate)
         else:
             raise Exception('optimizer not implemented')
+
+    def save(self):
+        subfolder = f'results/depth-{self.nn_depth}-width-{self.nn_width}-lr-{self.learning_rate}'
+        os.makedirs(subfolder)
+        torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
+        self.plot_traj(0, subfolder)
+        return
+
+
     
     # losses_log.append(loss_meter.losses)
 
