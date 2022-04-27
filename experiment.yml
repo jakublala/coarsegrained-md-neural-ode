@@ -1,0 +1,38 @@
+{
+    'name': 'Neural ODE SHM Optimization',
+    'metrics': [
+        {
+            'name': 'test_loss',
+            'strategy': 'optimize',
+            'objective': 'minimize',
+        }
+    ],
+    'parameters': [
+        {
+            'name': 'sample_length',
+            'type': 'int',
+            'bounds': {'min': 3, 'max': 50}
+        },
+        {
+            'name': 'batch_size',
+            'type': 'int',
+            'bounds': {'min': 10, 'max': 1000}
+        },
+        {
+            'name': 'learning_rate',
+            'type': 'double',
+            'bounds': {'min': 0.00001, 'max': 1}
+        },
+        {
+            'name': 'nn_depth',
+            'type': 'int',
+            'bounds': {'min': 1, 'max': 2}
+        },
+        {
+            'name': 'nn_width',
+            'type': 'int',
+            'bounds': {'min': 2, 'max': 50}
+        },
+    ],
+    'budget': 50
+}
