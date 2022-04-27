@@ -1,3 +1,4 @@
+from multiprocessing import allow_connection_pickling
 import torch
 from torch.autograd import grad
 import numpy as np
@@ -104,7 +105,7 @@ def conjugate_quat(q):
     assert q.shape[-1] == 4, 'quaternion must be 4D in the last dimension'
     return torch.cat((q[:, :, 0:1], -q[:, :, 1:]), dim=-1)
 
-def compute_grad(inputs, output, create_graph=True, retain_graph=True, allow_unused=False, is_grads_batched=True):
+def compute_grad(inputs, output, create_graph=True, retain_graph=True, allow_unused=False):
     """
     Compute gradient of the scalar output with respect to inputs.
     
@@ -119,6 +120,6 @@ def compute_grad(inputs, output, create_graph=True, retain_graph=True, allow_unu
     assert inputs.requires_grad
     
     gradspred, = grad(output, inputs, grad_outputs=output.data.new(output.shape).fill_(1),
-                   create_graph=create_graph, retain_graph=retain_graph)
+                   create_graph=create_graph, retain_graph=retain_graph, allow_unused=allow_unused)
     
     return gradspred
