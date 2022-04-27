@@ -59,15 +59,15 @@ class ODEFunc(nn.Module):
             # get energy and gradients
             # TODO: check that harmonic restraint is calculated correctly
             u = self.net(rq) + self.harmonic_restraint(r) # [potential energy, number of trajectories]
-            # TODO: check that gradient is calculated correctly (do unit tests)
-            grad = compute_grad(inputs=rq, output=u) # [force _ torque, number of trajectories]      
+            # TODO: check that gradient is calculated correctly
+            grad = compute_grad(inputs=rq, output=u) # [force _ torque, number of trajectories]
             grad_r, grad_q = torch.split(grad, [1, self.dim-1], dim=1)
             grad_q = torch.swapaxes(grad_q.view(-1, self.nparticles, 4), 0, 1)
             
             # get force and update translational motion
             # TODO: do this without assigning variables to speed up computation
-            fA = grad_r * r_vector # [force, number of trajectories]
-            fB = - grad_r * r_vector
+            fA = - grad_r * r_vector # [force, number of trajectories]
+            fB = grad_r * r_vector
             f = torch.stack((fA, fB), dim=0)
             # HACK: same mass for all bodies
             dvdt = f / self.mass
@@ -100,9 +100,3 @@ class ODEFunc(nn.Module):
     def Omega(self, q, dqdt):
         # TODO: move this somewhere
         return 2 * torch.matmul(self.G(q), torch.transpose(self.G(dqdt), 2, 3))
-
-
-    # def compute_grad(self, q, dq):
-    #     # using this over compute_grad from nff seems to make no difference
-    #     # HACK: does this only work with q_n => n=1? 
-    #     return (self.net(q+dq) - self.net(q-dq)) / (2 * dq)
