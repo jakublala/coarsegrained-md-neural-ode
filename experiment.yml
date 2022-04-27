@@ -31,8 +31,8 @@
         {
             'name': 'nn_width',
             'type': 'int',
-            'bounds': {'min': 2, 'max': 50}
+            'bounds': {'min': 2, 'max': 200}
         },
     ],
-    'budget': 2
+    'budget': 15
 }

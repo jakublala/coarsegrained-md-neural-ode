@@ -156,7 +156,7 @@ class Trainer():
 
     def set_optimizer(self, optimizer):
         if optimizer == 'Adam':
-            return torch.optim.Adam(self.func.parameters(), lr=self.lr)
+            return torch.optim.Adam(self.func.parameters(), lr=self.learning_rate)
         else:
             raise Exception('optimizer not implemented')
     

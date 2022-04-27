@@ -1,0 +1,310 @@
+Experiment created, view it on the SigOpt dashboard at https://app.sigopt.com/experiment/505521
+Run started, view it on the SigOpt dashboard at https://app.sigopt.com/run/220206
+Using cuda device
+Found timestep: 1e-05, n of run steps: 1000000, and dump log freq: 100
+Iter: 10, running avg elbo: 0.0050
+current loss: 0.0049
+Last iteration took:      0.6782979518175125
+Iter: 20, running avg elbo: 0.0050
+current loss: 0.0051
+Last iteration took:      0.6660748086869717
+Iter: 30, running avg elbo: 0.0050
+current loss: 0.0050
+Last iteration took:      0.668083019554615
+Iter: 40, running avg elbo: 0.0050
+current loss: 0.0049
+Last iteration took:      0.6737260445952415
+Iter: 50, running avg elbo: 0.0050
+current loss: 0.0048
+Last iteration took:      0.6625759117305279
+Iter: 60, running avg elbo: 0.0050
+current loss: 0.0049
+Last iteration took:      0.6692845840007067
+Iter: 70, running avg elbo: 0.0050
+current loss: 0.0047
+Last iteration took:      0.6597745288163424
+Iter: 80, running avg elbo: 0.0049
+current loss: 0.0048
+Last iteration took:      0.6656904481351376
+Iter: 90, running avg elbo: 0.0049
+current loss: 0.0044
+Last iteration took:      0.6661545597016811
+Iter: 100, running avg elbo: 0.0049
+current loss: 0.0048
+Last iteration took:      0.6639561504125595
+Iter: 110, running avg elbo: 0.0049
+current loss: 0.0046
+Last iteration took:      0.6687703672796488
+Iter: 120, running avg elbo: 0.0048
+current loss: 0.0043
+Last iteration took:      0.6592757795006037
+Iter: 130, running avg elbo: 0.0047
+current loss: 0.0040
+Last iteration took:      0.671608604490757
+Iter: 140, running avg elbo: 0.0047
+current loss: 0.0040
+Last iteration took:      0.6574506796896458
+Iter: 150, running avg elbo: 0.0046
+current loss: 0.0041
+Last iteration took:      0.6651574280112982
+Iter: 160, running avg elbo: 0.0046
+current loss: 0.0039
+Last iteration took:      0.6741428542882204
+Iter: 170, running avg elbo: 0.0045
+current loss: 0.0040
+Last iteration took:      0.5741452910006046
+Iter: 180, running avg elbo: 0.0045
+current loss: 0.0039
+Last iteration took:      0.5698381774127483
+Iter: 190, running avg elbo: 0.0044
+current loss: 0.0041
+Last iteration took:      0.5737049002200365
+Iter: 200, running avg elbo: 0.0044
+current loss: 0.0040
+Last iteration took:      0.5726194567978382
+Iter: 210, running avg elbo: 0.0043
+current loss: 0.0040
+Last iteration took:      0.577084356918931
+Iter: 220, running avg elbo: 0.0043
+current loss: 0.0039
+Last iteration took:      0.5645645968616009
+Iter: 230, running avg elbo: 0.0043
+current loss: 0.0038
+Last iteration took:      0.5673057958483696
+Iter: 240, running avg elbo: 0.0042
+current loss: 0.0039
+Last iteration took:      0.5741969868540764
+Iter: 250, running avg elbo: 0.0042
+current loss: 0.0039
+Last iteration took:      0.5745319686830044
+Iter: 260, running avg elbo: 0.0042
+current loss: 0.0038
+Last iteration took:      0.5683986824005842
+Iter: 270, running avg elbo: 0.0041
+current loss: 0.0040
+Last iteration took:      0.5737082920968533
+Iter: 280, running avg elbo: 0.0041
+current loss: 0.0040
+Last iteration took:      0.5704570580273867
+Iter: 290, running avg elbo: 0.0041
+current loss: 0.0039
+Last iteration took:      0.565726900473237
+Iter: 300, running avg elbo: 0.0041
+current loss: 0.0040
+Last iteration took:      0.5719955563545227
+Iter: 310, running avg elbo: 0.0041
+current loss: 0.0039
+Last iteration took:      0.5756015125662088
+Iter: 320, running avg elbo: 0.0041
+current loss: 0.0039
+Last iteration took:      0.6567087210714817
+Iter: 330, running avg elbo: 0.0040
+current loss: 0.0038
+Last iteration took:      0.6488591358065605
+Iter: 340, running avg elbo: 0.0040
+current loss: 0.0039
+Last iteration took:      0.656851515173912
+Iter: 350, running avg elbo: 0.0040
+current loss: 0.0040
+Last iteration took:      0.6536335162818432
+Iter: 360, running avg elbo: 0.0040
+current loss: 0.0041
+Last iteration took:      0.6586898490786552
+Iter: 370, running avg elbo: 0.0040
+current loss: 0.0039
+Last iteration took:      0.6468493361026049
+Iter: 380, running avg elbo: 0.0040
+current loss: 0.0040
+Last iteration took:      0.6575403399765491
+Iter: 390, running avg elbo: 0.0040
+current loss: 0.0039
+Last iteration took:      0.6465957276523113
+Iter: 400, running avg elbo: 0.0040
+current loss: 0.0038
+Last iteration took:      0.6553553231060505
+Iter: 410, running avg elbo: 0.0040
+current loss: 0.0038
+Last iteration took:      0.6534627806395292
+Iter: 420, running avg elbo: 0.0040
+current loss: 0.0037
+Last iteration took:      0.6465713363140821
+Iter: 430, running avg elbo: 0.0040
+current loss: 0.0039
+Last iteration took:      0.6549475453794003
+Iter: 440, running avg elbo: 0.0039
+current loss: 0.0039
+Last iteration took:      0.6615841817110777
+Iter: 450, running avg elbo: 0.0039
+current loss: 0.0039
+Last iteration took:      0.6468515731394291
+Iter: 460, running avg elbo: 0.0039
+current loss: 0.0039
+Last iteration took:      0.6525929402559996
+Iter: 470, running avg elbo: 0.0039
+current loss: 0.0038
+Last iteration took:      0.6582853253930807
+Iter: 480, running avg elbo: 0.0039
+current loss: 0.0040
+Last iteration took:      0.6539828069508076
+Iter: 490, running avg elbo: 0.0039
+current loss: 0.0038
+Last iteration took:      0.6463067810982466
+Iter: 500, running avg elbo: 0.0039
+current loss: 0.0038
+Last iteration took:      0.6573256310075521
+Run finished, view it on the SigOpt dashboard at https://app.sigopt.com/run/220206
+Run started, view it on the SigOpt dashboard at https://app.sigopt.com/run/220207
+Using cuda device
+Found timestep: 1e-05, n of run steps: 1000000, and dump log freq: 100
+Iter: 10, running avg elbo: 0.0085
+current loss: 0.0085
+Last iteration took:      0.9769750479608774
+Iter: 20, running avg elbo: 0.0085
+current loss: 0.0088
+Last iteration took:      0.9703672342002392
+Iter: 30, running avg elbo: 0.0085
+current loss: 0.0084
+Last iteration took:      0.9780016597360373
+Iter: 40, running avg elbo: 0.0085
+current loss: 0.0084
+Last iteration took:      0.9685799945145845
+Iter: 50, running avg elbo: 0.0085
+current loss: 0.0083
+Last iteration took:      0.9723237473517656
+Iter: 60, running avg elbo: 0.0084
+current loss: 0.0083
+Last iteration took:      0.9804844316095114
+Iter: 70, running avg elbo: 0.0084
+current loss: 0.0082
+Last iteration took:      0.9751188959926367
+Iter: 80, running avg elbo: 0.0084
+current loss: 0.0079
+Last iteration took:      0.9756885003298521
+Iter: 90, running avg elbo: 0.0083
+current loss: 0.0077
+Last iteration took:      0.9734586272388697
+Iter: 100, running avg elbo: 0.0083
+current loss: 0.0078
+Last iteration took:      0.9765248019248247
+Iter: 110, running avg elbo: 0.0082
+current loss: 0.0072
+Last iteration took:      0.9653298687189817
+Iter: 120, running avg elbo: 0.0081
+current loss: 0.0067
+Last iteration took:      0.9741746969521046
+Iter: 130, running avg elbo: 0.0080
+current loss: 0.0076
+Last iteration took:      0.9688905142247677
+Iter: 140, running avg elbo: 0.0079
+current loss: 0.0071
+Last iteration took:      0.9716329574584961
+Iter: 150, running avg elbo: 0.0078
+current loss: 0.0068
+Last iteration took:      0.9671382047235966
+Iter: 160, running avg elbo: 0.0077
+current loss: 0.0067
+Last iteration took:      0.9645887706428766
+Iter: 170, running avg elbo: 0.0076
+current loss: 0.0067
+Last iteration took:      0.9708135351538658
+Iter: 180, running avg elbo: 0.0076
+current loss: 0.0070
+Last iteration took:      0.961688220500946
+Iter: 190, running avg elbo: 0.0075
+current loss: 0.0067
+Last iteration took:      0.9709602370858192
+Iter: 200, running avg elbo: 0.0074
+current loss: 0.0067
+Last iteration took:      0.967779491096735
+Iter: 210, running avg elbo: 0.0073
+current loss: 0.0068
+Last iteration took:      0.9674335196614265
+Iter: 220, running avg elbo: 0.0073
+current loss: 0.0068
+Last iteration took:      0.9719209689646959
+Iter: 230, running avg elbo: 0.0072
+current loss: 0.0065
+Last iteration took:      0.9726274646818638
+Iter: 240, running avg elbo: 0.0072
+current loss: 0.0065
+Last iteration took:      0.9573575314134359
+Iter: 250, running avg elbo: 0.0071
+current loss: 0.0064
+Last iteration took:      0.9675264097750187
+Iter: 260, running avg elbo: 0.0070
+current loss: 0.0064
+Last iteration took:      0.9724536370486021
+Iter: 270, running avg elbo: 0.0070
+current loss: 0.0068
+Last iteration took:      0.9621021691709757
+Iter: 280, running avg elbo: 0.0070
+current loss: 0.0066
+Last iteration took:      0.9696727506816387
+Iter: 290, running avg elbo: 0.0069
+current loss: 0.0062
+Last iteration took:      0.9706647526472807
+Iter: 300, running avg elbo: 0.0069
+current loss: 0.0063
+Last iteration took:      0.9582693185657263
+Iter: 310, running avg elbo: 0.0068
+current loss: 0.0062
+Last iteration took:      0.9568461999297142
+Iter: 320, running avg elbo: 0.0067
+current loss: 0.0060
+Last iteration took:      0.9621628560125828
+Iter: 330, running avg elbo: 0.0067
+current loss: 0.0063
+Last iteration took:      0.9557580221444368
+Iter: 340, running avg elbo: 0.0067
+current loss: 0.0063
+Last iteration took:      0.9621203877031803
+Iter: 350, running avg elbo: 0.0066
+current loss: 0.0064
+Last iteration took:      0.969196455553174
+Iter: 360, running avg elbo: 0.0066
+current loss: 0.0060
+Last iteration took:      0.9591737035661936
+Iter: 370, running avg elbo: 0.0066
+current loss: 0.0060
+Last iteration took:      0.9574935808777809
+Iter: 380, running avg elbo: 0.0065
+current loss: 0.0063
+Last iteration took:      0.9520326051861048
+Iter: 390, running avg elbo: 0.0065
+current loss: 0.0059
+Last iteration took:      0.9592166878283024
+Iter: 400, running avg elbo: 0.0064
+current loss: 0.0060
+Last iteration took:      0.9689617790281773
+Iter: 410, running avg elbo: 0.0064
+current loss: 0.0063
+Last iteration took:      0.9701629132032394
+Iter: 420, running avg elbo: 0.0063
+current loss: 0.0061
+Last iteration took:      0.9583192095160484
+Iter: 430, running avg elbo: 0.0063
+current loss: 0.0057
+Last iteration took:      0.9644903168082237
+Iter: 440, running avg elbo: 0.0063
+current loss: 0.0056
+Last iteration took:      0.9721680600196123
+Iter: 450, running avg elbo: 0.0062
+current loss: 0.0060
+Last iteration took:      0.9603434782475233
+Iter: 460, running avg elbo: 0.0062
+current loss: 0.0056
+Last iteration took:      0.9622559994459152
+Iter: 470, running avg elbo: 0.0061
+current loss: 0.0059
+Last iteration took:      0.9617438744753599
+Iter: 480, running avg elbo: 0.0061
+current loss: 0.0062
+Last iteration took:      0.7843370027840137
+Iter: 490, running avg elbo: 0.0061
+current loss: 0.0061
+Last iteration took:      0.7783564496785402
+Iter: 500, running avg elbo: 0.0061
+current loss: 0.0057
+Last iteration took:      0.7790609449148178
+Run finished, view it on the SigOpt dashboard at https://app.sigopt.com/run/220207
+Run started, view it on the SigOpt dashboard at https://app.sigopt.com/run/220208
