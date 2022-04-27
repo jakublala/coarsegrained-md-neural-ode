@@ -14,7 +14,8 @@ def run_and_track_in_sigopt():
     #   sigopt.log_metadata(key="Dataset Columns", value=features.shape[1])
     #   sigopt.log_metadata(key="Execution Environment", value="Colab Notebook")
     sigopt.log_model('CG Hexagon Potential - First Search')
-    learning_rates = [10**i for i in range(-5, 2)]
+    # TODO: add a script that creates experiment.yml based on config
+    learning_rates = [10**i for i in range(-5, 1)]
     sigopt.params.setdefaults(
         batch_length=np.random.randint(low=3, high=50),
         nbatches=np.random.randint(low=10, high=1000),
