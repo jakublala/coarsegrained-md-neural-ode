@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import time
 import os
 import shutil
+import numpy as np
+import sigopt
 
 from data.reader import Reader
 from data.training import get_batch_mod
@@ -25,65 +27,103 @@ class Trainer():
         self.nbatches = config['nbatches']
         self.nn_width = config['nn_width']
         self.nn_depth = config['nn_depth']
+        self.load_folder = config['load_folder']
+        self.optimizer_name = config['optimizer']
 
         self.dataset = Dataset(config)
         self.loss_meter = RunningAverageMeter()
         
         self.nparticles = 2
         self.dim = 1 + (2*4)
-        self.printing_freq = 25
-        self.plotting_freq = 100
+        self.printing_freq = 100
+        self.plotting_freq = 250
+        self.stopping_freq = 500
 
         self.func = ODEFunc(self.nparticles, self.dataset.inertia, self.dataset.k, self.dim, self.nn_width, self.nn_depth).to(self.device)
-        self.optimizer = self.set_optimizer(config['optimizer'])
+        self.optimizer = self.set_optimizer(self.optimizer_name)
+        
+        if self.load_folder != None:
+            self.func.load_state_dict(torch.load(f'{self.load_folder}/model.pt'))
         
 
     def train(self):
         for itr in range(1, self.niters + 1):
             start_time = time.perf_counter()
             
-            # zero out gradients with less memory operations
-            for param in self.func.parameters():
-                param.grad = None
-            
-            batch_t, batch_y0, batch_y = get_batch_mod(self.dataset.traj, self.nbatches, self.batch_length, self.dataset.dt, self.device)   
-            
-            # TODO: add assertion to check right dimensions
-            pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
+            if self.optimizer_name == 'LBFGS':
+                # TODO: implement this or another optimizer
+                self.optimizer.step(self.closure)
+            else:
+                
+                # zero out gradients with less memory operations
+                for param in self.func.parameters():
+                    param.grad = None
+                
+                batch_t, batch_y0, batch_y = get_batch_mod(self.dataset.traj, self.nbatches, self.batch_length, self.dataset.dt, self.device)   
+                
+                # TODO: add assertion to check right dimensions
+                pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
 
-            pred_y = torch.cat(pred_y, dim=-1)
-            batch_y = torch.swapaxes(torch.swapaxes(torch.cat(batch_y, dim=-1), 0, 2), 1, 2)
+                pred_y = torch.cat(pred_y, dim=-1)
+                batch_y = torch.swapaxes(torch.swapaxes(torch.cat(batch_y, dim=-1), 0, 2), 1, 2)
 
-            # TODO: train only on specifics and not all of the data   
-            loss = torch.mean(torch.abs(pred_y - batch_y))
+                # TODO: train only on specifics and not all of the data
+                loss = torch.mean(torch.abs(pred_y - batch_y))
+                
+                loss.backward() 
+                self.optimizer.step()
             
-            loss.backward() 
-            self.optimizer.step()
-            self.loss_meter.update(loss.item())
-            
+                self.loss_meter.update(loss.item())
+                
             if itr % self.printing_freq == 0:
                 self.print_loss(itr, start_time)
 
             if itr % self.plotting_freq == 0:
                 self.plot_traj(itr)
-        
+
+            # early stopping
+            if itr % self.stopping_freq == 0:
+                # divergent / non-convergent
+                if self.loss_meter.val > self.loss_meter.losses[itr-self.stopping_freq]:
+                    print('early stopping as non-convergent')
+                    return self.func, self.loss_meter
+                
+                # stale convergence
+                if np.sd(self.loss_meter.losses[-self.stopping_freq:]) > 0.001:
+                    print('early stopping as stale convergence')
+                    return self.func, self.loss_meter
+
         # TODO add checkpointing
         # TODO: add logging in
 
         return self.func, self.loss_meter
 
+    def closure(self):
+        if torch.is_grad_enabled():
+            self.optimizer.zero_grad()
+        batch_t, batch_y0, batch_y = get_batch_mod(self.dataset.traj, self.nbatches, self.batch_length, self.dataset.dt, self.device)  
+        pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE') 
+        pred_y = torch.cat(pred_y, dim=-1)
+        batch_y = torch.swapaxes(torch.swapaxes(torch.cat(batch_y, dim=-1), 0, 2), 1, 2)
+        loss = torch.mean(torch.abs(pred_y - batch_y))    
+        self.loss_meter.update(loss.item())
+        if loss.requires_grad:
+            loss.backward()
+        return loss
+
+
     def print_loss(self, itr, start_time):
-        print('Iter: {}, running avg elbo: {:.4f}'.format(itr, self.loss_meter.avg))
-        print('current loss: {:.4f}'.format(self.loss_meter.val))
-        print('Last iteration took:     ', time.perf_counter() - start_time)
+        print(f'Iter: {itr}, running avg elbo: {self.loss_meter.avg}')
+        print(f'current loss: {self.loss_meter.val}')
+        print('Last iteration took:     ', time.perf_counter() - start_time, flush=True)
 
     def plot_traj(self, itr, subfolder='temp'):
 
         if itr == self.plotting_freq:
-            if os.path.exists(f'{subfolder}'):
+            if subfolder == 'temp' and os.path.exists(f'{subfolder}'):
                 shutil.rmtree(f'{subfolder}')
 
-            if not os.path.exists(f'{subfolder}'):
+            if subfolder == 'temp' and not os.path.exists(f'{subfolder}'):
                 os.makedirs(f'{subfolder}')
 
         if subfolder == 'temp':
@@ -161,23 +201,30 @@ class Trainer():
             plt.savefig(f'{subfolder}/{itr}_quat2.png')
             plt.close() 
 
+    def plot_loss(self, subfolder):
+        # TODO: add return figure to be plotted into SigOpt
+        plt.title('loss function evolution')
+        plt.plot(self.loss_meter.losses)
+        plt.savefig(f'{subfolder}/loss.png')
+        plt.close()
+        return
+
     def set_optimizer(self, optimizer):
         if optimizer == 'Adam':
             return torch.optim.Adam(self.func.parameters(), lr=self.learning_rate)
+        elif optimizer == 'LBFGS':
+            return torch.optim.LBFGS(self.func.parameters(), lr=self.learning_rate)
         else:
             raise Exception('optimizer not implemented')
 
     def save(self):
         subfolder = f'results/depth-{self.nn_depth}-width-{self.nn_width}-lr-{self.learning_rate}'
-        os.makedirs(subfolder)
+        if not os.path.exists(f'{subfolder}'):
+            os.makedirs(f'{subfolder}')
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
         self.plot_traj(0, subfolder)
+        self.plot_loss(subfolder)
         return
-
-
-    
-    # losses_log.append(loss_meter.losses)
-
 
 
 class RunningAverageMeter(object):

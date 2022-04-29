@@ -7,15 +7,16 @@ dataset = 'NVE-temp-0.45_K-0.090702947845805_r-0_s-5'
 config = dict(
     filename = prefix+dataset, 
     device = torch.device("cpu"), 
-    niters = 100,
+    niters = 300,
     optimizer = 'Adam',
     batch_length=20,
     nbatches=800,
-    learning_rate=0.1,
-    nn_depth=5,
-    nn_width=100,
+    learning_rate=0.5,
+    nn_depth=1,
+    nn_width=300,
     activation_function=None,
-)
+    load_folder='results/depth-1-width-300-lr-0.1',
+    )
 
 trainer = Trainer(config)
 model, train_loss = trainer.train()

@@ -14,14 +14,14 @@ def run_and_track_in_sigopt():
     #   sigopt.log_metadata(key="Dataset Columns", value=features.shape[1])
     #   sigopt.log_metadata(key="Execution Environment", value="Colab Notebook")
     
-    sigopt.log_model('CG Hexagon Potential - First Search')
-    learning_rates = [10**i for i in range(-5, 1)]
+    sigopt.log_model('CG Hexagon Potential - Second Search')
+    learning_rates = [10**i for i in range(-6, 2)]
     sigopt.params.setdefaults(
         # batch_length=np.random.randint(low=3, high=50),
         # nbatches=np.random.randint(low=10, high=1000),
         learning_rate=np.random.choice(learning_rates),
         nn_depth=np.random.randint(low=1, high=5),
-        nn_width=np.random.randint(low=2, high=200),
+        nn_width=np.random.randint(low=2, high=1000),
         # activation_function=,  
     )
 
@@ -43,7 +43,7 @@ def run_and_track_in_sigopt():
     config = dict(
         filename = prefix+dataset, 
         device = torch.device("cpu"), 
-        niters = 500,
+        niters = 3000,
         optimizer = 'Adam',
         batch_length=20,
         nbatches=800,
@@ -51,6 +51,8 @@ def run_and_track_in_sigopt():
         nn_depth=sigopt.params.nn_depth,
         nn_width=sigopt.params.nn_width,
         activation_function=None,
+        load_folder=None
+        # load_folder='results/depth-1-width-300-lr-0.1',
     )
 
     sigopt.log_dataset(dataset) 
@@ -59,10 +61,10 @@ def run_and_track_in_sigopt():
     model, train_loss = trainer.train()
     trainer.save()
 
-    running_avg_train_loss = train_loss.avg
+    # running_avg_train_loss = train_loss.avg
     current_train_loss = train_loss.val
 
-    sigopt.log_metric(name="train_loss", value=running_avg_train_loss)
+    sigopt.log_metric(name="train_loss", value=current_train_loss)
     # sigopt.log_metric(name="test_loss", value=running_avg_test_loss)
     # sigopt.log_metric(name="training time (s)", value=traininx    g_time)
     # sigopt.log_metric(name="training and validation time (s)", value=training_and_validation_time)
