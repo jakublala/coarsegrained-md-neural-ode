@@ -3,13 +3,13 @@ import torch.nn as nn
 from diffmd.utils import normalize_quat, compute_grad, quatvec
 
 class ODEFunc(nn.Module):
-    def __init__(self, nparticles, inertia, k, dim, width, depth):
+    def __init__(self, nparticles, dim, width, depth):
         super(ODEFunc, self).__init__()
         self.dim = dim
         self.nparticles = nparticles
         self.mass = 7.0 # HACK
-        self.inertia = inertia
-        self.k = k
+        self.inertia = torch.Tensor()
+        self.k = float()
 
         # define neural net
         layers = []

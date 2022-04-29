@@ -7,7 +7,6 @@ import numpy as np
 import sigopt
 
 from data.reader import Reader
-from data.training import get_batch_mod
 from data.dataset import Dataset
 from diffmd.diffeqs import ODEFunc
 from diffmd.solvers import odeint_adjoint
@@ -15,7 +14,7 @@ from diffmd.solvers import odeint_adjoint
 class Trainer():
 
     def __init__(self, config):
-        self.filename = config['filename']
+        self.folder = config['folder']
         
         self.device = config['device']
         print(f'Using {self.device} device')
@@ -35,11 +34,11 @@ class Trainer():
         
         self.nparticles = 2
         self.dim = 1 + (2*4)
-        self.printing_freq = 100
-        self.plotting_freq = 250
+        self.printing_freq = 1
+        self.plotting_freq = 10
         self.stopping_freq = 500
 
-        self.func = ODEFunc(self.nparticles, self.dataset.inertia, self.dataset.k, self.dim, self.nn_width, self.nn_depth).to(self.device)
+        self.func = ODEFunc(self.nparticles, self.dim, self.nn_width, self.nn_depth).to(self.device)
         self.optimizer = self.set_optimizer(self.optimizer_name)
         
         if self.load_folder != None:
@@ -59,8 +58,8 @@ class Trainer():
                 for param in self.func.parameters():
                     param.grad = None
                 
-                batch_t, batch_y0, batch_y = get_batch_mod(self.dataset.traj, self.nbatches, self.batch_length, self.dataset.dt, self.device)   
-                
+                batch_t, batch_y0, batch_y, self.func.k, self.func.inertia = self.dataset.get_batch(self.nbatches, self.batch_length)  
+
                 # TODO: add assertion to check right dimensions
                 pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
 
@@ -133,7 +132,7 @@ class Trainer():
 
         with torch.no_grad():
             nbatches = 1
-            batch_t, batch_y0, batch_y = get_batch_mod(self.dataset.traj, nbatches, traj_length, self.dataset.dt, self.device)   
+            batch_t, batch_y0, batch_y, self.func.k, self.func.inertia = self.dataset.get_batch(nbatches, traj_length)   
 
             pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
 
