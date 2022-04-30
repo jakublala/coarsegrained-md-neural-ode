@@ -3,13 +3,13 @@ import torch.nn as nn
 from diffmd.utils import normalize_quat, compute_grad, quatvec
 
 class ODEFunc(nn.Module):
-    def __init__(self, nparticles, inertia, k, dim, width, depth):
+    def __init__(self, nparticles, dim, width, depth):
         super(ODEFunc, self).__init__()
         self.dim = dim
         self.nparticles = nparticles
         self.mass = 7.0 # HACK
-        self.inertia = inertia
-        self.k = k
+        self.inertia = torch.Tensor()
+        self.k = float()
 
         # define neural net
         layers = []
@@ -44,17 +44,17 @@ class ODEFunc(nn.Module):
             
             # normalise quaternions to unit length
             q = normalize_quat(q, dim=2)
-            assert torch.norm(q, dim=2).max() < 1.001, 'quaternions not normalised'
+            # assert torch.norm(q, dim=2).max() < 1.001, 'quaternions not normalised'
             
             # get separation between bodies
             r_vector = x[0, :, :] - x[1, :, :]
             r = torch.norm(r_vector, dim=-1).unsqueeze(1)
             r_vector = r_vector / r
-            assert torch.norm(r_vector, dim=1).max() < 1.1, 'separation vector not normalised'
+            # assert torch.norm(r_vector, dim=1).max() < 1.1, 'separation vector not normalised'
             
             # combine NN inputs
             rq = torch.cat((r, torch.swapaxes(q, 0, 1).reshape(-1, 8)), dim=1).reshape(-1, self.dim)
-            assert torch.all(torch.flatten(q[:, 0, :]) == torch.swapaxes(q, 0, 1).reshape(-1, 8)[0, :]), 'incorrect resize'
+            # assert torch.all(torch.flatten(q[:, 0, :]) == torch.swapaxes(q, 0, 1).reshape(-1, 8)[0, :]), 'incorrect resize'
 
             # get energy and gradients
             # TODO: check that harmonic restraint is calculated correctly

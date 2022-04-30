@@ -2,12 +2,10 @@ import torch
 from diffmd.training import Trainer
 torch.manual_seed(0)
 
-prefix = 'hexagons/trajectories/smooth/'
-dataset = 'NVE-temp-0.45_K-0.090702947845805_r-0_s-5'
 config = dict(
-    filename = prefix+dataset, 
-    device = torch.device("cuda"), 
-    niters = 300,
+    folder = 'hexagons/trajectories/dump_2503/cutoff-2.5/', 
+    device = torch.device("cpu"), 
+    niters = 50,
     optimizer = 'Adam',
     batch_length=10,
     nbatches=800,

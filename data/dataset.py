@@ -1,128 +1,88 @@
-from data.reader import Reader
+from data.trajectory import Trajectory
 import torch
 import quaternion
 import pandas as pd
 import numpy as np
+import os
 
 
 class Dataset():
     # TODO: add a TEST dataset and then initialize Dataset function outside of TRAINING
     def __init__(self, config):
-        self.filename = config['filename']
+        self.folder = config['folder']
+        self.filenames = self.get_filenames()
         self.device = config['device']
+        self.trajs = self.get_trajectories()
+        
+    def get_filenames(self):
+        filenames = [f for f in os.listdir(self.folder) if os.path.isfile(os.path.join(self.folder, f))]
+        filenames = [f.replace('-info.dat', '') for f in filenames if 'NVE' in f and '.dat' in f]
+        return filenames
 
-        # TODO: add the below into Reader
-        self.temp, self.k, self.r0, self.seed = self.get_metadata_from_filename(self.filename)
-        self.reader = Reader(self.filename)
-        self.traj, self.inertia = self.get_traj(self.reader)
-        self.dt = self.get_dt(self.reader)
+    def get_trajectories(self):
+        return [Trajectory(self.folder+filename, self.device) for filename in self.filenames]
 
-    def get_traj(self, reader):
-        # TODO: add options to train on just a part of trajectory
-        # TODO: documentation
-        # TODO: fix read simulation log
-        # log_labels, log_lines = reader.read_simulation_log()
-        # TODO: ensure that this read reduced traj makes the file that is then read later (maybe separate this into two functions)
-        traj_labels, traj_lines = reader.read_reduced_traj(save=True)
-        # orig_labels, orig_lines = reader.read_original_traj(save=True)
+    def get_batch(self, batch_size, batch_length):
+        """
+        Get a batch of data from a trajectory.
+            
+        Args:
+            batch_size (int): number of trajectories in the batch
+            batch_length (int): length of each trajectory in the batch
+        
+        Returns:
+            batch_t (torch.Tensor): time steps for the batch
+            pos_init (torch.Tensor): initial positions for the batch
+            batch_trajs (tuple): batch of torch tensors containing the data (velocities, angular velocities, centre of masses, quaternions - in the form (nparticles, batch_size, batch_length, dim))
+        """
+        # choose a trajectory randomly
+        trajectory = np.random.choice(self.trajs)
+        dt = trajectory.dt
+        traj = trajectory.traj
+        
+        nparticles = traj[0].shape[2]
+        vel_dim = traj[0].size()[3]
+        angvel_dim = traj[1].size()[3]
+        com_dim = traj[2].size()[3]
+        quat_dim = traj[3].size()[3]
 
-        centre_of_masses, quaternions, velocities, ang_velocities, ang_momenta, inertia = self.get_data(self.filename)
+        # assert vel_dim == 3, 'velocity dimension must be 3'
+        # assert angvel_dim == 3, 'angular velocity dimension must be 3'
+        # assert com_dim == 3, 'centre of mass dimension must be 3'
+        # assert quat_dim == 4, 'quaternion dimension must be 4'
 
-        inertia = self.process_inertia(inertia)
-        trajectory = self.process_data(centre_of_masses, quaternions, velocities, ang_velocities, inertia)
-        return trajectory, inertia
-
-    def get_metadata_from_filename(self, filename):
-        # TODO: documentation
-        filename = filename.split('_')
-        temp = float(filename[0][filename[0].find('temp') + (4+1):])
-        k = float(filename[1][filename[1].find('k') + (1+1):])
-        r0 = float(filename[2][filename[2].find('r0') + (2+1):])
-        seed = float(filename[3][filename[3].find('s') + (1+1):])
-        return temp, k, r0, seed
+        sampled_is = torch.randint(traj[0].shape[0],size = (batch_size,)).to(self.device)
+        sampled_js = torch.randint(traj[0].shape[1]-batch_length,size = (batch_size,)).to(self.device)
+        initial_time = sampled_js*dt
     
-    def get_dt(self, reader):
-        log_freq = reader.log_frequency
-        time_step = reader.timestep
-        return time_step * log_freq
-
-    def get_data(self, file_name):
-        # train_split = 0.9
-        # test_split = 1 - train_split
-        df = pd.read_csv(file_name+'-reduced_traj.csv')
-        # HACK: do this based on the column names, not explicitly
-        com = ['c_com_1[1]', 'c_com_1[2]', 'c_com_1[3]', 'c_com_2[1]', 'c_com_2[2]', 'c_com_2[3]']
-        q = ['c_q_1[1]', 'c_q_1[2]', 'c_q_1[3]', 'c_q_1[4]', 'c_q_2[1]', 'c_q_2[2]', 'c_q_2[3]', 'c_q_2[4]']
-        vel = ['c_vel_1[1]', 'c_vel_1[2]', 'c_vel_1[3]', 'c_vel_2[1]', 'c_vel_2[2]', 'c_vel_2[3]'] 
-        av = ['c_av_1[1]', 'c_av_1[2]', 'c_av_1[3]', 'c_av_2[1]', 'c_av_2[2]', 'c_av_2[3]']
-        am = ['c_am_1[1]', 'c_am_1[2]', 'c_am_1[3]', 'c_am_2[1]', 'c_am_2[2]', 'c_am_2[3]']
-        inertia = ['c_i_1[1]', 'c_i_1[2]', 'c_i_1[3]', 'c_i_2[1]', 'c_i_2[2]', 'c_i_2[3]']
+        batch_t = torch.linspace(0.0,dt*(batch_length-1),batch_length).to(self.device)
         
-        centre_of_masses = df.loc[:, ['timestep', *com]]
-        quaternions = df.loc[:, ['timestep', *q]]
-        velocities = df.loc[:, ['timestep', *vel]]
-        ang_velocities = df.loc[:, ['timestep', *av]]
-        ang_momenta = df.loc[:, ['timestep', *am]]
-        # inertia = df.loc[0, ['timestep', *inertia]]
-        inertia = df.loc[:, ['timestep', *inertia]]
-        # TODO: use DataLoaders?
+        vels = torch.swapaxes(traj[0][sampled_is,sampled_js,:,:], 0, 1)
+        ang_vels = torch.swapaxes(traj[1][sampled_is,sampled_js,:,:], 0, 1)
+        coms = torch.swapaxes(traj[2][sampled_is,sampled_js,:,:], 0, 1)
+        quats = torch.swapaxes(traj[3][sampled_is,sampled_js,:,:], 0, 1)
         
-        # trajs = np.load('data/trajectories/diatomic_spring_narrow.npy')
-        # split_index = int(trajs.shape[0] * train_split)
+        pos_init = (vels, ang_vels, coms, quats)
 
-        # np.random.shuffle(trajs)
-        # training_trajs = torch.Tensor(trajs[:split_index, :, :]).to(device)
-        # testing_trajs = torch.Tensor(trajs[split_index:, :, :]).to(device)
-        
-        return centre_of_masses, quaternions, velocities, ang_velocities, ang_momenta, inertia
+        sampled_vels = []
+        sampled_ang_vels = []
+        sampled_coms = []
+        sampled_quats = []
+        for i in range(batch_size):
+            vels = torch.swapaxes(traj[0][sampled_is[i],sampled_js[i]:sampled_js[i]+batch_length,:], 0, 1)
+            ang_vels = torch.swapaxes(traj[1][sampled_is[i],sampled_js[i]:sampled_js[i]+batch_length,:], 0, 1)
+            coms = torch.swapaxes(traj[2][sampled_is[i],sampled_js[i]:sampled_js[i]+batch_length,:], 0, 1)
+            quats = torch.swapaxes(traj[3][sampled_is[i],sampled_js[i]:sampled_js[i]+batch_length,:], 0, 1)
+            
+            sampled_vels.append(vels)
+            sampled_ang_vels.append(ang_vels)
+            sampled_coms.append(coms)
+            sampled_quats.append(quats)
+            
+        sampled_vels = torch.stack(sampled_vels, dim=1).type(torch.float64)
+        sampled_ang_vels = torch.stack(sampled_ang_vels, dim=1).type(torch.float64)
+        sampled_coms = torch.stack(sampled_coms, dim=1).type(torch.float64)
+        sampled_quats = torch.stack(sampled_quats, dim=1).type(torch.float64)
+        batch_trajs = (sampled_vels, sampled_ang_vels, sampled_coms, sampled_quats)
 
-    def process_inertia(self, inertia):
-        assert np.all(inertia.std().iloc[1:].to_numpy() == 0), 'inertia is not constant'
-        inertia = inertia.iloc[0, 1:].to_numpy().reshape(2, 3)
-        return torch.from_numpy(inertia).to(self.device)
-
-    def process_data(self, centre_of_masses, quaternions, velocities, ang_velocities, inertia):
-        # TODO: swap -1 and nparticles in view to avoid swapping axes later on
-        # HACK: send a single trajectory
-        ntraj = 1
-
-        # HACK: pair potential
-        nparticles = 2
-        vel_dim = 3
-        angvel_dim = 3
-        com_dim = 3
-        quat_dim = 4
-
-        # Get centre of masses
-        com1 = centre_of_masses.loc[:, ['c_com_1[1]', 'c_com_1[2]', 'c_com_1[3]']].to_numpy()
-        com2 = centre_of_masses.loc[:, ['c_com_2[1]', 'c_com_2[2]', 'c_com_2[3]']].to_numpy()
-        # separation = np.linalg.norm(com1-com2, axis=1).reshape(-1, 1)
-        coms = torch.from_numpy(np.hstack((com1, com2))).to(self.device).view(ntraj, -1, nparticles, com_dim)
-        
-        # Get quaternion rotations (swap axes to put real part first)
-        quat1 = quaternions.loc[:, ['c_q_1[4]', 'c_q_1[1]', 'c_q_1[2]', 'c_q_1[3]']].to_numpy()
-        quat2 = quaternions.loc[:, ['c_q_2[4]', 'c_q_2[1]', 'c_q_2[2]', 'c_q_2[3]']].to_numpy()
-        quats = torch.from_numpy(np.hstack((quat1, quat2))).to(self.device).view(ntraj, -1, nparticles, quat_dim)
-        
-        # Get translation velocities
-        vel1 = velocities.loc[:, ['c_vel_1[1]', 'c_vel_1[2]', 'c_vel_1[3]']].to_numpy()
-        vel2 = velocities.loc[:, ['c_vel_2[1]', 'c_vel_2[2]', 'c_vel_2[3]']].to_numpy() 
-        # hexagon_mass = 7.0
-        # mom = torch.from_numpy(np.hstack((vel1 * hexagon_mass, vel2 * hexagon_mass))).to(device).view(ntraj, -1, nparticles, vel_dim)
-        vel = torch.from_numpy(np.hstack((vel1, vel2))).to(self.device).view(ntraj, -1, nparticles, vel_dim)
-
-        # Get angular velocities
-        ang_vel_1 = ang_velocities.loc[:, ['c_av_1[1]', 'c_av_1[2]', 'c_av_1[3]']].to_numpy()
-        ang_vel_2 = ang_velocities.loc[:, ['c_av_2[1]', 'c_av_2[2]', 'c_av_2[3]']].to_numpy()
-        # Convert system to body coords
-        # TODO: we could do this when writing to CSV to speed up training
-        quat1 = quaternion.from_float_array(quat1)
-        quat2 = quaternion.from_float_array(quat2)
-        ang_vel_1 = quaternion.from_vector_part(ang_vel_1)
-        ang_vel_2 = quaternion.from_vector_part(ang_vel_2)
-        ang_vel_1 = quat1.conj() * ang_vel_1 * quat1
-        ang_vel_2 = quat2.conj() * ang_vel_2 * quat2
-        ang_vel_1 = quaternion.as_vector_part(ang_vel_1)
-        ang_vel_2 = quaternion.as_vector_part(ang_vel_2)
-        ang_vel = torch.from_numpy(np.hstack((ang_vel_1, ang_vel_2))).to(self.device).view(ntraj, -1, nparticles, angvel_dim)
-        return (vel, ang_vel, coms, quats)
+        return batch_t, pos_init, batch_trajs, trajectory.k, trajectory.inertia
