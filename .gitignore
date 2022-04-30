@@ -130,5 +130,11 @@ rubbish/
 temp/
 results/
 
+# Run on Cluster files
+*.sh
+HPC*
+*.out
+slurm*
+
 # Custom files
 run.sh

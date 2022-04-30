@@ -34,7 +34,7 @@ class Trainer():
         
         self.nparticles = 2
         self.dim = 1 + (2*4)
-        self.printing_freq = 1
+        self.printing_freq = 10
         self.plotting_freq = 10
         self.stopping_freq = 500
 
@@ -46,7 +46,7 @@ class Trainer():
         
 
     def train(self):
-        for itr in range(1, self.niters + 1):
+        for self.itr in range(1, self.niters + 1):
             start_time = time.perf_counter()
             
             if self.optimizer_name == 'LBFGS':
@@ -74,23 +74,28 @@ class Trainer():
             
                 self.loss_meter.update(loss.item())
                 
-            if itr % self.printing_freq == 0:
-                self.print_loss(itr, start_time)
+            if self.itr % self.printing_freq == 0:
+                self.print_loss(self.itr, start_time)
 
-            if itr % self.plotting_freq == 0:
-                self.plot_traj(itr)
+            if self.itr % self.plotting_freq == 0:
+                self.plot_traj(self.itr)
 
             # early stopping
-            if itr % self.stopping_freq == 0:
+            if self.itr % self.stopping_freq == 0:
+
+                self.loss_meter.checkpoint()
+
                 # divergent / non-convergent
-                if self.loss_meter.val > self.loss_meter.losses[itr-self.stopping_freq]:
-                    print('early stopping as non-convergent')
-                    return self.func, self.loss_meter
+                if len(self.loss_meter.checkpoints) > 1:
+                    if self.loss_meter.checkpoints[-2] < self.loss_meter.checkpoints[-1]:
+                        print('early stopping as non-convergent')
+                        return self.func, self.loss_meter
                 
+                # TODO: add proper stale convergence and test it out
                 # stale convergence
-                if np.sd(self.loss_meter.losses[-self.stopping_freq:]) > 0.001:
-                    print('early stopping as stale convergence')
-                    return self.func, self.loss_meter
+                # if np.sd(self.loss_meter.losses[-self.stopping_freq:]) > 0.001:
+                #     print('early stopping as stale convergence')
+                #     return self.func, self.loss_meter
 
         # TODO add checkpointing
         # TODO: add logging in
@@ -211,6 +216,8 @@ class Trainer():
     def set_optimizer(self, optimizer):
         if optimizer == 'Adam':
             return torch.optim.Adam(self.func.parameters(), lr=self.learning_rate)
+        elif optimizer == 'AdamW':
+            return torch.optim.AdamW(self.func.parameters(), lr=self.learning_rate)
         elif optimizer == 'LBFGS':
             return torch.optim.LBFGS(self.func.parameters(), lr=self.learning_rate)
         else:
@@ -221,7 +228,7 @@ class Trainer():
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
-        self.plot_traj(0, subfolder)
+        self.plot_traj(self.itr, subfolder)
         self.plot_loss(subfolder)
         return
 
@@ -233,6 +240,7 @@ class RunningAverageMeter(object):
         self.momentum = momentum
         self.losses = []
         self.reset()
+        self.checkpoints = []
 
     def reset(self):
         self.val = None
@@ -248,5 +256,8 @@ class RunningAverageMeter(object):
     
     def log(self, val):
         self.losses.append(val)
+
+    def checkpoint(self):
+        self.checkpoints.append(self.avg)
 
 

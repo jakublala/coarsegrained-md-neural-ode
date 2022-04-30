@@ -36,7 +36,7 @@ class VelVerlet_NVE(FixedGridODESolver):
         NUM_VAR = 4 # vels and coords for NVE
         
         if len(state) == NUM_VAR: # integrator in the forward call 
-            # print('-forward call-')
+            
             dvdt_0, dwdt_0, dxdt_0, dqdt_0 = diffeq(state)
 
             # angular/translational velocity half-step
@@ -53,13 +53,10 @@ class VelVerlet_NVE(FixedGridODESolver):
             v_step_full = v_step_half + 1/2 * dvdt_full * dt
             w_step_full = w_step_half + 1/2 * dwdt_full * dt
             
-            # print(torch.norm(q_step_full, dim=2).mean())
-            
             return tuple((v_step_full, w_step_full, x_step_full, q_step_full))
         
         elif len(state) == NUM_VAR * 2 + 1: # integrator in the backward call 
-            # print('-backward call-')
-            # TODO: rewrite to capture rotational kinetics
+            
             # diffeq is the automatically generated ODE for adjoints (returns more than the original forward ODE)
             dvdt_0, dwdt_0, dxdt_0, dqdt_0, v_adj_0, w_adj_0, x_adj_0, q_adj_0, dLdpar_0  = diffeq(state) 
 

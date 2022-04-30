@@ -15,15 +15,15 @@ def run_and_track_in_sigopt():
     #   sigopt.log_metadata(key="Execution Environment", value="Colab Notebook")
     
     sigopt.log_model('CG Hexagon Potential - Second Search')
-    learning_rates = [10**i for i in range(-6, 2)]
-    sigopt.params.setdefaults(
-        # batch_length=np.random.randint(low=3, high=50),
-        # nbatches=np.random.randint(low=10, high=1000),
-        learning_rate=np.random.choice(learning_rates),
-        nn_depth=np.random.randint(low=1, high=5),
-        nn_width=np.random.randint(low=2, high=1000),
-        # activation_function=,  
-    )
+    # learning_rates = [10**i for i in range(-6, 2)]
+    # sigopt.params.setdefaults(
+    #     # batch_length=np.random.randint(low=3, high=50),
+    #     # nbatches=np.random.randint(low=10, high=1000),
+    #     learning_rate=np.random.choice(learning_rates),
+    #     nn_depth=np.random.randint(low=1, high=5),
+    #     nn_width=np.random.randint(low=2, high=1000),
+    #     # activation_function=,  
+    # )
 
     # TODO: add a script that creates experiment.yml based on config OR use this experiment function
     # experiment = sigopt.create_experiment(
@@ -43,9 +43,9 @@ def run_and_track_in_sigopt():
     config = dict(
         filename = prefix+dataset, 
         device = torch.device("cpu"), 
-        niters = 3000,
+        niters = 5000,
         optimizer = 'Adam',
-        batch_length=20,
+        batch_length=10,
         nbatches=800,
         learning_rate=sigopt.params.learning_rate,
         nn_depth=sigopt.params.nn_depth,
