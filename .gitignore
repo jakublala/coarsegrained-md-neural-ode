@@ -129,3 +129,6 @@ results/
 
 # Custom files
 run.sh
+
+# Slurm files
+slurm*
