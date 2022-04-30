@@ -100,7 +100,7 @@ class Trainer():
     def closure(self):
         if torch.is_grad_enabled():
             self.optimizer.zero_grad()
-        batch_t, batch_y0, batch_y = get_batch_mod(self.dataset.traj, self.nbatches, self.batch_length, self.dataset.dt, self.device)  
+        batch_t, batch_y0, batch_y, self.func.k, self.func.inertia = self.dataset.get_batch(self.nbatches, self.batch_length)  
         pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE') 
         pred_y = torch.cat(pred_y, dim=-1)
         batch_y = torch.swapaxes(torch.swapaxes(torch.cat(batch_y, dim=-1), 0, 2), 1, 2)
