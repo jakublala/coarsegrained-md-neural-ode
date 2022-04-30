@@ -14,12 +14,12 @@ atom_style  full                                # can be used for CG or molecula
 
 # --------------------------------- VARIABLES -----------------------------------
 # System Parameters
-variable sigma   equal 2.0                      # sigma in lj potential
+variable sigma   equal 1.0                      # sigma in lj potential
 variable epsilon equal 2.0                      # sigma in lj potential
-variable cut     equal 1.5                      # cutoff in lj potential (lj distance units)
-variable temp    equal 0.45                      # temperature (lj temperature units)
+variable cut     equal 1.12246                  # cutoff in lj potential (lj distance units)
+variable temp    equal 0.45                     # temperature (lj temperature units)
 variable K       equal 2/v_temp/4.5/4.5         # spring constant (force/distance units)
-variable r0      equal 0                        # equilibrium distance (lj distance units)
+variable r0      equal 2                          # equilibrium distance (lj distance units)
 variable seed    equal 5                        # random seed value
 variable name    string "NVE-temp-${temp}_K-${K}_r-${r0}_s-${seed}"
 

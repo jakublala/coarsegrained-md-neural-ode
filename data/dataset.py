@@ -46,10 +46,10 @@ class Dataset():
         com_dim = traj[2].size()[3]
         quat_dim = traj[3].size()[3]
 
-        assert vel_dim == 3, 'velocity dimension must be 3'
-        assert angvel_dim == 3, 'angular velocity dimension must be 3'
-        assert com_dim == 3, 'centre of mass dimension must be 3'
-        assert quat_dim == 4, 'quaternion dimension must be 4'
+        # assert vel_dim == 3, 'velocity dimension must be 3'
+        # assert angvel_dim == 3, 'angular velocity dimension must be 3'
+        # assert com_dim == 3, 'centre of mass dimension must be 3'
+        # assert quat_dim == 4, 'quaternion dimension must be 4'
 
         sampled_is = torch.randint(traj[0].shape[0],size = (batch_size,)).to(self.device)
         sampled_js = torch.randint(traj[0].shape[1]-batch_length,size = (batch_size,)).to(self.device)
