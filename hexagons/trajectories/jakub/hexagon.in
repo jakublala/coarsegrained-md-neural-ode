@@ -1,0 +1,118 @@
+# Input file for LAMMPS 2 hexagonal rigid bodies
+# Author: Shanil Panara
+# Date: 13/01/2022
+# Notes:
+#   use of MOLECULE package for binding particles in a rigid body
+#   NVT simulation
+
+##################################### SETUP #####################################
+# ------------------------------- INITIALISATION --------------------------------
+units       lj                                  # could also be: real, metal, si
+dimension   3                                   # create box
+boundary    p p p                               # all three boundaries are non-periodic
+atom_style  full                                # can be used for CG or molecular bodies
+
+# --------------------------------- VARIABLES -----------------------------------
+# System Parameters
+variable sigma   equal 1.0                      # sigma in lj potential
+variable epsilon equal 1.0                      # sigma in lj potential
+variable cut     equal 1.12246                  # cutoff in lj potential (lj distance units)
+variable temp    equal 2.25                     # temperature (lj temperature units)
+variable K       equal 10*v_temp/v_cut/v_cut    # spring constant (force/distance units)
+variable r0      equal 2                        # equilibrium distance (lj distance units)
+variable seed    equal 5                        # random seed value
+variable name    string "NVE-temp-${temp}_K-${K}_r-${r0}_s-${seed}"
+
+# Output File Names
+variable traj       string  "${name}-traj.dump"
+variable rb_info    string  "${name}-info.dat"
+variable sim_log    string  "${name}-sim.log"
+variable input_log  string  "${name}-input.log"
+
+log ${input_log}                                # start a new log file to log input parameters/lammps response
+
+# Simulation Parameters
+variable log_freq equal 10000                   # log frequency
+variable runsteps equal 1000000               # N of steps to run for
+variable timestep equal 0.00001                 # timestep
+
+# -------------------------- ATOMS/MOLECULE DEFINITION --------------------------
+read_data hex.conf                              # Add a hexagon molecule
+read_data hex.conf add append shift 4.0 0.0 0.0 # Add a second identical molecule, shifted so it doesn't overlap
+
+# Group ID can be used in other commands, including fix, compute, dump or velocity
+group       hex_1 id 1 2 3 4 5 6 7              # label the atoms 1-7 as a group
+group       hex_2 id 8 9 10 11 12 13 14         # label the atoms 8-14 as another group
+
+# -------------------------- INTERATOMIC POTENTIALS -----------------------------
+# Pairwise potentials
+pair_style  lj/cut  ${cut}                      # lj truncated - cutoff at 1.12 sigma
+pair_coeff  *   *   1.0 ${sigma}                # epsilon | sigma - * * means all atoms interact with each other
+fix hex_spring_NVT hex_1 spring couple hex_2 1.0 0.0 0.0 0.0 ${r0} # adds harmonic spring between rigid bodies
+                            # f_hex_spring[1,2,3,4] = force_x, force_y, force_z, magnitude of the force
+
+
+################## SYSTEM INITIALISATION WITH AN NVT SIMULATION ##################
+# -------------------------------------------------------------------------------
+# Add energy to the system by running an NVT simulation, use a very stiff spring to
+# keep rigid bodies close. Then, remove (unfix) the thermostat and spring before
+# initialising and running the more important NVE simulation
+# -------------------------------------------------------------------------------
+
+# System fixes: spring and nose-hoover thermostat
+fix hex_spring_NVT hex_1 spring couple hex_2 1 0 0 0 ${r0} # adds harmonic spring between RBs
+fix rigid_1_NVT hex_1 rigid/nvt/small molecule temp ${temp} ${temp} 1.0 tparam 10 3 3
+fix rigid_2_NVT hex_2 rigid/nvt/small molecule temp ${temp} ${temp} 1.0 tparam 10 3 3
+
+# Basic output to terminal
+thermo ${log_freq}
+thermo_style custom step f_hex_spring_NVT[*] temp pe ke etotal
+
+# Set temperature and run simulation
+velocity hex_1 create ${temp} ${seed}
+run 0
+velocity all scale ${temp}
+run 100000
+
+unfix rigid_1_NVT
+unfix rigid_2_NVT
+unfix hex_spring_NVT
+
+################################ NVE SIMULATION #################################
+# ------------------------------- SYSTEM FIXES ----------------------------------
+fix rig_hex_1 hex_1 rigid/nve/small molecule
+fix rig_hex_2 hex_2 rigid/nve/small molecule
+fix hex_spring hex_1 spring couple hex_2 ${K} 0.0 0.0 0.0 ${r0} # spring between RBs
+# f_hex_spring[1,2,3,4] = force_x, force_y, force_z, magnitude of the force
+
+# ----------------------------- PROPERTY COMPUTES -------------------------------
+# Calculate rigid body properties - local data, so must be outputted using dump ... "local"
+compute com_1   all rigid/local rig_hex_1 xu yu zu                  # RB1 unscaled center of mass x, y, z
+compute com_2   all rigid/local rig_hex_2 xu yu zu                  # RB2 unscaled center of mass x, y, z
+compute vel_1   all rigid/local rig_hex_1 vx vy vz                  # RB1 center of mass velocities vx, vy, vz
+compute vel_2   all rigid/local rig_hex_2 vx vy vz                  # RB2 center of mass velocities vx, vy, vz
+compute q_1     all rigid/local rig_hex_1 quati quatj quatk quatw   # RB1 quaternion components
+compute q_2     all rigid/local rig_hex_2 quati quatj quatk quatw   # RB2 quaternion components
+compute av_1    all rigid/local rig_hex_1 omegax omegay omegaz      # RB1 angular velocities
+compute av_2    all rigid/local rig_hex_2 omegax omegay omegaz      # RB2 angular velocities
+compute am_1    all rigid/local rig_hex_1 angmomx angmomy angmomz   # RB1 angular momenta
+compute am_2    all rigid/local rig_hex_2 angmomx angmomy angmomz   # RB2 angular momenta
+compute i_1    all rigid/local rig_hex_1 inertiax inertiay inertiaz # RB1 inertia
+compute i_2    all rigid/local rig_hex_2 inertiax inertiay inertiaz # RB2 inertia
+
+# ----------------------------- CONFIGURE OUTPUTS -------------------------------
+thermo_style custom step f_hex_spring[*] temp pe ke etotal
+dump    1 all custom ${log_freq} ${traj}       id type x y z
+dump    2 all local  ${log_freq} ${rb_info}  c_com_1[*] c_com_2[*] &
+    c_vel_1[*] c_vel_2[*] c_q_1[*] c_q_2[*] c_av_1[*] c_av_2[*]    &
+    c_am_1[*] c_am_2[*] c_i_1[*] c_i_2[*]
+
+log ${sim_log} # create new log file with simulation information only
+# ------------------------------ RUN SIMULATION ---------------------------------
+timestep ${timestep}
+run ${runsteps}
+
+print "Simulation stored with name: ${name}"
+
+##################################### NOTES #####################################
+# Each new simulation must be run in a new directory

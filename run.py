@@ -1,9 +1,10 @@
 import torch
+torch.cuda.empty_cache()
 from diffmd.training import Trainer
 torch.manual_seed(0)
 
 config = dict(
-    folder = 'hexagons/trajectories/dump_2503/cutoff-2.5/', 
+    folder = 'hexagons/trajectories/smooth/', 
     device = torch.device("cpu"), 
     niters = 50,
     optimizer = 'Adam',
