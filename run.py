@@ -5,7 +5,7 @@ torch.manual_seed(0)
 config = dict(
     folder = 'hexagons/trajectories/dump_2503/cutoff-2.5/', 
     device = torch.device("cpu"), 
-    niters = 100,
+    niters = 50,
     optimizer = 'Adam',
     batch_length=10,
     nbatches=800,
