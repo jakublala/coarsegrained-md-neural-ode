@@ -135,7 +135,7 @@ results/
 HPC*
 *.out
 slurm*
-CGHexagon*
+CG*
 
 # Custom files
 run.sh
