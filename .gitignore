@@ -138,3 +138,4 @@ slurm*
 
 # Custom files
 run.sh
+run.py
