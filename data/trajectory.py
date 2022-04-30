@@ -18,10 +18,16 @@ class Trajectory():
     def get_metadata_from_file_path(self, file_path):
         # TODO: documentation
         file_path = file_path.split('_')
-        temp = float(file_path[1][file_path[1].find('temp') + (4+1):])
-        k = float(file_path[2][file_path[2].find('k') + (2+1):])
-        r0 = float(file_path[3][file_path[3].find('r0') + (2+1):])
-        seed = int(file_path[4][file_path[4].find('s') + (1+1):])
+        if 'temp' in file_path[0]:
+            temp = float(file_path[0][file_path[0].find('temp') + (4+1):])
+            k = float(file_path[1][file_path[1].find('k') + (2+1):])
+            r0 = float(file_path[2][file_path[2].find('r0') + (2+1):])
+            seed = int(file_path[3][file_path[3].find('s') + (1+1):])
+        else:
+            temp = float(file_path[1][file_path[1].find('temp') + (4+1):])
+            k = float(file_path[2][file_path[2].find('k') + (2+1):])
+            r0 = float(file_path[3][file_path[3].find('r0') + (2+1):])
+            seed = int(file_path[4][file_path[4].find('s') + (1+1):])
         return temp, k, r0, seed
 
     def get_traj(self, reader):
