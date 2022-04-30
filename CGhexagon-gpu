@@ -1,0 +1,17 @@
+#PBS -lselect=1:ncpus=16:mem=96gb:ngpus=4:gpu_type=RTX6000
+#PBS -lwalltime=24:0:0
+#PBS -N HPC_testing
+
+INPUT_FILE=run-gpu.py
+OUTPUT_FILE=run_gpu=1.out
+
+module load anaconda3/personal
+source activate neuralode
+modue load cuda/11.2.2
+
+cp -r $PBS_O_WORKDIR/* $TMPDIR
+
+python $TMPDIR/$INPUT_FILE > $TMPDIR/$OUTPUT_FILE
+
+cp -r $TMPDIR/results/* $PBS_O_WORKDIR/results
+cp -r $TMPDIR/$OUTPUT_FILE $PBS_O_WORKDIR

@@ -135,6 +135,9 @@ results/
 HPC*
 *.out
 slurm*
+CGHexagon*
 
 # Custom files
 run.sh
+run.py
+run-gpu.py
