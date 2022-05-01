@@ -1,0 +1,334 @@
+
+# Simulation Parameters
+variable log_freq equal 1000                   # log frequency
+variable runsteps equal 100000000              # N of steps to run for
+variable timestep equal 0.00001                # timestep
+
+# -------------------------- ATOMS/MOLECULE DEFINITION --------------------------
+read_data hex.conf                              # Add a hexagon molecule
+  orthogonal box = (-25 -25 -25) to (25 25 25)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  7 atoms
+  scanning bonds ...
+  6 = max bonds/atom
+  scanning angles ...
+  6 = max angles/atom
+  reading bonds ...
+  12 bonds
+  reading angles ...
+  11 angles
+  6 = max # of 1-2 neighbors
+  12 = max # of 1-3 neighbors
+  36 = max # of 1-4 neighbors
+  6 = max # of special neighbors
+  special bonds CPU = 0.0001396 secs
+  read_data CPU = 0.0071298 secs
+read_data hex.conf add append shift 4.0 0.0 0.0 # Add a second identical molecule, shifted so it doesn't overlap
+  orthogonal box = (-25 -25 -25) to (29 25 25)
+  1 by 1 by 1 MPI processor grid
+  reading atoms ...
+  7 atoms
+  scanning bonds ...
+  6 = max bonds/atom
+  scanning angles ...
+  6 = max angles/atom
+  reading bonds ...
+  12 bonds
+  reading angles ...
+  11 angles
+  6 = max # of 1-2 neighbors
+  12 = max # of 1-3 neighbors
+  36 = max # of 1-4 neighbors
+  6 = max # of special neighbors
+  special bonds CPU = 0.0001728 secs
+  read_data CPU = 0.0033928 secs
+
+# Group ID can be used in other commands, including fix, compute, dump or velocity
+group       hex_1 id 1 2 3 4 5 6 7              # label the atoms 1-7 as a group
+7 atoms in group hex_1
+group       hex_2 id 8 9 10 11 12 13 14         # label the atoms 8-14 as another group
+7 atoms in group hex_2
+
+# -------------------------- INTERATOMIC POTENTIALS -----------------------------
+# Pairwise potentials
+pair_style  lj/cut  ${cut}                      # lj truncated - cutoff at 1.12 sigma
+pair_style  lj/cut  1.12246                      
+pair_coeff  *   *   1.0 ${sigma}                # epsilon | sigma - * * means all atoms interact with each other
+pair_coeff  *   *   1.0 1                
+fix hex_spring_NVT hex_1 spring couple hex_2 1.0 0.0 0.0 0.0 ${r0} # adds harmonic spring between rigid bodies
+fix hex_spring_NVT hex_1 spring couple hex_2 1.0 0.0 0.0 0.0 2 
+                            # f_hex_spring[1,2,3,4] = force_x, force_y, force_z, magnitude of the force
+
+
+################## SYSTEM INITIALISATION WITH AN NVT SIMULATION ##################
+# -------------------------------------------------------------------------------
+# Add energy to the system by running an NVT simulation, use a very stiff spring to
+# keep rigid bodies close. Then, remove (unfix) the thermostat and spring before
+# initialising and running the more important NVE simulation
+# -------------------------------------------------------------------------------
+
+# System fixes: spring and nose-hoover thermostat
+fix hex_spring_NVT hex_1 spring couple hex_2 1 0 0 0 ${r0} # adds harmonic spring between RBs
+fix hex_spring_NVT hex_1 spring couple hex_2 1 0 0 0 2 
+fix rigid_1_NVT hex_1 rigid/nvt/small molecule temp ${temp} ${temp} 1.0 tparam 10 3 3
+fix rigid_1_NVT hex_1 rigid/nvt/small molecule temp 2.25 ${temp} 1.0 tparam 10 3 3
+fix rigid_1_NVT hex_1 rigid/nvt/small molecule temp 2.25 2.25 1.0 tparam 10 3 3
+  create bodies CPU = 8.2e-06 secs
+1 rigid bodies with 7 atoms
+  1 = max distance from body owner to body atom
+fix rigid_2_NVT hex_2 rigid/nvt/small molecule temp ${temp} ${temp} 1.0 tparam 10 3 3
+fix rigid_2_NVT hex_2 rigid/nvt/small molecule temp 2.25 ${temp} 1.0 tparam 10 3 3
+fix rigid_2_NVT hex_2 rigid/nvt/small molecule temp 2.25 2.25 1.0 tparam 10 3 3
+  create bodies CPU = 6.6e-06 secs
+1 rigid bodies with 7 atoms
+  1 = max distance from body owner to body atom
+
+# Basic output to terminal
+thermo ${log_freq}
+thermo 1000
+thermo_style custom step f_hex_spring_NVT[*] temp pe ke etotal
+
+# Set temperature and run simulation
+velocity hex_1 create ${temp} ${seed}
+velocity hex_1 create 2.25 ${seed}
+velocity hex_1 create 2.25 5
+WARNING: Changing velocities of atoms in rigid bodies. This has no effect unless rigid bodies are rebuild (src/velocity.cpp:71)
+WARNING: Cannot count rigid body degrees-of-freedom before bodies are fully initialized (src/RIGID/fix_rigid_small.cpp:1157)
+WARNING: Cannot count rigid body degrees-of-freedom before bodies are fully initialized (src/RIGID/fix_rigid_small.cpp:1157)
+run 0
+WARNING: Bonds are defined but no bond style is set (src/force.cpp:205)
+WARNING: Likewise 1-2 special neighbor interactions != 1.0 (src/force.cpp:207)
+WARNING: Angles are defined but no angle style is set (src/force.cpp:210)
+WARNING: Likewise 1-3 special neighbor interactions != 1.0 (src/force.cpp:212)
+WARNING: More than one fix rigid (src/RIGID/fix_rigid_small.cpp:561)
+WARNING: More than one fix rigid (src/RIGID/fix_rigid_small.cpp:561)
+Neighbor list info ...
+  update every 1 steps, delay 10 steps, check yes
+  max neighbors/atom: 2000, page size: 100000
+  master list distance cutoff = 1.42246
+  ghost atom cutoff = 1.42246
+  binsize = 0.71123, bins = 76 71 71
+  1 neighbor lists, perpetual/occasional/extra = 1 0 0
+  (1) pair lj/cut, perpetual
+      attributes: half, newton on
+      pair build: half/bin/newton
+      stencil: half/bin/3d/newton
+      bin: standard
+Per MPI rank memory allocation (min/avg/max) = 19.38 | 19.38 | 19.38 Mbytes
+Step f_hex_spring_NVT[1] f_hex_spring_NVT[2] f_hex_spring_NVT[3] f_hex_spring_NVT[4] Temp PotEng KinEng TotEng 
+       0   0.14285714            0            0   0.14285714  0.052674303            0  0.016931026  0.016931026 
+Loop time of 1.3e-06 on 1 procs for 0 steps with 14 atoms
+
+153.8% CPU use with 1 MPI tasks x no OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0          | 0          | 0          |   0.0 |  0.00
+Bond    | 0          | 0          | 0          |   0.0 |  0.00
+Neigh   | 0          | 0          | 0          |   0.0 |  0.00
+Comm    | 0          | 0          | 0          |   0.0 |  0.00
+Output  | 0          | 0          | 0          |   0.0 |  0.00
+Modify  | 0          | 0          | 0          |   0.0 |  0.00
+Other   |            | 1.3e-06    |            |       |100.00
+
+Nlocal:    14 ave 14 max 14 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:    0 ave 0 max 0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    0 ave 0 max 0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 0
+Ave neighs/atom = 0
+Ave special neighs/atom = 6
+Neighbor list builds = 0
+Dangerous builds = 0
+velocity all scale ${temp}
+velocity all scale 2.25
+WARNING: Changing velocities of atoms in rigid bodies. This has no effect unless rigid bodies are rebuild (src/velocity.cpp:71)
+run 100000
+WARNING: Bonds are defined but no bond style is set (src/force.cpp:205)
+WARNING: Likewise 1-2 special neighbor interactions != 1.0 (src/force.cpp:207)
+WARNING: Angles are defined but no angle style is set (src/force.cpp:210)
+WARNING: Likewise 1-3 special neighbor interactions != 1.0 (src/force.cpp:212)
+WARNING: More than one fix rigid (src/RIGID/fix_rigid_small.cpp:561)
+WARNING: More than one fix rigid (src/RIGID/fix_rigid_small.cpp:561)
+Per MPI rank memory allocation (min/avg/max) = 19.38 | 19.38 | 19.38 Mbytes
+Step f_hex_spring_NVT[1] f_hex_spring_NVT[2] f_hex_spring_NVT[3] f_hex_spring_NVT[4] Temp PotEng KinEng TotEng 
+       0   0.14285714            0            0   0.14285714         2.25            0   0.72321429   0.72321429 
+    1000   0.26662011   0.18267587  -0.02608018   0.32424826    2.9791011            0    0.9575682    0.9575682 
+    2000 -0.064425933   0.12233884 -0.057931049   0.14991163    3.0752207            0   0.98846379   0.98846379 
+    3000 -0.080225348  -0.22940188  0.075149639   0.25437924    6.2140878            0    1.9973853    1.9973853 
+    4000  0.046666734 -0.048085747  0.026324516  0.071993078    4.7748706            0    1.5347798    1.5347798 
+    5000   0.15754633    0.2572981  0.043424211   0.30480948    1.4891927            0    0.4786691    0.4786691 
+    6000  -0.14175561 -0.0015393368 -0.025857212    0.1441028    2.2198102            0   0.71351043   0.71351043 
+    7000  0.001495486  -0.22090961 -0.00014832149   0.22091472    2.2641142            0   0.72775098   0.72775098 
+    8000   0.10596291   0.10297621  0.019522464   0.14904149   0.86286498            0   0.27734946   0.27734946 
+    9000  -0.17458728   0.11539165 -0.031622375   0.21165048    1.3283491            0   0.42696936   0.42696936 
+   10000 -0.013795297  -0.12018751 -0.0027451632   0.12100778     3.284729            0    1.0558057    1.0558057 
+   11000  0.010396129 0.0019995162 0.0018999225  0.010755802    5.0255929            0    1.6153692    1.6153692 
+   12000 -0.037711797   0.09449248 -0.011103044   0.10234396    3.6367045            0    1.1689407    1.1689407 
+   13000 -0.065459741  -0.20773088 -0.0067279043   0.21790448     4.831384            0    1.5529449    1.5529449 
+   14000    0.1613098 0.0056991651  0.033661067   0.16488299     2.026926            0   0.65151193   0.65151193 
+   15000 -0.075503226   0.21033991  -0.02294342   0.22465533    4.1648291            0    1.3386951    1.3386951 
+   16000 -0.040294915  -0.15750378 -0.0031415778   0.16260685    3.5795734            0    1.1505772    1.1505772 
+   17000   0.16984845 -0.018915115   0.03628364   0.17470769    2.2901808            0   0.73612955   0.73612955 
+   18000   0.10508379   0.06367258   0.15272325   0.19601324    2.2774528            0   0.73203841   0.73203841 
+   19000  -0.18126605 -0.070346934   0.27523265   0.33698529    3.2416757            0    1.0419672    1.0419672 
+   20000 -0.063841363 -0.068501942 -0.018391897  0.095427971    2.6270997            0   0.84442489   0.84442489 
+   21000   0.12330746  -0.10647663  -0.17572883   0.23963018    1.8107653            0    0.5820317    0.5820317 
+   22000   0.11449918  0.031798318  0.022938266   0.12102628    1.5926225            0   0.51191437   0.51191437 
+   23000   0.11212996  0.052882709   0.11964523   0.17229245    3.0063031            0    0.9663117    0.9663117 
+   24000   0.20174551 -0.042737377  0.048804905   0.21191898    4.6598501            0    1.4978089    1.4978089 
+   25000  -0.14782788 -0.013357808  -0.16650004   0.22305555    5.2910649            0    1.7006994    1.7006994 
+   26000  -0.05750986  0.016689398  0.067981128  0.090594446    1.0911989            0   0.35074251   0.35074251 
+   27000   0.24361544 -0.030188539  0.071629196   0.25571581     2.570984            0    0.8263877    0.8263877 
+   28000  0.018075826 -0.024281797  -0.05748305   0.06496647    5.1233635            0    1.6467954    1.6467954 
+   29000 -0.082633049  -0.12173476 -0.017839845   0.14820875    4.3259473            0     1.390483     1.390483 
+   30000  -0.11184971  -0.11831804   0.19759938   0.25603717    1.9173136            0   0.61627936   0.61627936 
+   31000  0.067398198  -0.03762251    0.1902024   0.20526793    1.5130635            0   0.48634185   0.48634185 
+   32000  0.092183585  0.044306726   0.33292322   0.34827972    1.6802603            0   0.54008368   0.54008368 
+   33000 -0.056728874  0.066246368 -0.017640275  0.088982727    2.5224443            0   0.81078568   0.81078568 
+   34000  -0.10832602  0.025879834  -0.15762895   0.19300565    4.6285518            0    1.4877488    1.4877488 
+   35000  -0.19602716  -0.14705307  -0.10124043   0.26514312    3.0107469            0   0.96774009   0.96774009 
+   36000 -0.0055979495 -0.010214994  0.002636849  0.011943036    2.7284082 -0.056236564   0.87698837    0.8207518 
+   37000 -0.019236165 -0.022094953  0.024556065  0.038225873    1.9159597            0   0.61584418   0.61584418 
+   38000 -0.068318338  0.011920854  0.002271057   0.06938775    3.1713569            0    1.0193647    1.0193647 
+   39000  -0.11034041  0.051872248 -0.032246777   0.12611737    3.0498627            0   0.98031303   0.98031303 
+   40000 -0.071702045 -0.025372077  0.033153787  0.082970472    3.1518651            0    1.0130995    1.0130995 
+   41000 0.0098079699 -0.095669885  0.094360845   0.13473267    3.4793644            0    1.1183671    1.1183671 
+   42000  0.016576271 -0.090948802  0.090705622   0.12951435    2.6199512            0   0.84212718   0.84212718 
+   43000 -0.099074651  -0.04839384  0.051263894   0.12159662    3.0022286            0   0.96500205   0.96500205 
+   44000  -0.15350605  0.050858249 -0.029445441   0.16437063    1.7965906            0   0.57747554   0.57747554 
+   45000  -0.13437056  0.026013183  0.021323224   0.13851647    2.2542009            0   0.72456457   0.72456457 
+   46000 -0.0014173523 -0.078187584  0.093220165   0.12167706    4.2573492            0    1.3684337    1.3684337 
+   47000  0.096941961 -0.041969638 0.0054535357   0.10577776    2.6624764            0   0.85579597   0.85579597 
+   48000   0.23587805 -0.0011069413  -0.15231754   0.28078517    3.8113676            0    1.2250824    1.2250824 
+   49000   0.11614359 -0.096506722  -0.12621338   0.19680625    2.7088839            0   0.87071269   0.87071269 
+   50000 0.0087906172  -0.07206742 -0.075094677    0.1044519    2.8445715            0   0.91432657   0.91432657 
+   51000  0.025808759  -0.15218011  0.022088613   0.15592557    4.5011712            0     1.446805     1.446805 
+   52000 -0.058928493 0.0068440971  0.056746752  0.082095084    2.4837595            0   0.79835127   0.79835127 
+   53000 -0.00080720366  0.057581923 -0.032898055  0.066322029    2.2415124            0   0.72048614   0.72048614 
+   54000 -0.005086169 0.0091819839 -0.068043837  0.068848687    1.5104298            0   0.48549531   0.48549531 
+   55000 -0.065114702  -0.29126316  0.075492473   0.30785267    1.7512728            0   0.56290912   0.56290912 
+   56000 -0.059268732  -0.13847272 -0.049490519   0.15854585    4.3253326            0    1.3902855    1.3902855 
+   57000 0.0086839593  0.077182826 -0.063370083   0.10024154    6.3970635            0     2.056199     2.056199 
+   58000  0.010365857 0.0087634328  0.023619438  0.027242001    4.6347064 -0.046683604     1.489727    1.4430434 
+   59000 -0.0073286262 -0.016871601 0.0050446558  0.019073758    3.7754163            0    1.2135267    1.2135267 
+   60000 -0.079098033  0.010975235  -0.29135275   0.30209829    2.5796499            0   0.82917319   0.82917319 
+   61000  0.034827122  0.035026159 0.0092460441  0.050251862    1.9115947            0   0.61444116   0.61444116 
+   62000 -0.018449099 -0.077422385   0.16989872   0.18761708     4.626901            0    1.4872182    1.4872182 
+   63000 -0.052721973 -0.027591655  -0.10319492    0.1191222    4.3339117            0     1.393043     1.393043 
+   64000   0.16258736   0.14529218  0.015203184   0.21857631    2.2435294            0   0.72113445   0.72113445 
+   65000 -0.0078388304 -0.092386283   0.12292922   0.15397488    1.4617278            0   0.46984107   0.46984107 
+   66000  -0.12788862  -0.05836908  -0.11776052   0.18338481    1.8483466            0   0.59411141   0.59411141 
+   67000  0.052518179   0.09890915 -0.053001221   0.12389636    2.1941019            0   0.70524703   0.70524703 
+   68000  0.010230095  0.006680208  0.066233371  0.067350868    1.9356135            0   0.62216149   0.62216149 
+   69000 -0.081684928  -0.10691573 7.1854839e-05    0.1345489    2.3093953            0   0.74230564   0.74230564 
+   70000 -0.0039905281  0.073874029  -0.08187269   0.11034688    4.2572369            0    1.3683976    1.3683976 
+   71000    0.1212238   0.13282569  0.074825246   0.19477343    2.8047641            0   0.90153133   0.90153133 
+   72000   0.15738966 -0.030778217   0.14496182   0.21617755    3.8697951            0    1.2438627    1.2438627 
+   73000  0.041335928 -0.021681958 0.0095756893  0.047649345    2.0927885            0   0.67268202   0.67268202 
+   74000  0.063184741 -0.027410064  -0.12040879   0.13871518    1.7654769            0   0.56747471   0.56747471 
+   75000   0.13050822  0.028233838  -0.17911434    0.2234088    1.5220838            0   0.48924123   0.48924123 
+   76000 -0.031804459 -0.051143637 -0.092044107   0.10999688    1.8987613            0   0.61031614   0.61031614 
+   77000 -0.00056728028 -0.0020831448 -0.0002629975 0.0021749637    2.9950393  -0.11860356   0.96269122   0.84408766 
+   78000  0.014331195 -0.060805191  0.023267686   0.06666363    4.8279377            0    1.5518371    1.5518371 
+   79000  0.087736422 -0.047877554  0.028154946    0.1038395    4.0259168            0    1.2940447    1.2940447 
+   80000    0.1238621  0.046565733 -0.028315088   0.13532158    3.2642954            0    1.0492378    1.0492378 
+   81000   0.22933673  0.039823404  -0.11170361   0.25818391    1.8191655            0   0.58473177   0.58473177 
+   82000 0.00059206006 -0.003543183 0.0095819641 -0.010233216    2.4503881  0.015777199   0.78762474   0.80340194 
+   83000  -0.11222616   0.10417268  -0.11822172   0.19345034    2.6419598            0   0.84920137   0.84920137 
+   84000 -0.035875973   0.10579568   -0.1943752   0.22419083    2.5192895            0   0.80977161   0.80977161 
+   85000  0.046432642 0.0042246254 -0.057659792  0.074151799    2.4804796            0     0.797297     0.797297 
+   86000   0.10584959 -0.041563665  0.041943169   0.12120604    3.1003323            0    0.9965354    0.9965354 
+   87000  0.013729031 -0.0008007333 0.0041506547  0.014365075    1.0435014            0   0.33541115   0.33541115 
+   88000  0.098595741   0.12664623  0.058523228   0.17083722    2.7183225            0   0.87374651   0.87374651 
+   89000  0.076207292  0.081431276 -0.034842855   0.11684446    1.3071981            0   0.42017082   0.42017082 
+   90000  0.034572361  -0.13412032 -0.099085827    0.1702983    5.3166869            0    1.7089351    1.7089351 
+   91000   0.10340364 -0.083967908 -0.024846056       0.1355    3.4386721            0    1.1052874    1.1052874 
+   92000  0.098256835   0.11409698  0.014760077   0.15129569    2.1318462            0   0.68523627   0.68523627 
+   93000 -0.081109806  0.077385851 -0.020808305    0.1140191    1.5304279            0   0.49192325   0.49192325 
+   94000   0.01640138 -0.0013233167 0.0089739427  -0.01874268    1.5217881 -0.070819855   0.48914617   0.41832632 
+   95000 -0.011740714   -0.1203131  -0.02263384   0.12298528    1.6697086            0   0.53669204   0.53669204 
+   96000   0.12880784  -0.03552138 -0.030143863   0.13697402    3.5503909            0    1.1411971    1.1411971 
+   97000  0.042809928 0.0076856261 -0.019073067  0.047492533    4.9652506            0    1.5959734    1.5959734 
+   98000   0.19305058 -0.012058933  -0.01945368   0.19440265    4.0780972            0     1.310817     1.310817 
+   99000 -0.030406273  0.029967473   0.14536194   0.15150143    2.7491323            0   0.88364968   0.88364968 
+  100000 -0.00032399816 0.00057452522 0.0004222508 0.0007831665    2.8549419            0    0.9176599    0.9176599 
+Loop time of 1.97549 on 1 procs for 100000 steps with 14 atoms
+
+Performance: 21867977.854 tau/day, 50620.319 timesteps/s
+99.6% CPU use with 1 MPI tasks x no OpenMP threads
+
+MPI task timing breakdown:
+Section |  min time  |  avg time  |  max time  |%varavg| %total
+---------------------------------------------------------------
+Pair    | 0.0082642  | 0.0082642  | 0.0082642  |   0.0 |  0.42
+Bond    | 0.0031216  | 0.0031216  | 0.0031216  |   0.0 |  0.16
+Neigh   | 1.0214     | 1.0214     | 1.0214     |   0.0 | 51.70
+Comm    | 0.069826   | 0.069826   | 0.069826   |   0.0 |  3.53
+Output  | 0.0134     | 0.0134     | 0.0134     |   0.0 |  0.68
+Modify  | 0.83844    | 0.83844    | 0.83844    |   0.0 | 42.44
+Other   |            | 0.02101    |            |       |  1.06
+
+Nlocal:    14 ave 14 max 14 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Nghost:    0 ave 0 max 0 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+Neighs:    2 ave 2 max 2 min
+Histogram: 1 0 0 0 0 0 0 0 0 0
+
+Total # of neighbors = 2
+Ave neighs/atom = 0.142857
+Ave special neighs/atom = 6
+Neighbor list builds = 6990
+Dangerous builds = 809
+
+unfix rigid_1_NVT
+unfix rigid_2_NVT
+unfix hex_spring_NVT
+
+################################ NVE SIMULATION #################################
+# ------------------------------- SYSTEM FIXES ----------------------------------
+fix rig_hex_1 hex_1 rigid/nve/small molecule
+  create bodies CPU = 8.2e-06 secs
+1 rigid bodies with 7 atoms
+  1 = max distance from body owner to body atom
+fix rig_hex_2 hex_2 rigid/nve/small molecule
+  create bodies CPU = 7.8e-06 secs
+1 rigid bodies with 7 atoms
+  1 = max distance from body owner to body atom
+fix hex_spring hex_1 spring couple hex_2 ${K} 0.0 0.0 0.0 ${r0} # spring between RBs
+fix hex_spring hex_1 spring couple hex_2 17.8583270116258 0.0 0.0 0.0 ${r0} 
+fix hex_spring hex_1 spring couple hex_2 17.8583270116258 0.0 0.0 0.0 2 
+# f_hex_spring[1,2,3,4] = force_x, force_y, force_z, magnitude of the force
+
+# ----------------------------- PROPERTY COMPUTES -------------------------------
+# Calculate rigid body properties - local data, so must be outputted using dump ... "local"
+compute com_1   all rigid/local rig_hex_1 xu yu zu                  # RB1 unscaled center of mass x, y, z
+compute com_2   all rigid/local rig_hex_2 xu yu zu                  # RB2 unscaled center of mass x, y, z
+compute vel_1   all rigid/local rig_hex_1 vx vy vz                  # RB1 center of mass velocities vx, vy, vz
+compute vel_2   all rigid/local rig_hex_2 vx vy vz                  # RB2 center of mass velocities vx, vy, vz
+compute q_1     all rigid/local rig_hex_1 quati quatj quatk quatw   # RB1 quaternion components
+compute q_2     all rigid/local rig_hex_2 quati quatj quatk quatw   # RB2 quaternion components
+compute av_1    all rigid/local rig_hex_1 omegax omegay omegaz      # RB1 angular velocities
+compute av_2    all rigid/local rig_hex_2 omegax omegay omegaz      # RB2 angular velocities
+compute am_1    all rigid/local rig_hex_1 angmomx angmomy angmomz   # RB1 angular momenta
+compute am_2    all rigid/local rig_hex_2 angmomx angmomy angmomz   # RB2 angular momenta
+compute i_1    all rigid/local rig_hex_1 inertiax inertiay inertiaz # RB1 inertia
+compute i_2    all rigid/local rig_hex_2 inertiax inertiay inertiaz # RB2 inertia
+
+# ----------------------------- CONFIGURE OUTPUTS -------------------------------
+thermo_style custom step f_hex_spring[*] temp pe ke etotal
+dump    1 all custom ${log_freq} ${traj}       id type x y z
+dump    1 all custom 1000 ${traj}       id type x y z
+dump    1 all custom 1000 NVE-temp-2.25_K-17.8583270116258_r-2_s-5-traj.dump       id type x y z
+dump    2 all local  ${log_freq} ${rb_info}  c_com_1[*] c_com_2[*]     c_vel_1[*] c_vel_2[*] c_q_1[*] c_q_2[*] c_av_1[*] c_av_2[*]        c_am_1[*] c_am_2[*] c_i_1[*] c_i_2[*]
+dump    2 all local  1000 ${rb_info}  c_com_1[*] c_com_2[*]     c_vel_1[*] c_vel_2[*] c_q_1[*] c_q_2[*] c_av_1[*] c_av_2[*]        c_am_1[*] c_am_2[*] c_i_1[*] c_i_2[*]
+dump    2 all local  1000 NVE-temp-2.25_K-17.8583270116258_r-2_s-5-info.dat  c_com_1[*] c_com_2[*]     c_vel_1[*] c_vel_2[*] c_q_1[*] c_q_2[*] c_av_1[*] c_av_2[*]        c_am_1[*] c_am_2[*] c_i_1[*] c_i_2[*]
+
+log ${sim_log} # create new log file with simulation information only
+log NVE-temp-2.25_K-17.8583270116258_r-2_s-5-sim.log 

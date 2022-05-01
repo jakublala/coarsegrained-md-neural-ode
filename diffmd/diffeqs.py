@@ -47,13 +47,13 @@ class ODEFunc(nn.Module):
             # assert torch.norm(q, dim=2).max() < 1.001, 'quaternions not normalised'
             
             # get separation between bodies
-            r_vector = x[0, :, :] - x[1, :, :]
+            r_vector = x[:, 0, :] - x[:, 1, :]
             r = torch.norm(r_vector, dim=-1).unsqueeze(1)
             r_vector = r_vector / r
             # assert torch.norm(r_vector, dim=1).max() < 1.1, 'separation vector not normalised'
             
             # combine NN inputs
-            rq = torch.cat((r, torch.swapaxes(q, 0, 1).reshape(-1, 8)), dim=1).reshape(-1, self.dim)
+            rq = torch.cat((r, q.reshape(-1, 8)), dim=1).reshape(-1, self.dim)
             # assert torch.all(torch.flatten(q[:, 0, :]) == torch.swapaxes(q, 0, 1).reshape(-1, 8)[0, :]), 'incorrect resize'
 
             # get energy and gradients
@@ -62,13 +62,13 @@ class ODEFunc(nn.Module):
             # TODO: check that gradient is calculated correctly
             grad = compute_grad(inputs=rq, output=u) # [force _ torque, number of trajectories]
             grad_r, grad_q = torch.split(grad, [1, self.dim-1], dim=1)
-            grad_q = torch.swapaxes(grad_q.view(-1, self.nparticles, 4), 0, 1)
+            grad_q = grad_q.view(-1, self.nparticles, 4)
             
             # get force and update translational motion
             # TODO: do this without assigning variables to speed up computation
             fA = - grad_r * r_vector # [force, number of trajectories]
             fB = grad_r * r_vector
-            f = torch.stack((fA, fB), dim=0)
+            f = torch.stack((fA, fB), dim=1)
             # HACK: same mass for all bodies
             dvdt = f / self.mass
             dxdt = v
@@ -78,10 +78,11 @@ class ODEFunc(nn.Module):
             # TODO: test out all matrix multiplications are correct
             # TODO: try assigning G to speed up computation as we re-use it once
             # TODO: if too slow to assign, do it in a single line
-            l = w * self.inertia[:, None, :]
+            l = w * self.inertia[None, :, :]
             # TODO: can I help out somehow the neural net with torque calculation by knowing the physical aspect - the torques must be opposite and equal? similarly to force 
-            dldt = - torch.matmul(self.Omega(q, dqdt), l.unsqueeze(-1)).squeeze(-1) - 0.5 * torch.matmul(self.G(q), grad_q.unsqueeze(-1)).squeeze(-1) / self.inertia[:, None, :]
-            dwdt = dldt / self.inertia[:, None, :]
+            dldt = - torch.matmul(self.Omega(q, dqdt), l.unsqueeze(-1)).squeeze(-1) - 0.5 * torch.matmul(self.G(q), grad_q.unsqueeze(-1)).squeeze(-1) / self.inertia[None, :, :]
+            dwdt = dldt / self.inertia[None, :, :]
+            
         return (dvdt, dwdt, dxdt, dqdt)
 
     def harmonic_restraint(self, diff):

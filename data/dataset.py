@@ -58,10 +58,10 @@ class Dataset():
     
         batch_t = torch.linspace(0.0,dt*(batch_length-1),batch_length).to(self.device)
         
-        vels = torch.swapaxes(traj[0][sampled_is,sampled_js,:,:], 0, 1)
-        ang_vels = torch.swapaxes(traj[1][sampled_is,sampled_js,:,:], 0, 1)
-        coms = torch.swapaxes(traj[2][sampled_is,sampled_js,:,:], 0, 1)
-        quats = torch.swapaxes(traj[3][sampled_is,sampled_js,:,:], 0, 1)
+        vels = traj[0][sampled_is,sampled_js,:,:]
+        ang_vels = traj[1][sampled_is,sampled_js,:,:]
+        coms = traj[2][sampled_is,sampled_js,:,:]
+        quats = traj[3][sampled_is,sampled_js,:,:]
         
         pos_init = (vels, ang_vels, coms, quats)
 
@@ -70,20 +70,20 @@ class Dataset():
         sampled_coms = []
         sampled_quats = []
         for i in range(batch_size):
-            vels = torch.swapaxes(traj[0][sampled_is[i],sampled_js[i]:sampled_js[i]+batch_length,:], 0, 1)
-            ang_vels = torch.swapaxes(traj[1][sampled_is[i],sampled_js[i]:sampled_js[i]+batch_length,:], 0, 1)
-            coms = torch.swapaxes(traj[2][sampled_is[i],sampled_js[i]:sampled_js[i]+batch_length,:], 0, 1)
-            quats = torch.swapaxes(traj[3][sampled_is[i],sampled_js[i]:sampled_js[i]+batch_length,:], 0, 1)
+            vels = traj[0][sampled_is[i],sampled_js[i]:sampled_js[i]+batch_length,:]
+            ang_vels = traj[1][sampled_is[i],sampled_js[i]:sampled_js[i]+batch_length,:]
+            coms = traj[2][sampled_is[i],sampled_js[i]:sampled_js[i]+batch_length,:]
+            quats = traj[3][sampled_is[i],sampled_js[i]:sampled_js[i]+batch_length,:]
             
             sampled_vels.append(vels)
             sampled_ang_vels.append(ang_vels)
             sampled_coms.append(coms)
             sampled_quats.append(quats)
             
-        sampled_vels = torch.stack(sampled_vels, dim=1).type(self.dtype)
-        sampled_ang_vels = torch.stack(sampled_ang_vels, dim=1).type(self.dtype)
-        sampled_coms = torch.stack(sampled_coms, dim=1).type(self.dtype)
-        sampled_quats = torch.stack(sampled_quats, dim=1).type(self.dtype)
+        sampled_vels = torch.stack(sampled_vels, dim=0).type(self.dtype)
+        sampled_ang_vels = torch.stack(sampled_ang_vels, dim=0).type(self.dtype)
+        sampled_coms = torch.stack(sampled_coms, dim=0).type(self.dtype)
+        sampled_quats = torch.stack(sampled_quats, dim=0).type(self.dtype)
         batch_trajs = (sampled_vels, sampled_ang_vels, sampled_coms, sampled_quats)
-
+        
         return batch_t, pos_init, batch_trajs, trajectory.k, trajectory.inertia

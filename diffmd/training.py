@@ -62,14 +62,15 @@ class Trainer():
                 for param in self.func.parameters():
                     param.grad = None
                 
-                batch_t, batch_y0, batch_y, self.func.k, self.func.inertia = self.dataset.get_batch(self.nbatches, self.batch_length)  
-
+                batch_t, batch_y0, batch_y, self.func.k, self.func.inertia = self.dataset.get_batch(self.nbatches, self.batch_length) 
+                
                 # TODO: add assertion to check right dimensions
                 pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
-
-                pred_y = torch.cat(pred_y, dim=-1)
-                batch_y = torch.swapaxes(torch.swapaxes(torch.cat(batch_y, dim=-1), 0, 2), 1, 2)
-
+                
+                pred_y = torch.swapaxes(torch.cat(pred_y, dim=-1), 0, 1)
+                
+                batch_y = torch.cat(batch_y, dim=-1)
+                
                 # TODO: train only on specifics and not all of the data
                 loss = torch.mean(torch.abs(pred_y - batch_y))
                 
@@ -146,7 +147,7 @@ class Trainer():
             pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
 
             pred_y = torch.cat(pred_y, dim=-1)            
-            batch_y = torch.swapaxes(torch.swapaxes(torch.cat(batch_y, dim=-1), 0, 2), 1, 2)
+            batch_y = torch.swapaxes(torch.cat(batch_y, dim=-1), 0, 1)
             
             ind_vel = [0, 1, 2]
             ind_ang = [3, 4, 5]
@@ -154,58 +155,58 @@ class Trainer():
             ind_quat = [9, 10, 11, 12]
             
             for i in ind_vel:
-                plt.title('velocities')
-                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,0,:,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,0,:,i], 'r-', alpha=0.5, label=f'pred {i}')
+                plt.title('velocities 1')
+                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,:,0,i], 'k--', alpha=0.3, label=f'true {i}')
+                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
             plt.savefig(f'{subfolder}/{itr}_vel1.png')
             plt.close()
             
             for i in ind_vel:
-                plt.title('velocities')
-                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,1,:,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,1,:,i], 'r-', alpha=0.5, label=f'pred {i}')
+                plt.title('velocities 2')
+                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,:,1,i], 'k--', alpha=0.3, label=f'true {i}')
+                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
             plt.savefig(f'{subfolder}/{itr}_vel2.png')
             plt.close()
             
             for i in ind_ang:
-                plt.title('angular velocities')
-                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,0,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,0,0,i], 'r-', alpha=0.5, label=f'pred {i}')
+                plt.title('angular velocities 1')
+                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,:,0,i], 'k--', alpha=0.3, label=f'true {i}')
+                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
             plt.savefig(f'{subfolder}/{itr}_angvel1.png')
             plt.close()
             
             for i in ind_ang:
-                plt.title('angular velocities')
-                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,1,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,1,0,i], 'r-', alpha=0.5, label=f'pred {i}')
+                plt.title('angular velocities 2')
+                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,:,1,i], 'k--', alpha=0.3, label=f'true {i}')
+                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
             plt.savefig(f'{subfolder}/{itr}_angvel2.png')
             plt.close()
             
             for i in ind_pos:
-                plt.title('positions')
-                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,0,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,0,0,i], 'r-', alpha=0.5, label=f'pred {i}')
+                plt.title('positions 1')
+                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,:,0,i], 'k--', alpha=0.3, label=f'true {i}')
+                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
             plt.savefig(f'{subfolder}/{itr}_pos1.png')
             plt.close()
             
             for i in ind_pos:
-                plt.title('positions')
-                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,1,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,1,0,i], 'r-', alpha=0.5, label=f'pred {i}')
+                plt.title('positions 2')
+                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,:,1,i], 'k--', alpha=0.3, label=f'true {i}')
+                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
             plt.savefig(f'{subfolder}/{itr}_pos2.png')
             plt.close()
             
             for i in ind_quat:
-                plt.title('quaternions')
-                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,0,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,0,0,i], 'r-', alpha=0.5, label=f'pred {i}')
+                plt.title('quaternions 1')
+                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,:,0,i], 'k--', alpha=0.3, label=f'true {i}')
+                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
             plt.savefig(f'{subfolder}/{itr}_quat1.png')
             plt.close() 
             
             for i in ind_quat:
-                plt.title('quaternions')
-                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,1,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,1,0,i], 'r-', alpha=0.5, label=f'pred {i}')
+                plt.title('quaternions 2')
+                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,:,1,i], 'k--', alpha=0.3, label=f'true {i}')
+                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
             plt.savefig(f'{subfolder}/{itr}_quat2.png')
             plt.close() 
 
