@@ -13,6 +13,7 @@ class Dataset():
         self.filenames = self.get_filenames()
         self.device = config['device']
         self.trajs = self.get_trajectories()
+        self.dtype = config['dtype']
         
     def get_filenames(self):
         filenames = [f for f in os.listdir(self.folder) if os.path.isfile(os.path.join(self.folder, f))]
@@ -79,10 +80,10 @@ class Dataset():
             sampled_coms.append(coms)
             sampled_quats.append(quats)
             
-        sampled_vels = torch.stack(sampled_vels, dim=0).type(torch.float64)
-        sampled_ang_vels = torch.stack(sampled_ang_vels, dim=0).type(torch.float64)
-        sampled_coms = torch.stack(sampled_coms, dim=0).type(torch.float64)
-        sampled_quats = torch.stack(sampled_quats, dim=0).type(torch.float64)
+        sampled_vels = torch.stack(sampled_vels, dim=0).type(self.dtype)
+        sampled_ang_vels = torch.stack(sampled_ang_vels, dim=0).type(self.dtype)
+        sampled_coms = torch.stack(sampled_coms, dim=0).type(self.dtype)
+        sampled_quats = torch.stack(sampled_quats, dim=0).type(self.dtype)
         batch_trajs = (sampled_vels, sampled_ang_vels, sampled_coms, sampled_quats)
         
         return batch_t, pos_init, batch_trajs, trajectory.k, trajectory.inertia

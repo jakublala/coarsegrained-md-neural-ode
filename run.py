@@ -15,7 +15,8 @@ config = dict(
     nn_width=100,
     activation_function=None,
     # load_folder='results/depth-1-width-300-lr-0.1',
-    load_folder=None
+    load_folder=None,
+    dtype=torch.float32,
     )
 
 trainer = Trainer(config)
