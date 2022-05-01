@@ -17,7 +17,7 @@ atom_style  full                                # can be used for CG or molecula
 variable sigma   equal 1.0                      # sigma in lj potential
 variable epsilon equal 1.0                      # sigma in lj potential
 variable cut     equal 1.12246                  # cutoff in lj potential (lj distance units)
-variable temp    equal 2.25                     # temperature (lj temperature units)
+variable temp    equal 1.5                     # temperature (lj temperature units)
 variable K       equal 10*v_temp/v_cut/v_cut    # spring constant (force/distance units)
 variable r0      equal 2                        # equilibrium distance (lj distance units)
 variable seed    equal 5                        # random seed value
@@ -32,9 +32,9 @@ variable input_log  string  "${name}-input.log"
 log ${input_log}                                # start a new log file to log input parameters/lammps response
 
 # Simulation Parameters
-variable log_freq equal 10000                   # log frequency
-variable runsteps equal 1000000               # N of steps to run for
-variable timestep equal 0.00001                 # timestep
+variable log_freq equal 1000                   # log frequency
+variable runsteps equal 1000000              # N of steps to run for
+variable timestep equal 0.00001                # timestep
 
 # -------------------------- ATOMS/MOLECULE DEFINITION --------------------------
 read_data hex.conf                              # Add a hexagon molecule
