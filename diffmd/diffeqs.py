@@ -78,10 +78,11 @@ class ODEFunc(nn.Module):
             # TODO: test out all matrix multiplications are correct
             # TODO: try assigning G to speed up computation as we re-use it once
             # TODO: if too slow to assign, do it in a single line
-            l = w * self.inertia[None, :, :]
+            
+            l = w * self.inertia
             # TODO: can I help out somehow the neural net with torque calculation by knowing the physical aspect - the torques must be opposite and equal? similarly to force 
-            dldt = - torch.matmul(self.Omega(q, dqdt), l.unsqueeze(-1)).squeeze(-1) - 0.5 * torch.matmul(self.G(q), grad_q.unsqueeze(-1)).squeeze(-1) / self.inertia[None, :, :]
-            dwdt = dldt / self.inertia[None, :, :]
+            dldt = - torch.matmul(self.Omega(q, dqdt), l.unsqueeze(-1)).squeeze(-1) - 0.5 * torch.matmul(self.G(q), grad_q.unsqueeze(-1)).squeeze(-1) / self.inertia
+            dwdt = dldt / self.inertia
             
         return (dvdt, dwdt, dxdt, dqdt)
 
