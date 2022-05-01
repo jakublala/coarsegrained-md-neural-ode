@@ -1,4 +1,5 @@
 import torch
+import torch.nn as nn
 import matplotlib.pyplot as plt
 import time
 import os
@@ -39,6 +40,9 @@ class Trainer():
         self.stopping_freq = 500
 
         self.func = ODEFunc(self.nparticles, self.dim, self.nn_width, self.nn_depth).to(self.device)
+        if self.device == torch.device('cuda'):
+            self.func = nn.DataParallel(self.func).to(self.device)
+
         self.optimizer = self.set_optimizer(self.optimizer_name)
         
         if self.load_folder != None:
