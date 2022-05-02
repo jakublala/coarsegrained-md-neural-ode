@@ -141,3 +141,6 @@ CG*
 run.sh
 run.py
 run-gpu.py
+
+# Dataset
+dataset/
