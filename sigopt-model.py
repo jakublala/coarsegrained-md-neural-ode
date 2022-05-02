@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import sigopt
+import os
 
 from diffmd.training import Trainer
 
@@ -14,7 +15,8 @@ def run_and_track_in_sigopt():
     #   sigopt.log_metadata(key="Dataset Columns", value=features.shape[1])
     #   sigopt.log_metadata(key="Execution Environment", value="Colab Notebook")
     
-    sigopt.log_model('CG Hexagon Potential - Second Search')
+    sigopt.log_model('CG Hexagon Potential - Third Search')
+    os.environ["SIGOPT_PROJECT"] = "coarsegrained-md-neural-ode"
     # learning_rates = [10**i for i in range(-6, 2)]
     # sigopt.params.setdefaults(
     #     # batch_length=np.random.randint(low=3, high=50),
@@ -42,8 +44,8 @@ def run_and_track_in_sigopt():
     dataset = 'NVE-temp-0.45_K-0.090702947845805_r-0_s-5'
     config = dict(
         filename = prefix+dataset, 
-        device = torch.device("cpu"), 
-        niters = 5000,
+        device = torch.device("cuda"), 
+        niters = 100,
         optimizer = 'Adam',
         batch_length=10,
         nbatches=800,

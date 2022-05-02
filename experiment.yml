@@ -21,8 +21,8 @@
         {
             'name': 'nn_width',
             'type': 'int',
-            'bounds': {'min': 2, 'max': 10000}
+            'bounds': {'min': 9999, 'max': 10000}
         },
     ],
-    'budget': 30,
+    'budget': 1,
 }

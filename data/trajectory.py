@@ -28,6 +28,7 @@ class Trajectory():
             k = float(file_path[2][file_path[2].find('k') + (2+1):])
             r0 = float(file_path[3][file_path[3].find('r0') + (2+1):])
             seed = int(file_path[4][file_path[4].find('s') + (1+1):])
+        # return torch.Tensor([temp]).to(self.device), torch.Tensor([k]).to(self.device), torch.Tensor([r0]).to(self.device), torch.Tensor([seed]).to(self.device)
         return temp, k, r0, seed
 
     def get_traj(self, reader):
