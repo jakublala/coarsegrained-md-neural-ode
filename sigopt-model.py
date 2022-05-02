@@ -17,6 +17,8 @@ def run_and_track_in_sigopt():
     
     sigopt.log_model('CG Hexagon Potential - Third Search')
     os.environ["SIGOPT_PROJECT"] = "coarsegrained-md-neural-ode"
+    os.environ["sigopt_project_id"] = "coarsegrained-md-neural-ode"
+    os.environ["SIGOPT_PROJECT_ID"] = "coarsegrained-md-neural-ode"
     # learning_rates = [10**i for i in range(-6, 2)]
     # sigopt.params.setdefaults(
     #     # batch_length=np.random.randint(low=3, high=50),
@@ -40,24 +42,24 @@ def run_and_track_in_sigopt():
     # budget=30,
     # )
 
-    prefix = 'hexagons/trajectories/smooth/'
-    dataset = 'NVE-temp-0.45_K-0.090702947845805_r-0_s-5'
     config = dict(
-        filename = prefix+dataset, 
+        folder = 'hexagons/trajectories/smooth/', 
         device = torch.device("cuda"), 
-        niters = 100,
+        niters = 250,
         optimizer = 'Adam',
         batch_length=10,
         nbatches=800,
         learning_rate=sigopt.params.learning_rate,
-        nn_depth=sigopt.params.nn_depth,
+        # nn_depth=sigopt.params.nn_depth,
+        nn_depth=1,
         nn_width=sigopt.params.nn_width,
         activation_function=None,
-        load_folder=None
+        load_folder=None,
+        dtype=torch.float32,
         # load_folder='results/depth-1-width-300-lr-0.1',
     )
 
-    sigopt.log_dataset(dataset) 
+    # sigopt.log_dataset(dataset) 
     
     trainer = Trainer(config)
     model, train_loss = trainer.train()

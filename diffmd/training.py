@@ -30,6 +30,10 @@ class Trainer():
         self.load_folder = config['load_folder']
         self.optimizer_name = config['optimizer']
 
+        print(f'depth = {self.nn_depth}, width = {self.nn_width}')
+        print(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name}')
+        print(f'number of batches = {self.nbatches}, batch length = {self.batch_length}')
+
         self.dataset = Dataset(config)
         self.loss_meter = RunningAverageMeter()
         
@@ -233,6 +237,7 @@ class Trainer():
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
         self.plot_traj(self.itr, subfolder)
         self.plot_loss(subfolder)
+        print([f for f in os.listdir('results/') if os.path.isfile(os.path.join('results/', f))])
         return
 
 
