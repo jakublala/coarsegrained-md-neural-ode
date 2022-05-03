@@ -50,10 +50,11 @@ class Trainer():
         if self.load_folder != None:
             self.func.load_state_dict(torch.load(f'{self.load_folder}/model.pt'))
 
-        print(f'Using {self.device} device')
+        print(f'device = {self.device}')
         print(f'depth = {self.nn_depth}, width = {self.nn_width}')
         print(f'number of parameters = {self.nparameters}')
         print(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name}')
+        print(f'scheduler = {self.scheduler_name}, scheduling factor = {self.scheduling_factor}, scheduling freq = {self.scheduling_freq}')
         print(f'number of batches = {self.nbatches}, batch length = {self.batch_length}')
 
 
@@ -257,6 +258,17 @@ class Trainer():
         plt.close()
         return
 
+    def log_hyperparameters(self, subfolder):
+        with open(f'{subfolder}/hyperparameters.txt', 'w') as f:
+            f.write(f'device = {self.device} \n')
+            f.write(f'depth = {self.nn_depth}, width = {self.nn_width} \n')
+            f.write(f'number of parameters = {self.nparameters} \n')
+            f.write(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name} \n')
+            f.write(f'scheduler = {self.scheduler_name}, scheduling factor = {self.scheduling_factor}, scheduling freq = {self.scheduling_freq} \n')
+            f.write(f'number of batches = {self.nbatches}, batch length = {self.batch_length} \n')
+
+        return
+
     def set_optimizer(self, optimizer):
         if optimizer == 'Adam':
             return torch.optim.Adam(self.func.parameters(), lr=self.learning_rate)
@@ -282,6 +294,7 @@ class Trainer():
         self.plot_traj(self.itr, subfolder)
         self.plot_loss(subfolder)
         self.plot_lr(subfolder)
+        self.log_hyperparameters(subfolder)
         return
 
     

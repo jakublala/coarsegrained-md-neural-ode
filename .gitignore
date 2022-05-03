@@ -140,6 +140,8 @@ CG*
 # Custom files
 run.sh
 run.py
+sigopt-model.py
+experiment.yml
 run-gpu.py
 
 # Dataset
