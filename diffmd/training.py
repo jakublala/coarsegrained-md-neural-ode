@@ -18,8 +18,7 @@ class Trainer():
         self.folder = config['folder']
         
         self.device = config['device']
-        print(f'Using {self.device} device')
-
+        
         # TODO: log everything similarly to device into print file
         self.niters = config['niters']
         self.learning_rate = config['learning_rate']
@@ -29,23 +28,31 @@ class Trainer():
         self.nn_depth = config['nn_depth']
         self.load_folder = config['load_folder']
         self.optimizer_name = config['optimizer']
-
+        
         self.dataset = Dataset(config)
         self.loss_meter = RunningAverageMeter()
         
         self.nparticles = 2
         self.dim = 1 + (2*4)
-        self.printing_freq = 10
+        self.printing_freq = 1
         self.plotting_freq = 10
         self.stopping_freq = 500
 
         self.func = ODEFunc(self.nparticles, self.dim, self.nn_width, self.nn_depth).to(self.device)
-    
+        self.nparameters = count_parameters(self.func)
+
         self.optimizer = self.set_optimizer(self.optimizer_name)
         
         if self.load_folder != None:
             self.func.load_state_dict(torch.load(f'{self.load_folder}/model.pt'))
-        
+
+        print(f'Using {self.device} device')
+        print(f'depth = {self.nn_depth}, width = {self.nn_width}')
+        print(f'number of parameters = {self.nparameters}')
+        print(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name}')
+        print(f'number of batches = {self.nbatches}, batch length = {self.batch_length}')
+
+
 
     def train(self):
         for self.itr in range(1, self.niters + 1):
@@ -67,7 +74,7 @@ class Trainer():
 
                 # TODO: add assertion to check right dimensions
                 pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
-                
+            
                 pred_y = torch.swapaxes(torch.cat(pred_y, dim=-1), 0, 1)
                 
                 batch_y = torch.cat(batch_y, dim=-1)
@@ -236,7 +243,10 @@ class Trainer():
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
         self.plot_traj(self.itr, subfolder)
         self.plot_loss(subfolder)
+        print([f for f in os.listdir('results/') if os.path.isfile(os.path.join('results/', f))])
         return
+
+    
 
 
 class RunningAverageMeter(object):
@@ -267,3 +277,15 @@ class RunningAverageMeter(object):
         self.checkpoints.append(self.avg)
 
 
+class MyDataParallel(torch.nn.DataParallel):
+    """
+    Allow nn.DataParallel to call model's attributes.
+    """
+    def __getattr__(self, name):
+        try:
+            return super().__getattr__(name)
+        except AttributeError:
+            return getattr(self.module, name)
+
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)

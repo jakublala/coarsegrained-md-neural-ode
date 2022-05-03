@@ -9,7 +9,7 @@ class ODEFunc(nn.Module):
         self.nparticles = nparticles
         self.mass = 7.0 # HACK
         self.inertia = torch.Tensor()
-        self.k = float()
+        self.k = torch.Tensor()
 
         # define neural net
         layers = []
@@ -17,7 +17,7 @@ class ODEFunc(nn.Module):
             if i == 0:
                 # first layer takes in all configurational variables (xyz and quaternions)
                 layers += [nn.Linear(self.dim, width), nn.Sigmoid()]
-            if i == (depth-1):
+            if i == (depth-1):  
                 # last layer outputs a single potential energy value
                 layers += [nn.Linear(width, 1)]
             else:
