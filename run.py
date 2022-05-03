@@ -6,7 +6,7 @@ torch.manual_seed(0)
 config = dict(
     folder = 'dataset/trajectories/smooth/', 
     device = torch.device("cpu"), 
-    niters = 500,
+    niters = 10,
     optimizer = 'Adam',
     batch_length=10,
     nbatches=800,
