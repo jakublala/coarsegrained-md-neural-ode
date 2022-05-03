@@ -40,9 +40,7 @@ class Trainer():
         self.stopping_freq = 500
 
         self.func = ODEFunc(self.nparticles, self.dim, self.nn_width, self.nn_depth).to(self.device)
-        if self.device == torch.device('cuda'):
-            self.func = nn.DataParallel(self.func).to(self.device)
-
+    
         self.optimizer = self.set_optimizer(self.optimizer_name)
         
         if self.load_folder != None:
@@ -64,6 +62,9 @@ class Trainer():
                 
                 batch_t, batch_y0, batch_y, self.func.k, self.func.inertia = self.dataset.get_batch(self.nbatches, self.batch_length) 
                 
+                # if self.device == torch.device('cuda'):
+                #     self.func = nn.DataParallel(self.func).to(self.device)
+
                 # TODO: add assertion to check right dimensions
                 pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
                 

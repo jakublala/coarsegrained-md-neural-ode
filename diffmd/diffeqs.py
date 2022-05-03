@@ -47,6 +47,7 @@ class ODEFunc(nn.Module):
             # assert torch.norm(q, dim=2).max() < 1.001, 'quaternions not normalised'
             
             # get separation between bodies
+            # TODO: check whether it's pointing B to A or A to B?
             r_vector = x[:, 0, :] - x[:, 1, :]
             r = torch.norm(r_vector, dim=-1).unsqueeze(1)
             r_vector = r_vector / r
@@ -58,7 +59,7 @@ class ODEFunc(nn.Module):
 
             # get energy and gradients
             # TODO: check that harmonic restraint is calculated correctly
-            u = self.net(rq) + self.harmonic_restraint(r) # [potential energy, number of trajectories]
+            u = self.net(rq) + self.harmonic_restraint(rq) # [potential energy, number of trajectories]
             # TODO: check that gradient is calculated correctly
             grad = compute_grad(inputs=rq, output=u) # [force _ torque, number of trajectories]
             grad_r, grad_q = torch.split(grad, [1, self.dim-1], dim=1)
@@ -66,6 +67,7 @@ class ODEFunc(nn.Module):
             
             # get force and update translational motion
             # TODO: do this without assigning variables to speed up computation
+            # TODO: check that signs in force are correct
             fA = - grad_r * r_vector # [force, number of trajectories]
             fB = grad_r * r_vector
             f = torch.stack((fA, fB), dim=1)
@@ -86,9 +88,10 @@ class ODEFunc(nn.Module):
             
         return (dvdt, dwdt, dxdt, dqdt)
 
-    def harmonic_restraint(self, diff):
+    def harmonic_restraint(self, rq):
+        # TODO: fix this as it does not take the gradient
         # TODO: train different ks separately, or do a batch of k spring constants, that you update with each get_batch?
-        return 0.5 * self.k * torch.square(diff)
+        return 0.5 * self.k * torch.square(rq[:, 0, :])
 
     def G(self, q):
         # TODO: move this somewhere; make sure it's fast; maybe torch.stack is not ideal
