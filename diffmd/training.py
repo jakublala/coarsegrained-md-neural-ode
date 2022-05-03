@@ -18,8 +18,7 @@ class Trainer():
         self.folder = config['folder']
         
         self.device = config['device']
-        print(f'Using {self.device} device')
-
+        
         # TODO: log everything similarly to device into print file
         self.niters = config['niters']
         self.learning_rate = config['learning_rate']
@@ -29,27 +28,36 @@ class Trainer():
         self.nn_depth = config['nn_depth']
         self.load_folder = config['load_folder']
         self.optimizer_name = config['optimizer']
-
-        print(f'depth = {self.nn_depth}, width = {self.nn_width}')
-        print(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name}')
-        print(f'number of batches = {self.nbatches}, batch length = {self.batch_length}')
-
+        self.scheduler_name = config['scheduler']
+        self.scheduling_factor = config['scheduling_factor']
+        
         self.dataset = Dataset(config)
         self.loss_meter = RunningAverageMeter()
         
         self.nparticles = 2
-        self.dim = 1 + (2*4)
-        self.printing_freq = 10
-        self.plotting_freq = 10
-        self.stopping_freq = 500
+        self.dim = 3 + (2*4)
+        self.printing_freq = config['printing_freq']
+        self.plotting_freq = config['plotting_freq']
+        self.stopping_freq = config['stopping_freq']
+        self.scheduling_freq = config['scheduling_freq']
 
         self.func = ODEFunc(self.nparticles, self.dim, self.nn_width, self.nn_depth).to(self.device)
-        
+        self.nparameters = count_parameters(self.func)
+
         self.optimizer = self.set_optimizer(self.optimizer_name)
+        self.scheduler = self.set_scheduler(self.scheduler_name, self.scheduling_factor)
         
         if self.load_folder != None:
             self.func.load_state_dict(torch.load(f'{self.load_folder}/model.pt'))
-        
+
+        print(f'device = {self.device}')
+        print(f'depth = {self.nn_depth}, width = {self.nn_width}')
+        print(f'number of parameters = {self.nparameters}')
+        print(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name}')
+        print(f'scheduler = {self.scheduler_name}, scheduling factor = {self.scheduling_factor}, scheduling freq = {self.scheduling_freq}')
+        print(f'number of batches = {self.nbatches}, batch length = {self.batch_length}')
+
+
 
     def train(self):
         for self.itr in range(1, self.niters + 1):
@@ -66,6 +74,9 @@ class Trainer():
                 
                 batch_t, batch_y0, batch_y, self.func.k, self.func.inertia = self.dataset.get_batch(self.nbatches, self.batch_length) 
                 
+                # if self.device == torch.device('cuda'):
+                #     self.func = nn.DataParallel(self.func).to(self.device)
+
                 # TODO: add assertion to check right dimensions
                 pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
             
@@ -79,8 +90,11 @@ class Trainer():
                 loss.backward() 
                 self.optimizer.step()
             
-                self.loss_meter.update(loss.item())
-                
+                self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
+            
+            if self.itr % self.scheduling_freq == 0:
+                self.scheduler.step()
+
             if self.itr % self.printing_freq == 0:
                 self.print_loss(self.itr, start_time)
 
@@ -124,9 +138,10 @@ class Trainer():
 
 
     def print_loss(self, itr, start_time):
-        print(f'Iter: {itr}, running avg elbo: {self.loss_meter.avg}')
-        print(f'current loss: {self.loss_meter.val}')
+        print(f'Iter: {itr}, Running avg elbo: {self.loss_meter.avg}')
+        print(f'Current loss: {self.loss_meter.val}')
         print('Last iteration took:     ', time.perf_counter() - start_time, flush=True)
+        print(f'Learning rate: {self.loss_meter.lrs[-1]}')
 
     def plot_traj(self, itr, subfolder='temp'):
 
@@ -148,8 +163,9 @@ class Trainer():
 
             pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
 
-            pred_y = torch.cat(pred_y, dim=-1)            
-            batch_y = torch.swapaxes(torch.cat(batch_y, dim=-1), 0, 1)
+            pred_y = torch.cat(pred_y, dim=-1).cpu().numpy()
+            batch_y = torch.swapaxes(torch.cat(batch_y, dim=-1), 0, 1).cpu().numpy()
+            batch_t = batch_t.cpu().numpy()
             
             ind_vel = [0, 1, 2]
             ind_ang = [3, 4, 5]
@@ -158,57 +174,72 @@ class Trainer():
             
             for i in ind_vel:
                 plt.title('velocities 1')
-                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,:,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
+                plt.plot(batch_t, batch_y[:,:,0,i], 'k--', alpha=0.3, label=f'true {i}')
+                plt.plot(batch_t, pred_y[:,:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
             plt.savefig(f'{subfolder}/{itr}_vel1.png')
             plt.close()
             
             for i in ind_vel:
                 plt.title('velocities 2')
-                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,:,1,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
+                plt.plot(batch_t, batch_y[:,:,1,i], 'k--', alpha=0.3, label=f'true {i}')
+                plt.plot(batch_t, pred_y[:,:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
             plt.savefig(f'{subfolder}/{itr}_vel2.png')
             plt.close()
             
             for i in ind_ang:
                 plt.title('angular velocities 1')
-                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,:,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
+                plt.plot(batch_t, batch_y[:,:,0,i], 'k--', alpha=0.3, label=f'true {i}')
+                plt.plot(batch_t, pred_y[:,:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
             plt.savefig(f'{subfolder}/{itr}_angvel1.png')
             plt.close()
             
             for i in ind_ang:
                 plt.title('angular velocities 2')
-                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,:,1,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
+                plt.plot(batch_t, batch_y[:,:,1,i], 'k--', alpha=0.3, label=f'true {i}')
+                plt.plot(batch_t, pred_y[:,:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
             plt.savefig(f'{subfolder}/{itr}_angvel2.png')
             plt.close()
             
+            # centre of mass positions (set initial position of first COM to zero)
+            batch_y[:,:,:,6:9] = batch_y[:,:,:,6:9] - batch_y[0,:,0,6:9]
+            pred_y[:,:,:,6:9] = pred_y[:,:,:,6:9] - pred_y[0,:,0,6:9]
+            
             for i in ind_pos:
                 plt.title('positions 1')
-                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,:,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
+                plt.plot(batch_t, batch_y[:,:,0,i], 'k--', alpha=0.3, label=f'true {i}')
+                plt.plot(batch_t, pred_y[:,:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
             plt.savefig(f'{subfolder}/{itr}_pos1.png')
             plt.close()
             
             for i in ind_pos:
                 plt.title('positions 2')
-                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,:,1,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
+                plt.plot(batch_t, batch_y[:,:,1,i], 'k--', alpha=0.3, label=f'true {i}')
+                plt.plot(batch_t, pred_y[:,:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
             plt.savefig(f'{subfolder}/{itr}_pos2.png')
             plt.close()
-            
+
+            # centre of mass separation
+            batch_y_sep = np.linalg.norm(batch_y[:,:,1,6:9] - batch_y[:,:,0,6:9], axis=2)
+            pred_y_sep = np.linalg.norm(pred_y[:,:,1,6:9] - pred_y[:,:,0,6:9], axis=2)
+
+            plt.title('separation')
+            plt.plot(batch_t, batch_y_sep, 'k--', alpha=0.3, label=f'true')
+            plt.plot(batch_t, pred_y_sep, 'r-', alpha=0.5, label=f'pred')
+            plt.savefig(f'{subfolder}/{itr}_sep.png')
+            plt.close()
+
+            # quaternions
             for i in ind_quat:
                 plt.title('quaternions 1')
-                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,:,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
+                plt.plot(batch_t, batch_y[:,:,0,i], 'k--', alpha=0.3, label=f'true {i}')
+                plt.plot(batch_t, pred_y[:,:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
             plt.savefig(f'{subfolder}/{itr}_quat1.png')
             plt.close() 
             
             for i in ind_quat:
                 plt.title('quaternions 2')
-                plt.plot(batch_t.cpu().numpy(), batch_y.cpu().numpy()[:,:,1,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t.cpu().numpy(), pred_y.cpu().numpy()[:,:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
+                plt.plot(batch_t, batch_y[:,:,1,i], 'k--', alpha=0.3, label=f'true {i}')
+                plt.plot(batch_t, pred_y[:,:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
             plt.savefig(f'{subfolder}/{itr}_quat2.png')
             plt.close() 
 
@@ -218,6 +249,24 @@ class Trainer():
         plt.plot(self.loss_meter.losses)
         plt.savefig(f'{subfolder}/loss.png')
         plt.close()
+        return
+
+    def plot_lr(self, subfolder):
+        plt.title('learning rate evolution')
+        plt.plot(self.loss_meter.lrs)
+        plt.savefig(f'{subfolder}/lr.png')
+        plt.close()
+        return
+
+    def log_hyperparameters(self, subfolder):
+        with open(f'{subfolder}/hyperparameters.txt', 'w') as f:
+            f.write(f'device = {self.device} \n')
+            f.write(f'depth = {self.nn_depth}, width = {self.nn_width} \n')
+            f.write(f'number of parameters = {self.nparameters} \n')
+            f.write(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name} \n')
+            f.write(f'scheduler = {self.scheduler_name}, scheduling factor = {self.scheduling_factor}, scheduling freq = {self.scheduling_freq} \n')
+            f.write(f'number of batches = {self.nbatches}, batch length = {self.batch_length} \n')
+
         return
 
     def set_optimizer(self, optimizer):
@@ -230,6 +279,13 @@ class Trainer():
         else:
             raise Exception('optimizer not implemented')
 
+    def set_scheduler(self, scheduler, alpha):
+        if scheduler == 'LambdaLR':
+            lambda1 = lambda epoch: alpha ** epoch
+            return torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda1)
+        else:
+            raise Exception('scheduler not implemented')
+
     def save(self):
         subfolder = f'results/depth-{self.nn_depth}-width-{self.nn_width}-lr-{self.learning_rate}'
         if not os.path.exists(f'{subfolder}'):
@@ -237,8 +293,11 @@ class Trainer():
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
         self.plot_traj(self.itr, subfolder)
         self.plot_loss(subfolder)
-        print([f for f in os.listdir('results/') if os.path.isfile(os.path.join('results/', f))])
+        self.plot_lr(subfolder)
+        self.log_hyperparameters(subfolder)
         return
+
+    
 
 
 class RunningAverageMeter(object):
@@ -249,21 +308,24 @@ class RunningAverageMeter(object):
         self.losses = []
         self.reset()
         self.checkpoints = []
+        self.lrs = []
 
     def reset(self):
         self.val = None
         self.avg = 0
 
-    def update(self, val):
+    def update(self, val, lr):
         if self.val is None:
             self.avg = val
         else:
             self.avg = self.avg * self.momentum + val * (1 - self.momentum)
         self.val = val
-        self.log(val)
+        self.log(val, lr)
+        
     
-    def log(self, val):
+    def log(self, val, lr):
         self.losses.append(val)
+        self.lrs.append(lr)
 
     def checkpoint(self):
         self.checkpoints.append(self.avg)
@@ -278,3 +340,6 @@ class MyDataParallel(torch.nn.DataParallel):
             return super().__getattr__(name)
         except AttributeError:
             return getattr(self.module, name)
+
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)
