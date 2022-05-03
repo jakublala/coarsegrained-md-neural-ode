@@ -34,9 +34,9 @@ class Trainer():
         
         self.nparticles = 2
         self.dim = 1 + (2*4)
-        self.printing_freq = 1
-        self.plotting_freq = 10
-        self.stopping_freq = 500
+        self.printing_freq = config['printing_freq']
+        self.plotting_freq = config['plotting_freq']
+        self.stopping_freq = config['stopping_freq']
 
         self.func = ODEFunc(self.nparticles, self.dim, self.nn_width, self.nn_depth).to(self.device)
         self.nparameters = count_parameters(self.func)

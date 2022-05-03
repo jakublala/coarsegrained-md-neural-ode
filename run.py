@@ -17,6 +17,9 @@ config = dict(
     # load_folder='results/depth-1-width-300-lr-0.1',
     load_folder=None,
     dtype=torch.float32,
+    printing_freq=10,
+    plotting_freq=10,
+    stopping_freq=500,
     )
 
 trainer = Trainer(config)
