@@ -40,6 +40,7 @@ class Trainer():
         self.plotting_freq = config['plotting_freq']
         self.stopping_freq = config['stopping_freq']
         self.scheduling_freq = config['scheduling_freq']
+        self.evaluation_freq = config['evaluation_freq']
 
         self.func = ODEFunc(self.nparticles, self.dim, self.nn_width, self.nn_depth).to(self.device)
         self.nparameters = count_parameters(self.func)
@@ -73,7 +74,7 @@ class Trainer():
                     param.grad = None
                 
                 batch_t, batch_y0, batch_y, self.func.k, self.func.inertia = self.dataset.get_batch(self.nbatches, self.batch_length) 
-                
+
                 # if self.device == torch.device('cuda'):
                 #     self.func = nn.DataParallel(self.func).to(self.device)
 
@@ -100,6 +101,9 @@ class Trainer():
 
             if self.itr % self.plotting_freq == 0:
                 self.plot_traj(self.itr)
+
+            if self.itr % self.evaluation_freq == 0:
+                self.evaluate(training_dataset=True)
 
             # early stopping
             if self.itr % self.stopping_freq == 0:
@@ -286,6 +290,43 @@ class Trainer():
         else:
             raise Exception('scheduler not implemented')
 
+    def evaluate(self, training_dataset=False):
+        # TODO: maybe move this elsewhere and make it more robust? maybe have an Evaluation class
+        eval_loss = 0
+        if training_dataset:
+            for t in self.dataset.trajs:
+                # y0 = tuple([t.traj[i][0, 0, :, :].view(-1, 2, t.traj[i].shape[-1]) for i in range(len(t.traj))])
+                # pred_y = odeint_adjoint(self.func, y0, batch_t, method='NVE')
+                nbatches = 100#10000
+                batch_length = 100
+
+                batch_t, batch_y0, batch_y, self.func.k, self.func.inertia = self.dataset.get_batch(nbatches, batch_length) 
+
+                pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
+            
+                pred_y = torch.swapaxes(torch.cat(pred_y, dim=-1), 0, 1)
+                
+                batch_y = torch.cat(batch_y, dim=-1)
+                
+                loss = torch.mean(torch.abs(pred_y - batch_y))
+
+                eval_loss += loss
+
+                            
+        else:
+            raise Exception('test evaluation not implemented')
+        eval_loss = float(eval_loss.cpu())
+        self.loss_meter.evals.append(eval_loss)
+        return eval_loss
+
+    def plot_evaluation(self, subfolder):
+        plt.title('evaluation function evolution')
+        eval_itr = np.arange(len(self.loss_meter.evals)) * self.evaluation_freq
+        plt.plot(eval_itr, self.loss_meter.evals)
+        plt.savefig(f'{subfolder}/eval_loss.png')
+        plt.close()
+        return
+
     def save(self):
         subfolder = f'results/depth-{self.nn_depth}-width-{self.nn_width}-lr-{self.learning_rate}'
         if not os.path.exists(f'{subfolder}'):
@@ -294,6 +335,7 @@ class Trainer():
         self.plot_traj(self.itr, subfolder)
         self.plot_loss(subfolder)
         self.plot_lr(subfolder)
+        self.plot_evaluation(subfolder)
         self.log_hyperparameters(subfolder)
         return
 
@@ -308,7 +350,9 @@ class RunningAverageMeter(object):
         self.losses = []
         self.reset()
         self.checkpoints = []
+        # TODO: do lrs and evals in separate classes and not in the same class, which makes it messy
         self.lrs = []
+        self.evals = []
 
     def reset(self):
         self.val = None
