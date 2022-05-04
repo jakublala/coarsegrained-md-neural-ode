@@ -43,7 +43,7 @@ def run_and_track_in_sigopt():
     # )
 
     config = dict(
-        folder = 'hexagons/trajectories/smooth/', 
+        folder = 'dataset/trajectories/smooth/', 
         device = torch.device("cuda"), 
         niters = 10000,
         optimizer = 'Adam',
@@ -55,13 +55,7 @@ def run_and_track_in_sigopt():
         nn_width=sigopt.params.nn_width,
         activation_function=None,
         load_folder=None,
-        dtype=torch.float32,    
-        printing_freq=10,
-        plotting_freq=10,
-        stopping_freq=500,
-        scheduler='LambdaLR',
-        scheduling_factor=0.90,
-        scheduling_freq=10,
+        dtype=torch.float32,
         # load_folder='results/depth-1-width-300-lr-0.1',
         printing_freq=50,
         plotting_freq=250,
