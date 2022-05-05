@@ -40,7 +40,7 @@ class Dataset():
         trajectory = np.random.choice(self.trajs)
         dt = trajectory.dt
         traj = trajectory.traj
-        
+
         nparticles = traj[0].shape[2]
         vel_dim = traj[0].size()[3]
         angvel_dim = traj[1].size()[3]

@@ -43,12 +43,12 @@ def run_and_track_in_sigopt():
     # )
 
     config = dict(
-        folder = 'hexagons/trajectories/smooth/', 
-        device = torch.device("cuda"), 
+        folder = 'dataset/smooth/', 
+        device = torch.device("cpu"), 
         niters = 10000,
         optimizer = 'Adam',
-        batch_length=10,
-        nbatches=800,
+        batch_length=sigopt.params.batch_length,
+        nbatches=sigopt.params.nbatches,
         learning_rate=sigopt.params.learning_rate,
         # nn_depth=sigopt.params.nn_depth,
         nn_depth=sigopt.params.nn_depth,
@@ -56,19 +56,13 @@ def run_and_track_in_sigopt():
         activation_function=None,
         load_folder=None,
         dtype=torch.float32,    
-        printing_freq=10,
-        plotting_freq=10,
-        stopping_freq=500,
-        scheduler='LambdaLR',
-        scheduling_factor=0.90,
-        scheduling_freq=10,
-        # load_folder='results/depth-1-width-300-lr-0.1',
-        printing_freq=50,
+        printing_freq=100,
         plotting_freq=250,
-        stopping_freq=500,
+        stopping_freq=1000,
         scheduler='LambdaLR',
-        scheduling_factor=0.90,
+        scheduling_factor=0.75,
         scheduling_freq=500,
+        evaluation_freq=250,
     )
 
     # sigopt.log_dataset(dataset) 
@@ -77,10 +71,11 @@ def run_and_track_in_sigopt():
     model, train_loss = trainer.train()
     trainer.save()
 
-    # running_avg_train_loss = train_loss.avg
-    current_train_loss = train_loss.val
 
-    sigopt.log_metric(name="train_loss", value=current_train_loss)
+    # running_avg_train_loss = train_loss.avg
+    # current_train_loss = train_loss.val
+
+    sigopt.log_metric(name="train_loss", value=trainer.evaluate(training_dataset=True))
     # sigopt.log_metric(name="test_loss", value=running_avg_test_loss)
     # sigopt.log_metric(name="training time (s)", value=traininx    g_time)
     # sigopt.log_metric(name="training and validation time (s)", value=training_and_validation_time)

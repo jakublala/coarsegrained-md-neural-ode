@@ -50,6 +50,7 @@ class Trajectory():
     def get_data(self):
         # train_split = 0.9
         # test_split = 1 - train_split
+        end_index = self.reader.n_logged_timesteps // 1
         df = pd.read_csv(self.file_path+'-reduced_traj.csv')
         # HACK: do this based on the column names, not explicitly
         com = ['c_com_1[1]', 'c_com_1[2]', 'c_com_1[3]', 'c_com_2[1]', 'c_com_2[2]', 'c_com_2[3]']
@@ -59,13 +60,13 @@ class Trajectory():
         am = ['c_am_1[1]', 'c_am_1[2]', 'c_am_1[3]', 'c_am_2[1]', 'c_am_2[2]', 'c_am_2[3]']
         inertia = ['c_i_1[1]', 'c_i_1[2]', 'c_i_1[3]', 'c_i_2[1]', 'c_i_2[2]', 'c_i_2[3]']
         
-        centre_of_masses = df.loc[:, ['timestep', *com]]
-        quaternions = df.loc[:, ['timestep', *q]]
-        velocities = df.loc[:, ['timestep', *vel]]
-        ang_velocities = df.loc[:, ['timestep', *av]]
-        ang_momenta = df.loc[:, ['timestep', *am]]
+        centre_of_masses = df.loc[:end_index, ['timestep', *com]]
+        quaternions = df.loc[:end_index, ['timestep', *q]]
+        velocities = df.loc[:end_index, ['timestep', *vel]]
+        ang_velocities = df.loc[:end_index, ['timestep', *av]]
+        ang_momenta = df.loc[:end_index, ['timestep', *am]]
         # inertia = df.loc[0, ['timestep', *inertia]]
-        inertia = df.loc[:, ['timestep', *inertia]]
+        inertia = df.loc[:end_index, ['timestep', *inertia]]
         # TODO: use DataLoaders?
         
         # trajs = np.load('data/trajectories/diatomic_spring_narrow.npy')
@@ -112,11 +113,11 @@ class Trajectory():
         # mom = torch.from_numpy(np.hstack((vel1 * hexagon_mass, vel2 * hexagon_mass))).to(device).view(ntraj, -1, nparticles, vel_dim)
         vel = torch.from_numpy(np.hstack((vel1, vel2))).to(self.device).view(ntraj, -1, nparticles, vel_dim)
 
-        # Get angular velocities
+        # Get angular velocities (system-fixed)
         ang_vel_1 = ang_velocities.loc[:, ['c_av_1[1]', 'c_av_1[2]', 'c_av_1[3]']].to_numpy()
         ang_vel_2 = ang_velocities.loc[:, ['c_av_2[1]', 'c_av_2[2]', 'c_av_2[3]']].to_numpy()
-        # Convert system to body coords
-        # TODO: we could do this when writing to CSV to speed up training
+        # # Convert system to body coords => system to body requires inverse
+        # # TODO: we could do this when writing to CSV to speed up training
         quat1 = quaternion.from_float_array(quat1)
         quat2 = quaternion.from_float_array(quat2)
         ang_vel_1 = quaternion.from_vector_part(ang_vel_1)
@@ -126,6 +127,7 @@ class Trajectory():
         ang_vel_1 = quaternion.as_vector_part(ang_vel_1)
         ang_vel_2 = quaternion.as_vector_part(ang_vel_2)
         ang_vel = torch.from_numpy(np.hstack((ang_vel_1, ang_vel_2))).to(self.device).view(ntraj, -1, nparticles, angvel_dim)
+
         return (vel, ang_vel, coms, quats)
 
         
