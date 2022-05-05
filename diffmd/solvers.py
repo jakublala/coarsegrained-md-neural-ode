@@ -12,13 +12,11 @@ from torch import nn
     [1] Wang, Wujie, Simon Axelrod, and Rafael Gómez-Bombarelli. "Differentiable molecular simulations for control and learning." arXiv preprint arXiv:2003.00868 (2020).
 '''
 
-
 class VelVerlet_NVE(FixedGridODESolver):
     """
     Velocity Verlet updater for NVE ODE forward and backward with translational and rotational motion
     # TODO: rename so that it's clear that it has a kinetic (quaternion) component
     """
-
     def step_func(self, diffeq, dt, state):
         """
         Propagates state vectors and ajoints one step in time
@@ -35,8 +33,13 @@ class VelVerlet_NVE(FixedGridODESolver):
             -
         """
         NUM_VAR = 4 # vels and coords for NVE
+
+        # #HACK: inertia
+        inertia = torch.Tensor([[3, 3, 6], [3, 3, 6]]).to(state[0].device).type(state[0].dtype)
         
         if len(state) == NUM_VAR: # integrator in the forward call 
+            # HACK
+            self.inertia = diffeq.inertia 
 
             dvdt_0, dwdt_0, dxdt_0, dqdt_0 = diffeq(state)
             
@@ -47,7 +50,7 @@ class VelVerlet_NVE(FixedGridODESolver):
             # angular velocity half-step
             w_step_half = 1/2 * dwdt_0 * dt # body-fixed
             w_half_body = state[1] + w_step_half # 1)
-            l_half_body = w_half_body * diffeq.inertia
+            l_half_body = w_half_body * inertia
             l_half_system = quaternion_apply(state[3], l_half_body) # 2)
 
             # full Richardson update
@@ -60,7 +63,7 @@ class VelVerlet_NVE(FixedGridODESolver):
             
             q_half_invert = quaternion_invert(q_half)
             l_half_body = quaternion_apply(q_half_invert, l_half_system) # 5)
-            w_half_body = l_half_body / diffeq.inertia
+            w_half_body = l_half_body / inertia
             
             # 2nd`half Richardson update
             q_half = q_half + 0.5 * 0.5 * quatvec(q_half, w_half_body) * dt # 6)
@@ -115,7 +118,7 @@ class VelVerlet_NVE(FixedGridODESolver):
             # angular velocity half-step
             w_step_half = 1/2 * dwdt_0 * dt # body-fixed
             w_half_body = state[1] + w_step_half # 1)
-            l_half_body = w_half_body * diffeq.inertia
+            l_half_body = w_half_body * inertia
             l_half_system = quaternion_apply(state[3], l_half_body) # 2)
 
             # full Richardson update
@@ -128,7 +131,7 @@ class VelVerlet_NVE(FixedGridODESolver):
             
             q_half_invert = quaternion_invert(q_half)
             l_half_body = quaternion_apply(q_half_invert, l_half_system) # 5)
-            w_half_body = l_half_body / diffeq.inertia
+            w_half_body = l_half_body / inertia
             
             # 2nd`half Richardson update
             q_half = q_half + 0.5 * 0.5 * quatvec(q_half, w_half_body) * dt # 6)
@@ -155,8 +158,9 @@ class VelVerlet_NVE(FixedGridODESolver):
                  state[8] + dLdpar_half))
 
             # final update of velocities 
-            v_step_full = v_step_half + 1/2 * dvdt_full * dt
-            w_step_full = w_step_half + 1/2 * dwdt_full * dt # 8)
+            # TODO: change naming to be consistent
+            v_step_full = v_step_half + 1/2 * dvdt_mid * dt
+            w_step_full = w_step_half + 1/2 * dwdt_mid * dt # 8)
 
             # half step adjoint update 
             # TODO: check that ang velocity and quaternions dont have a different type of integration of adjoint
