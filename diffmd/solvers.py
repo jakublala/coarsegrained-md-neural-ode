@@ -68,16 +68,18 @@ class VelVerlet_NVE(FixedGridODESolver):
             
             # corrected Richardson update
             q_new = 2 * q_half - q_full # 7)
-           
+            q_new = normalize_quat(q_new, dim=2)
+            
+            # reverse engineer quaternion to step in time
+            q_step_full = q_new - state[3]
+            
             # gradient full at t + dt 
-            dvdt_full, dwdt_full, dxdt_full, dqdt_0 = diffeq((state[0] + v_step_half, w_half_body, state[2] + x_step_full, q_new))
+            dvdt_full, dwdt_full, dxdt_full, dqdt_0 = diffeq((state[0] + v_step_half, state[1] + w_step_half, state[2] + x_step_full, state[3] + q_step_full))
             
             # final update of velocities 
             v_step_full = v_step_half + 1/2 * dvdt_full * dt
             w_step_full = w_step_half + 1/2 * dwdt_full * dt # 8)
 
-            # reverse engineer quaternion to step in time
-            q_step_full = q_new - state[3]
             
 
             # dvdt_0, dwdt_0, dxdt_0, dqdt_0 = diffeq(state)
@@ -106,12 +108,39 @@ class VelVerlet_NVE(FixedGridODESolver):
 
             # more importantly are there better way to integrate the adjoint state other than midpoint integration 
 
+            # translational motion
             v_step_half = 1/2 * dvdt_0 * dt 
-            w_step_half = 1/2 * dwdt_0 * dt
- 
             x_step_full = (state[0] + v_step_half) * dt 
-            q_step_full = 0.5 * quatvec(state[3], state[1] + w_step_half) * dt 
+        
+            # angular velocity half-step
+            w_step_half = 1/2 * dwdt_0 * dt # body-fixed
+            w_half_body = state[1] + w_step_half # 1)
+            l_half_body = w_half_body * diffeq.inertia
+            l_half_system = quaternion_apply(state[3], l_half_body) # 2)
+
+            # full Richardson update
+            q_full = state[3] + 0.5 * quatvec(state[3], w_half_body) * dt # 3)
+            q_full = normalize_quat(q_full, dim=2)
             
+            # half Richardson update
+            q_half = state[3] + 0.5 * 0.5 * quatvec(state[3], w_half_body) * dt # 4)
+            q_half = normalize_quat(q_half, dim=2)
+            
+            q_half_invert = quaternion_invert(q_half)
+            l_half_body = quaternion_apply(q_half_invert, l_half_system) # 5)
+            w_half_body = l_half_body / diffeq.inertia
+            
+            # 2nd`half Richardson update
+            q_half = q_half + 0.5 * 0.5 * quatvec(q_half, w_half_body) * dt # 6)
+            q_half = normalize_quat(q_half, dim=2)
+            
+            # corrected Richardson update
+            q_new = 2 * q_half - q_full # 7)
+            q_new = normalize_quat(q_new, dim=2)
+
+            # reverse engineer quaternion to step in time
+            q_step_full = q_new - state[3]
+           
             # half step adjoint update 
             # TODO: check that ang velocity and quaternions dont have a different type of integration of adjoint
             vadjoint_half = v_adj_0 * 0.5 * dt
@@ -125,9 +154,10 @@ class VelVerlet_NVE(FixedGridODESolver):
                  state[4] +  vadjoint_half, state[5] + wadjoint_half, state[6] + xadjoint_half, state[7] + qadjoint_half, 
                  state[8] + dLdpar_half))
 
-            v_step_full = v_step_half + 1/2 * dvdt_mid * dt 
-            w_step_full = w_step_half + 1/2 * dwdt_mid * dt
-     
+            # final update of velocities 
+            v_step_full = v_step_half + 1/2 * dvdt_full * dt
+            w_step_full = w_step_half + 1/2 * dwdt_full * dt # 8)
+
             # half step adjoint update 
             # TODO: check that ang velocity and quaternions dont have a different type of integration of adjoint
             vadjoint_step = v_adj_mid * dt

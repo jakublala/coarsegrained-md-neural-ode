@@ -61,7 +61,7 @@ class ODEFunc(nn.Module):
             u = self.net(rq) + self.harmonic_restraint(rq) # [number of trajectories, potential energy]
             
             grad = compute_grad(inputs=rq, output=u) # [force _ torque, number of trajectories]
-            grad = grad.fill_(0)
+            
             grad_r, grad_q = torch.split(grad, [3, self.dim-3], dim=1)
             grad_q = grad_q.view(-1, self.nparticles, 4)
             
