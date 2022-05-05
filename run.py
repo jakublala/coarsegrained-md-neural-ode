@@ -4,12 +4,12 @@ from diffmd.training import Trainer
 torch.manual_seed(0)
 
 config = dict(
-    folder = 'dataset/trajectories/smooth/', 
+    folder = 'dataset/trajectories/double/', 
     device = torch.device("cpu"), 
-    niters = 100,
+    niters = 1,
     optimizer = 'Adam',
-    batch_length=10,
-    nbatches=800,
+    batch_length=3,
+    nbatches=2,
     learning_rate=0.3,
     nn_depth=1,
     nn_width=400,
@@ -17,8 +17,8 @@ config = dict(
     # load_folder='results/depth-1-width-300-lr-0.1',
     load_folder=None,
     dtype=torch.float32,
-    printing_freq=50,
-    plotting_freq=250,
+    printing_freq=1,
+    plotting_freq=1,
     stopping_freq=1000,
     scheduler='LambdaLR',
     scheduling_factor=0.75,
@@ -29,6 +29,4 @@ config = dict(
 trainer = Trainer(config)
 model, train_loss = trainer.train()
 trainer.save()
-hello = trainer.evaluate(training_dataset=True)
-print(hello)
 

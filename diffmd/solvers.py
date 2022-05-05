@@ -1,6 +1,7 @@
 from diffmd.solver_base import FixedGridODESolver
 from diffmd.solver_base import _check_inputs, _flatten, _flatten_convert_none_to_zeros, _assert_increasing
-from diffmd.utils import quatvec, body_to_lab_frame, normalize_quat, quat_rotation
+from diffmd.utils import vecquat, quatvec, body_to_lab_frame, normalize_quat, quat_rotation
+from pytorch3d.transforms import quaternion_apply, quaternion_invert
 
 import torch
 from torch import nn
@@ -36,23 +37,66 @@ class VelVerlet_NVE(FixedGridODESolver):
         NUM_VAR = 4 # vels and coords for NVE
         
         if len(state) == NUM_VAR: # integrator in the forward call 
-            
-            dvdt_0, dwdt_0, dxdt_0, dqdt_0 = diffeq(state)
 
-            # angular/translational velocity half-step
+            dvdt_0, dwdt_0, dxdt_0, dqdt_0 = diffeq(state)
+            
+            # translational motion
             v_step_half = 1/2 * dvdt_0 * dt 
-            w_step_half = 1/2 * dwdt_0 * dt
- 
-            # full-step change in position/rotation
             x_step_full = (state[0] + v_step_half) * dt 
-            q_step_full =  0.5 * quatvec(state[3], state[1] + w_step_half) * dt
+        
+            # angular velocity half-step
+            w_step_half = 1/2 * dwdt_0 * dt # body-fixed
+            w_half_body = state[1] + w_step_half # 1)
+            l_half_body = w_half_body * diffeq.inertia
+            l_half_system = quaternion_apply(state[3], l_half_body) # 2)
+
+            # full Richardson update
+            q_full = state[3] + 0.5 * quatvec(state[3], w_half_body) * dt # 3)
+            q_full = normalize_quat(q_full, dim=2)
             
+            # half Richardson update
+            q_half = state[3] + 0.5 * 0.5 * quatvec(state[3], w_half_body) * dt # 4)
+            q_half = normalize_quat(q_half, dim=2)
+            
+            q_half_invert = quaternion_invert(q_half)
+            l_half_body = quaternion_apply(q_half_invert, l_half_system) # 5)
+            w_half_body = l_half_body / diffeq.inertia
+            
+            # 2nd`half Richardson update
+            q_half = q_half + 0.5 * 0.5 * quatvec(q_half, w_half_body) * dt # 6)
+            q_half = normalize_quat(q_half, dim=2)
+            
+            # corrected Richardson update
+            q_new = 2 * q_half - q_full # 7)
+           
             # gradient full at t + dt 
-            dvdt_full, dwdt_full, dxdt_full, dqdt_0 = diffeq((state[0] + v_step_half, state[1] + w_step_half, state[2] + x_step_full, state[3] + q_step_full))
+            dvdt_full, dwdt_full, dxdt_full, dqdt_0 = diffeq((state[0] + v_step_half, w_half_body, state[2] + x_step_full, q_new))
             
+            # final update of velocities 
             v_step_full = v_step_half + 1/2 * dvdt_full * dt
-            w_step_full = w_step_half + 1/2 * dwdt_full * dt
+            w_step_full = w_step_half + 1/2 * dwdt_full * dt # 8)
+
+            # reverse engineer quaternion to step in time
+            q_step_full = q_new - state[3]
             
+
+            # dvdt_0, dwdt_0, dxdt_0, dqdt_0 = diffeq(state)
+
+            # # angular/translational velocity half-step
+            # v_step_half = 1/2 * dvdt_0 * dt 
+            # w_step_half = 1/2 * dwdt_0 * dt
+ 
+            # # full-step change in position/rotation
+            # x_step_full = (state[0] + v_step_half) * dt 
+            # q_step_full =  0.5 * quatvec(state[3], state[1] + w_step_half) * dt
+            
+            # # gradient full at t + dt 
+            # dvdt_full, dwdt_full, dxdt_full, dqdt_0 = diffeq((state[0] + v_step_half, state[1] + w_step_half, state[2] + x_step_full, state[3] + q_step_full))
+            
+            # v_step_full = v_step_half + 1/2 * dvdt_full * dt
+            # w_step_full = w_step_half + 1/2 * dwdt_full * dt
+            
+
             return tuple((v_step_full, w_step_full, x_step_full, q_step_full))
         
         elif len(state) == NUM_VAR * 2 + 1: # integrator in the backward call 
@@ -121,11 +165,11 @@ class VelVerlet_NVE(FixedGridODESolver):
         state = self.state
         for t0, t1 in zip(time_grid[:-1], time_grid[1:]):
             dt = t1 - t0
+            # TODO: rewrite this as well
             step_state = self.step_func(self.diffeq, dt, state)
-            new_state = [state_ + step_ for state_, step_ in zip(state, step_state)]
-            # normalize the quaternion
-            new_state[3] = normalize_quat(new_state[3], dim=2)
-            state = tuple(new_state)
+            new_state = tuple(state_ + step_ for state_, step_ in zip(state, step_state))
+            
+            state = new_state
 
             solution.append(new_state)
 

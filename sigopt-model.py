@@ -72,11 +72,16 @@ def run_and_track_in_sigopt():
     trainer.save()
     eval_loss = trainer.evaluate(training_dataset=True)
 
+
     # running_avg_train_loss = train_loss.avg
     # current_train_loss = train_loss.val
 
+<<<<<<< HEAD
     # sigopt.log_metric(name="train_loss", value=current_train_loss)
     sigopt.log_metric(name="train_loss", value=eval_loss)
+=======
+    sigopt.log_metric(name="train_loss", value=trainer.evaluate(training_dataset=True))
+>>>>>>> c50d0f1b0a7c5c6057354489181a49104058eb29
     # sigopt.log_metric(name="test_loss", value=running_avg_test_loss)
     # sigopt.log_metric(name="training time (s)", value=traininx    g_time)
     # sigopt.log_metric(name="training and validation time (s)", value=training_and_validation_time)

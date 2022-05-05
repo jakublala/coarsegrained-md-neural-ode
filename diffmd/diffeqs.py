@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 from diffmd.utils import normalize_quat, compute_grad, quatvec
+from pytorch3d.transforms import quaternion_apply
+from pytorch3d.transforms import quaternion_invert
 
 class ODEFunc(nn.Module):
     def __init__(self, nparticles, dim, width, depth):
@@ -10,6 +12,7 @@ class ODEFunc(nn.Module):
         self.mass = 7.0 # HACK
         self.inertia = torch.Tensor()
         self.k = torch.Tensor()
+        # TODO: add self.r0 => harmonic restarint
 
         # define neural net
         layers = []
@@ -58,6 +61,7 @@ class ODEFunc(nn.Module):
             u = self.net(rq) + self.harmonic_restraint(rq) # [number of trajectories, potential energy]
             
             grad = compute_grad(inputs=rq, output=u) # [force _ torque, number of trajectories]
+            grad = grad.fill_(0)
             grad_r, grad_q = torch.split(grad, [3, self.dim-3], dim=1)
             grad_q = grad_q.view(-1, self.nparticles, 4)
             
@@ -79,6 +83,7 @@ class ODEFunc(nn.Module):
             
             l = w * self.inertia
             # TODO: can I help out somehow the neural net with torque calculation by knowing the physical aspect - the torques must be opposite and equal? similarly to force 
+            # TODO: is dl_system / dt only the second term which swaps around the values as with dqdt?
             dldt = - torch.matmul(self.Omega(q, dqdt), l.unsqueeze(-1)).squeeze(-1) - 0.5 * torch.matmul(self.G(q), grad_q.unsqueeze(-1)).squeeze(-1)
             dwdt = dldt / self.inertia
             
