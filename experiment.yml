@@ -1,5 +1,5 @@
 {
-    'name': 'CG Hexagon Potential - Fourth Search (Small NN)',
+    'name': 'Penta-Hyperparameter 2',
     'metrics': [
         {
             'name': 'train_loss',
@@ -23,7 +23,18 @@
             'type': 'int',
             'bounds': {'min': 10, 'max': 1000}
         },
+        {
+            'name': 'nbatches',
+            'type': 'int',
+            'bounds': {'min': 10, 'max': 2000}
+        },
+        {
+            'name': 'batch_length',
+            'type': 'int',
+            'bounds': {'min': 5, 'max': 50}
+        },
+
     ],
     'parallel_bandwidth': 6, 
-    'budget': 50,
+    'budget': 30,
 }
