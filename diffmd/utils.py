@@ -7,7 +7,7 @@ def G(q):
     
 def vecquat(a, b):
     # TODO: add documentation
-    c = torch.zeros(b.shape).to(b.device).type(torch.float64)
+    c = torch.zeros(b.shape).to(b.device).type(a.type())
     c[:, :, 0] = -a[:, :, 0] * b[:, :, 1] - a[:, :, 1] * b[:, :, 2] - a[:, :, 2] * b[:, :, 3]
     c[:, :, 1] = b[:, :, 0] * a[:, :, 0] + a[:, :, 1] * b[:, :, 3] - a[:, :, 2] * b[:, :, 2]
     c[:, :, 2] = b[:, :, 0] * a[:, :, 1] + a[:, :, 2] * b[:, :, 1] - a[:, :, 0] * b[:, :, 3]
@@ -16,7 +16,7 @@ def vecquat(a, b):
 
 def quatvec(a, b):
     # TODO: add documentation
-    c = torch.zeros(a.shape).to(a.device).type(torch.float64)
+    c = torch.zeros(a.shape).to(a.device).type(a.type())
     c[:, :, 0] = -a[:, :, 1] * b[:, :, 0] - a[:, :, 2] * b[:, :, 1] - a[:, :, 3] * b[:, :, 2]
     c[:, :, 1] = a[:, :, 0] * b[:, :, 0] + a[:, :, 2] * b[:, :, 2] - a[:, :, 3] * b[:, :, 1]
     c[:, :, 2] = a[:, :, 0] * b[:, :, 1] + a[:, :, 3] * b[:, :, 0] - a[:, :, 1] * b[:, :, 2]

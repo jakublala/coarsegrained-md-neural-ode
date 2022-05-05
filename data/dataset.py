@@ -58,10 +58,10 @@ class Dataset():
     
         batch_t = torch.linspace(0.0,dt*(batch_length-1),batch_length).to(self.device)
         
-        vels = traj[0][sampled_is,sampled_js,:,:]
-        ang_vels = traj[1][sampled_is,sampled_js,:,:]
-        coms = traj[2][sampled_is,sampled_js,:,:]
-        quats = traj[3][sampled_is,sampled_js,:,:]
+        vels = traj[0][sampled_is,sampled_js,:,:].type(self.dtype)
+        ang_vels = traj[1][sampled_is,sampled_js,:,:].type(self.dtype)
+        coms = traj[2][sampled_is,sampled_js,:,:].type(self.dtype)
+        quats = traj[3][sampled_is,sampled_js,:,:].type(self.dtype)
         
         pos_init = (vels, ang_vels, coms, quats)
 
@@ -86,4 +86,5 @@ class Dataset():
         sampled_quats = torch.stack(sampled_quats, dim=0).type(self.dtype)
         batch_trajs = (sampled_vels, sampled_ang_vels, sampled_coms, sampled_quats)
         
-        return batch_t, pos_init, batch_trajs, trajectory.k, trajectory.inertia
+        
+        return batch_t, pos_init, batch_trajs, trajectory.k, trajectory.inertia.type(self.dtype)

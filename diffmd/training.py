@@ -31,6 +31,7 @@ class Trainer():
         self.scheduler_name = config['scheduler']
         self.scheduling_factor = config['scheduling_factor']
         
+        self.dtype = config['dtype']
         self.dataset = Dataset(config)
         self.loss_meter = RunningAverageMeter()
         
@@ -42,7 +43,7 @@ class Trainer():
         self.scheduling_freq = config['scheduling_freq']
         self.evaluation_freq = config['evaluation_freq']
 
-        self.func = ODEFunc(self.nparticles, self.dim, self.nn_width, self.nn_depth).to(self.device)
+        self.func = ODEFunc(self.nparticles, self.dim, self.nn_width, self.nn_depth, self.dtype).to(self.device)
         self.nparameters = count_parameters(self.func)
 
         self.optimizer = self.set_optimizer(self.optimizer_name)

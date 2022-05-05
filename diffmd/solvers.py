@@ -5,6 +5,7 @@ from pytorch3d.transforms import quaternion_apply, quaternion_invert
 
 import torch
 from torch import nn
+torch.set_default_dtype(torch.float32)
 
 '''
     Adapted from https://github.com/torchmd/mdgrad
@@ -42,6 +43,7 @@ class VelVerlet_NVE(FixedGridODESolver):
             self.inertia = diffeq.inertia 
 
             dvdt_0, dwdt_0, dxdt_0, dqdt_0 = diffeq(state)
+            # print(dvdt_0.type())
             
             # translational motion
             v_step_half = 1/2 * dvdt_0 * dt 

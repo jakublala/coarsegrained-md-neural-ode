@@ -5,13 +5,14 @@ from pytorch3d.transforms import quaternion_apply
 from pytorch3d.transforms import quaternion_invert
 
 class ODEFunc(nn.Module):
-    def __init__(self, nparticles, dim, width, depth):
+    def __init__(self, nparticles, dim, width, depth, dtype):
         super(ODEFunc, self).__init__()
         self.dim = dim
         self.nparticles = nparticles
+        self.dtype = dtype
         self.mass = 7.0 # HACK
-        self.inertia = torch.Tensor()
-        self.k = torch.Tensor()
+        self.inertia = torch.Tensor().type(self.dtype)
+        self.k = torch.Tensor().type(self.dtype)
         # TODO: add self.r0 => harmonic restarint
 
         # define neural net
@@ -25,7 +26,7 @@ class ODEFunc(nn.Module):
                 layers += [nn.Linear(width, 1)]
             else:
                 layers += [nn.Linear(width, width), nn.Sigmoid()]
-        self.net = nn.Sequential(*layers).type(torch.float64)
+        self.net = nn.Sequential(*layers).type(self.dtype)
 
         # initialise NN parameters
         for m in self.net.modules():
@@ -41,12 +42,13 @@ class ODEFunc(nn.Module):
             w = state[1]
             x = state[2]
             q = state[3]
-            
+
             x.requires_grad = True
             q.requires_grad = True
             
             # normalise quaternions to unit length
             q = normalize_quat(q, dim=2)
+            
             # assert torch.norm(q, dim=2).max() < 1.001, 'quaternions not normalised'
             
             # get vector separation between bodies (pointing from the first atom to the second)
@@ -84,9 +86,10 @@ class ODEFunc(nn.Module):
             l = w * self.inertia
             # TODO: can I help out somehow the neural net with torque calculation by knowing the physical aspect - the torques must be opposite and equal? similarly to force 
             # TODO: is dl_system / dt only the second term which swaps around the values as with dqdt?
+            
             dldt = - torch.matmul(self.Omega(q, dqdt), l.unsqueeze(-1)).squeeze(-1) - 0.5 * torch.matmul(self.G(q), grad_q.unsqueeze(-1)).squeeze(-1)
             dwdt = dldt / self.inertia
-            
+
         return (dvdt, dwdt, dxdt, dqdt)
     
     def harmonic_restraint(self, rq):
@@ -96,7 +99,7 @@ class ODEFunc(nn.Module):
     def G(self, q):
         # TODO: move this somewhere; make sure it's fast; maybe torch.stack is not ideal
         # TODO: add documentation
-        G = torch.zeros(q.shape[0], q.shape[1], q.shape[2] - 1, q.shape[2]).to(q.device).type(torch.float64)
+        G = torch.zeros(q.shape[0], q.shape[1], q.shape[2] - 1, q.shape[2]).to(q.device).type(q.type())
         G[:, :, 0, :] = torch.stack((-q[:, :, 1], q[:, :, 0], q[:, :, 3], -q[:, :, 2]), dim=-1)
         G[:, :, 1, :] = torch.stack((-q[:, :, 2], -q[:, :, 3], q[:, :, 0], q[:, :, 1]), dim=-1)
         G[:, :, 2, :] = torch.stack((-q[:, :, 3], q[:, :, 2], -q[:, :, 1], q[:, :, 0]), dim=-1)
