@@ -80,12 +80,11 @@ class Reader():
         # TODO: is this useful for anything? make this useful
         # TODO: it does not even work
         subfix = '-sim.log'
-        lines = np.zeros([])
         with open(self.file_name+subfix, 'r') as f:
             for i, line in enumerate(f):
-                if i < 64:
+                if i < 6:
                     continue
-                if i == 64:
+                if i == 6:
                     label = line.split()
                     lines = np.zeros([self.n_logged_timesteps, len(label)])
                     step_no = 0
