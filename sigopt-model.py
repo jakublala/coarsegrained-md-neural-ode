@@ -49,7 +49,7 @@ def run_and_track_in_sigopt():
         optimizer = 'Adam',
         batch_length=sigopt.params.batch_length,
         nbatches=sigopt.params.nbatches,
-        learning_rate=sigopt.params.learning_rate,
+        learning_rate=np.log(sigopt.params.learning_rate)[0],
         nn_depth=sigopt.params.nn_depth,
         nn_width=sigopt.params.nn_width,
         activation_function=None,

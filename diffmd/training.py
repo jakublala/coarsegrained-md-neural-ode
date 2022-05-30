@@ -75,7 +75,7 @@ class Trainer():
                 for param in self.func.parameters():
                     param.grad = None
                 
-                batch_t, batch_y0, batch_y, self.func.k, self.func.inertia = self.dataset.get_batch(self.nbatches, self.batch_length) 
+                batch_t, batch_y0, batch_y, self.func.k, self.func.inertia, self.batch_filepath = self.dataset.get_batch(self.nbatches, self.batch_length) 
 
                 # if self.device == torch.device('cuda'):
                 #     self.func = nn.DataParallel(self.func).to(self.device)
@@ -123,7 +123,6 @@ class Trainer():
                 # if np.sd(self.loss_meter.losses[-self.stopping_freq:]) > 0.001:
                 #     print('early stopping as stale convergence')
                 #     return self.func, self.loss_meter
-
         # TODO add checkpointing
         # TODO: add logging in
 
@@ -148,6 +147,7 @@ class Trainer():
         print(f'Current loss: {self.loss_meter.val}')
         print('Last iteration took:     ', time.perf_counter() - start_time, flush=True)
         print(f'Learning rate: {self.loss_meter.lrs[-1]}')
+        print(f'Trajectory batched last epoch: {self.batch_filepath}')
 
     def plot_traj(self, itr, subfolder='temp'):
 
@@ -165,7 +165,7 @@ class Trainer():
 
         with torch.no_grad():
             nbatches = 1
-            batch_t, batch_y0, batch_y, self.func.k, self.func.inertia = self.dataset.get_batch(nbatches, traj_length)   
+            batch_t, batch_y0, batch_y, self.func.k, self.func.inertia, self.batch_filepath = self.dataset.get_batch(nbatches, traj_length)   
 
             pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
 
