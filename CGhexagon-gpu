@@ -1,9 +1,9 @@
-#PBS -lselect=1:ncpus=16:mem=96gb:ngpus=8:gpu_type=RTX6000
+#PBS -lselect=1:ncpus=16:mem=96gb:ngpus=1:gpu_type=RTX6000
 #PBS -lwalltime=24:0:0
 #PBS -N HPC_testing
 
 INPUT_FILE=run-gpu.py
-OUTPUT_FILE=run_gpu=8_singleTFLOP.out
+OUTPUT_FILE=run_gpu.out
 
 module load anaconda3/personal
 source activate neuralode
