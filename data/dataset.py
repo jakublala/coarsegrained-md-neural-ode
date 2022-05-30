@@ -87,4 +87,4 @@ class Dataset():
         batch_trajs = (sampled_vels, sampled_ang_vels, sampled_coms, sampled_quats)
         
         
-        return batch_t, pos_init, batch_trajs, trajectory.k, trajectory.inertia.type(self.dtype)
+        return batch_t, pos_init, batch_trajs, trajectory.k, trajectory.inertia.type(self.dtype), trajectory.file_path
