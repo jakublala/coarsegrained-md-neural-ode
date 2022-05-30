@@ -21,6 +21,7 @@ class Trainer():
         
         # TODO: log everything similarly to device into print file
         self.niters = config['niters']
+        self.start_niter = config['start_niter']
         self.learning_rate = config['learning_rate']
         self.batch_length = config['batch_length']
         self.nbatches = config['nbatches']
@@ -63,7 +64,7 @@ class Trainer():
 
 
     def train(self):
-        for self.itr in range(1, self.niters + 1):
+        for self.itr in range(self.start_niter + 1, (self.start_niter + self.niters) + 1):
             start_time = time.perf_counter()
             
             if self.optimizer_name == 'LBFGS':
@@ -95,7 +96,7 @@ class Trainer():
             
                 self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
             
-            if self.itr % self.scheduling_freq == 0:
+            if self.itr % self.scheduling_freq == 0 and self.scheduler_name != None:
                 self.scheduler.step()
 
             if self.itr % self.printing_freq == 0:
@@ -290,6 +291,8 @@ class Trainer():
         if scheduler == 'LambdaLR':
             lambda1 = lambda epoch: alpha ** epoch
             return torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda1)
+        elif scheduler == None:
+            return
         else:
             raise Exception('scheduler not implemented')
 
@@ -300,7 +303,7 @@ class Trainer():
             for t in self.dataset.trajs:
                 # y0 = tuple([t.traj[i][0, 0, :, :].view(-1, 2, t.traj[i].shape[-1]) for i in range(len(t.traj))])
                 # pred_y = odeint_adjoint(self.func, y0, batch_t, method='NVE')
-                nbatches = 100#10000
+                nbatches = 10000
                 batch_length = 100
 
                 batch_t, batch_y0, batch_y, self.func.k, self.func.inertia = self.dataset.get_batch(nbatches, batch_length) 
@@ -335,7 +338,7 @@ class Trainer():
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
-        self.plot_traj(self.itr, subfolder)
+        self.plot_traj(self.start_niter+self.niters, subfolder)
         self.plot_loss(subfolder)
         self.plot_lr(subfolder)
         self.plot_evaluation(subfolder)

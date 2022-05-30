@@ -45,24 +45,24 @@ def run_and_track_in_sigopt():
     config = dict(
         folder = 'dataset/smooth/', 
         device = torch.device("cuda"), 
-        niters = 10000,
+        start_niter=0,
+        niters = 20000,
         optimizer = 'Adam',
         batch_length=sigopt.params.batch_length,
         nbatches=sigopt.params.nbatches,
         learning_rate=sigopt.params.learning_rate,
-        nn_depth=sigopt.params.nn_depth,
-        nn_width=sigopt.params.nn_width,
+        nn_depth=1,
+        nn_width=300,
         activation_function=None,
         load_folder=None,
         dtype=torch.float32,
-        # load_folder='results/depth-1-width-300-lr-0.1',
-        printing_freq=250,
-        plotting_freq=11000,
+        printing_freq=500,
+        plotting_freq=21000,
         stopping_freq=500,
         scheduler='LambdaLR',
-        scheduling_factor=0.75,
-        scheduling_freq=500,
-        evaluation_freq=250,
+        scheduling_factor=sigopt.params.scheduling_factor,
+        scheduling_freq=sigopt.params.scheduling_freq,
+        evaluation_freq=500,
     )
 
     # sigopt.log_dataset(dataset) 
@@ -71,7 +71,6 @@ def run_and_track_in_sigopt():
     model, train_loss = trainer.train()
     trainer.save()
     eval_loss = trainer.evaluate(training_dataset=True)
-
 
     # running_avg_train_loss = train_loss.avg
     # current_train_loss = train_loss.val

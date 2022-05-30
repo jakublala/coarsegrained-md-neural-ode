@@ -1,5 +1,5 @@
 {
-    'name': 'Penta-Hyperparameter 2',
+    'name': 'Small NN, Scheduling Opt.',
     'metrics': [
         {
             'name': 'train_loss',
@@ -14,27 +14,27 @@
             'bounds': {'min': 0.000001, 'max': 0.3}
         },
         {
-            'name': 'nn_depth',
+            'name': 'scheduling_freq',
             'type': 'int',
-            'bounds': {'min': 1, 'max': 2}
+            'bounds': {'min': 1000, 'max': 5000}
         },
         {
-            'name': 'nn_width',
-            'type': 'int',
-            'bounds': {'min': 10, 'max': 1000}
+            'name': 'scheduling_factor',
+            'type': 'double',
+            'bounds': {'min': 0.5, 'max': 0.99}
         },
         {
             'name': 'nbatches',
             'type': 'int',
-            'bounds': {'min': 10, 'max': 2000}
+            'bounds': {'min': 10, 'max': 1000}
         },
         {
             'name': 'batch_length',
             'type': 'int',
-            'bounds': {'min': 5, 'max': 50}
+            'bounds': {'min': 10, 'max': 60}
         },
 
     ],
-    'parallel_bandwidth': 6, 
+    'parallel_bandwidth': 8, 
     'budget': 30,
 }
