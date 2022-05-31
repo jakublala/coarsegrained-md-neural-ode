@@ -151,6 +151,15 @@ class Trainer():
         print('Last iteration took:     ', time.perf_counter() - start_time, flush=True)
         print(f'Learning rate: {self.loss_meter.lrs[-1]}')
         print(f'Trajectory batched last epoch: {self.batch_filepath}')
+        t = torch.cuda.get_device_properties(0).total_memory
+        r = torch.cuda.memory_reserved(0)
+        a = torch.cuda.memory_allocated(0)
+        f = r-a  # free inside reserved
+        print(f'Total memory: {t}')
+        print(f'Reserved memory: {r}')
+        print(f'Allocated memory: {a}')
+        print(f'Free memory: {f}')
+        
 
     def plot_traj(self, itr, subfolder='temp'):
 
@@ -321,32 +330,39 @@ class Trainer():
             raise Exception('scheduler not implemented')
 
     def evaluate(self, training_dataset=False):
-        # TODO: maybe move this elsewhere and make it more robust? maybe have an Evaluation class
-        eval_loss = 0
-        if training_dataset:
-            for t in self.dataset.trajs:
-                # y0 = tuple([t.traj[i][0, 0, :, :].view(-1, 2, t.traj[i].shape[-1]) for i in range(len(t.traj))])
-                # pred_y = odeint_adjoint(self.func, y0, batch_t, method='NVE')
-                nbatches = 10000
-                batch_length = 100
+        # self.print_cuda_memory()
+        with torch.no_grad():
+            # TODO: maybe move this elsewhere and make it more robust? maybe have an Evaluation class
+            eval_loss = 0
+            if training_dataset:
+                for t in self.dataset.trajs:
+                    nbatches = 10000
+                    batch_length = 100
+                    # self.print_cuda_memory()
+                    batch_t, batch_y0, batch_y, self.func.k, self.func.inertia, self.batch_filepath = self.dataset.get_batch(nbatches, batch_length) 
 
-                batch_t, batch_y0, batch_y, self.func.k, self.func.inertia, self.batch_filepath = self.dataset.get_batch(nbatches, batch_length) 
+                    # self.print_cuda_memory()
+                    pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
+                
+                    # self.print_cuda_memory()
+                    pred_y = torch.swapaxes(torch.cat(pred_y, dim=-1), 0, 1)
+                    
+                    # self.print_cuda_memory()
+                    batch_y = torch.cat(batch_y, dim=-1)
+                    
+                    # self.print_cuda_memory()
+                    loss = torch.mean(torch.abs(pred_y - batch_y))
 
-                pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
+                    # self.print_cuda_memory()
+                    eval_loss += loss
+            else:
+                raise Exception('test evaluation not implemented')
+            eval_loss = float(eval_loss.detach().cpu())
+            self.loss_meter.evals.append(eval_loss)
             
-                pred_y = torch.swapaxes(torch.cat(pred_y, dim=-1), 0, 1)
-                
-                batch_y = torch.cat(batch_y, dim=-1)
-                
-                loss = torch.mean(torch.abs(pred_y - batch_y))
-
-                eval_loss += loss
-
-                            
-        else:
-            raise Exception('test evaluation not implemented')
-        eval_loss = float(eval_loss.cpu())
-        self.loss_meter.evals.append(eval_loss)
+            # delete all variables from GPU memory
+            del batch_t, batch_y0, batch_y, pred_y, loss
+            # self.print_cuda_memory()
         return eval_loss
 
     def plot_evaluation(self, subfolder):
@@ -367,6 +383,39 @@ class Trainer():
         self.plot_lr(subfolder)
         self.plot_evaluation(subfolder)
         self.log_hyperparameters(subfolder)
+        self.log_loss(subfolder)
+        self.log_eval(subfolder)
+        self.log_lr(subfolder)
+        return
+
+    def print_cuda_memory(self):
+        t = torch.cuda.get_device_properties(0).total_memory
+        r = torch.cuda.memory_reserved(0)
+        a = torch.cuda.memory_allocated(0)
+        f = r-a  # free inside reserved
+        print(f'Total memory: {t}')
+        print(f'Reserved memory: {r}')
+        print(f'Allocated memory: {a}')
+        print(f'Free memory: {f}')
+        print('====================================================')
+        return None
+
+    def log_loss(self, subfolder):
+        with open(f'{subfolder}/loss.txt', 'w') as f:
+            for loss in self.loss_meter.losses:
+                f.write(f'{loss}\n')
+        return
+
+    def log_eval(self, subfolder):
+        with open(f'{subfolder}/eval.txt', 'w') as f:
+            for eval in self.loss_meter.evals:
+                f.write(f'{eval}\n')
+        return
+
+    def log_lr(self, subfolder):
+        with open(f'{subfolder}/lr.txt', 'w') as f:
+            for lr in self.loss_meter.lrs:
+                f.write(f'{lr}\n')
         return
 
     

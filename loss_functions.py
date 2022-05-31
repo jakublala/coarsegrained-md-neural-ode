@@ -3,7 +3,7 @@ torch.cuda.empty_cache()
 from diffmd.training import Trainer
 # torch.manual_seed(0)
 
-for loss in ['vel']:
+for loss in ['vel', 'pos', 'all']:
     for w in range(300, 306):
         config = dict(
             folder = 'dataset/trajectories/thesis/', 

@@ -133,7 +133,9 @@ class Trajectory():
         ang_vel_2 = quaternion.as_vector_part(ang_vel_2)
         ang_vel = torch.from_numpy(np.hstack((ang_vel_1, ang_vel_2))).to(self.device).view(ntraj, -1, nparticles, angvel_dim)
 
-        return (vel, ang_vel, coms, quats)
+        # HACK just get a tenth of the trajectory
+        end_index = vel.shape[1] // 20
+        return (vel[:, :end_index], ang_vel[:, :end_index], coms[:, :end_index], quats[:, :end_index])
 
         
     def get_dt(self, reader):
