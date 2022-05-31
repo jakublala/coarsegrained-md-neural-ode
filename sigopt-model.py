@@ -43,14 +43,14 @@ def run_and_track_in_sigopt():
     # )
 
     config = dict(
-        folder = 'dataset/smooth/', 
+        folder = 'dataset/repulsive/', 
         device = torch.device("cuda"), 
         start_niter=0,
         niters = 20000,
         optimizer = 'Adam',
         batch_length=sigopt.params.batch_length,
         nbatches=sigopt.params.nbatches,
-        learning_rate=np.log(sigopt.params.learning_rate)[0],
+        learning_rate=np.log(sigopt.params.learning_rate),
         nn_depth=sigopt.params.nn_depth,
         nn_width=sigopt.params.nn_width,
         activation_function=None,
@@ -58,7 +58,7 @@ def run_and_track_in_sigopt():
         dtype=torch.float32,
         printing_freq=500,
         plotting_freq=21000,
-        stopping_freq=500,
+        stopping_freq=1000,
         scheduler='LambdaLR',
         scheduling_factor=sigopt.params.scheduling_factor,
         scheduling_freq=sigopt.params.scheduling_freq,
