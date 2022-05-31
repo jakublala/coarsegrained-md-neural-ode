@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import os
 
 class Reader():
 
@@ -57,6 +58,7 @@ class Reader():
         subfix = '-info.dat'
         lines = []
         log_count = 0
+
         with open(self.file_name+subfix, 'r') as f:
             for i, line in enumerate(f):
                 if i == 8:

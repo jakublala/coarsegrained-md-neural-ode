@@ -1,8 +1,10 @@
+from tkinter import E
 from data.reader import Reader
 import torch
 import pandas as pd
 import numpy as np
 import quaternion
+import os
 
 class Trajectory():
 
@@ -37,7 +39,10 @@ class Trajectory():
         # TODO: fix read simulation log
         # log_labels, log_lines = reader.read_simulation_log()
         # TODO: ensure that this read reduced traj makes the file that is then read later (maybe separate this into two functions)
-        traj_labels, traj_lines = reader.read_reduced_traj(save=True)
+        
+        if not os.path.exists(self.file_path+'-reduced_traj.csv'):
+            traj_labels, traj_lines = reader.read_reduced_traj(save=True)
+
         # orig_labels, orig_lines = reader.read_original_traj(save=True)
 
         centre_of_masses, quaternions, velocities, ang_velocities, ang_momenta, inertia = self.get_data()

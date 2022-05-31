@@ -1,5 +1,5 @@
 {
-    'name': 'Small NN, Scheduling Opt.',
+    'name': 'Scheduling Opt.',
     'metrics': [
         {
             'name': 'train_loss',
@@ -8,11 +8,6 @@
         }
     ],
     'parameters': [
-        {
-            'name': 'learning_rate',
-            'type': 'double',
-            'bounds': {'min': -5.0, 'max': 1.0}
-        },
         {
             'name': 'scheduling_freq',
             'type': 'int',
@@ -24,17 +19,12 @@
             'bounds': {'min': 0.5, 'max': 0.99}
         },
         {
-            'name': 'nbatches',
-            'type': 'int',
-            'bounds': {'min': 10, 'max': 1000}
-        },
-        {
             'name': 'batch_length',
             'type': 'int',
             'bounds': {'min': 10, 'max': 60}
         },
 
     ],
-    'parallel_bandwidth': 8, 
+    'parallel_bandwidth': 4, 
     'budget': 30,
 }

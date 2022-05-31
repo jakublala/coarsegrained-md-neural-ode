@@ -28,6 +28,7 @@ class Trainer():
         self.nn_width = config['nn_width']
         self.nn_depth = config['nn_depth']
         self.load_folder = config['load_folder']
+        self.loss_func_name = config['loss_func']
         self.optimizer_name = config['optimizer']
         self.scheduler_name = config['scheduler']
         self.scheduling_factor = config['scheduling_factor']
@@ -47,6 +48,7 @@ class Trainer():
         self.func = ODEFunc(self.nparticles, self.dim, self.nn_width, self.nn_depth, self.dtype).to(self.device)
         self.nparameters = count_parameters(self.func)
 
+        self.loss_func = self.set_loss_func(self.loss_func_name)
         self.optimizer = self.set_optimizer(self.optimizer_name)
         self.scheduler = self.set_scheduler(self.scheduler_name, self.scheduling_factor)
         
@@ -89,7 +91,7 @@ class Trainer():
                 batch_y = torch.cat(batch_y, dim=-1)
                 
                 # TODO: train only on specifics and not all of the data
-                loss = torch.mean(torch.abs(pred_y - batch_y))
+                loss = self.loss_func(pred_y, batch_y)
                 
                 loss.backward() 
                 self.optimizer.step()
@@ -129,18 +131,18 @@ class Trainer():
 
         return self.func, self.loss_meter
 
-    def closure(self):
-        if torch.is_grad_enabled():
-            self.optimizer.zero_grad()
-        batch_t, batch_y0, batch_y, self.func.k, self.func.inertia = self.dataset.get_batch(self.nbatches, self.batch_length)  
-        pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE') 
-        pred_y = torch.cat(pred_y, dim=-1)
-        batch_y = torch.swapaxes(torch.swapaxes(torch.cat(batch_y, dim=-1), 0, 2), 1, 2)
-        loss = torch.mean(torch.abs(pred_y - batch_y))    
-        self.loss_meter.update(loss.item())
-        if loss.requires_grad:
-            loss.backward()
-        return loss
+    # def closure(self):
+    #     if torch.is_grad_enabled():
+    #         self.optimizer.zero_grad()
+    #     batch_t, batch_y0, batch_y, self.func.k, self.func.inertia = self.dataset.get_batch(self.nbatches, self.batch_length)  
+    #     pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE') 
+    #     pred_y = torch.cat(pred_y, dim=-1)
+    #     batch_y = torch.swapaxes(torch.swapaxes(torch.cat(batch_y, dim=-1), 0, 2), 1, 2)
+    #     loss = torch.mean(torch.abs(pred_y - batch_y))    
+    #     self.loss_meter.update(loss.item())
+    #     if loss.requires_grad:
+    #         loss.backward()
+    #     return loss
 
 
     def print_loss(self, itr, start_time):
@@ -277,6 +279,28 @@ class Trainer():
 
         return
 
+    def set_loss_func(self, loss_name):
+        def all_loss_func(pred_y, true_y):
+            return torch.mean(torch.abs(pred_y - true_y))
+
+        def pos_loss_func(pred_y, true_y):
+            return torch.mean(torch.abs(pred_y - true_y)[:, :, :, 6:])
+
+        def vel_loss_func(pred_y, true_y):
+            return torch.mean(torch.abs(pred_y - true_y)[:, :, :, :6])
+
+        if 'all' in loss_name:
+            return all_loss_func
+        elif 'pos' in loss_name:
+            return pos_loss_func
+        elif 'vel' in loss_name:
+            return vel_loss_func
+        else:
+            raise ValueError(f'loss function {loss_name} not recognised')
+
+        
+        
+
     def set_optimizer(self, optimizer):
         if optimizer == 'Adam':
             return torch.optim.Adam(self.func.parameters(), lr=self.learning_rate)
@@ -306,7 +330,7 @@ class Trainer():
                 nbatches = 10000
                 batch_length = 100
 
-                batch_t, batch_y0, batch_y, self.func.k, self.func.inertia = self.dataset.get_batch(nbatches, batch_length) 
+                batch_t, batch_y0, batch_y, self.func.k, self.func.inertia, self.batch_filepath = self.dataset.get_batch(nbatches, batch_length) 
 
                 pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
             
@@ -334,7 +358,7 @@ class Trainer():
         return
 
     def save(self):
-        subfolder = f'results/depth-{self.nn_depth}-width-{self.nn_width}-lr-{self.learning_rate}'
+        subfolder = f'results/depth-{self.nn_depth}-width-{self.nn_width}-lr-{self.learning_rate}-loss-{self.loss_func_name}'
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
