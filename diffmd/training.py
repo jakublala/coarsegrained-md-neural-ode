@@ -173,7 +173,7 @@ class Trainer():
         if subfolder == 'temp':
             traj_length = 1000
         else:
-            traj_length = 1000
+            traj_length = 10000
 
         with torch.no_grad():
             nbatches = 1
