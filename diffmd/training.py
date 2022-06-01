@@ -44,6 +44,7 @@ class Trainer():
         self.stopping_freq = config['stopping_freq']
         self.scheduling_freq = config['scheduling_freq']
         self.evaluation_freq = config['evaluation_freq']
+        self.checkpoint_freq = config['checkpoint_freq']
 
         self.func = ODEFunc(self.nparticles, self.dim, self.nn_width, self.nn_depth, self.dtype).to(self.device)
         self.nparameters = count_parameters(self.func)
@@ -109,6 +110,9 @@ class Trainer():
 
             if self.itr % self.evaluation_freq == 0:
                 self.evaluate(training_dataset=True)
+
+            if self.itr % self.checkpoint_freq == 0:
+                self.checkpoint()
 
             # early stopping
             if self.itr % self.stopping_freq == 0:
@@ -387,6 +391,16 @@ class Trainer():
         self.log_eval(subfolder)
         self.log_lr(subfolder)
         return
+
+    def checkpoint(self):
+        subfolder = f'results/depth-{self.nn_depth}-width-{self.nn_width}-lr-{self.learning_rate}-loss-{self.loss_func_name}/{self.itr}'
+        if not os.path.exists(f'{subfolder}'):
+            os.makedirs(f'{subfolder}')
+        torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
+        self.plot_loss(subfolder)
+        self.plot_lr(subfolder)
+        self.plot_evaluation(subfolder)
+        return None
 
     def print_cuda_memory(self):
         t = torch.cuda.get_device_properties(0).total_memory
