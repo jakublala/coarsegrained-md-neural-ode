@@ -38,7 +38,7 @@ class Trainer():
         self.loss_meter = RunningAverageMeter()
         
         self.nparticles = 2
-        self.dim = 3 + (2*4)
+        self.dim = 1 + (2*4)
         self.printing_freq = config['printing_freq']
         self.plotting_freq = config['plotting_freq']
         self.stopping_freq = config['stopping_freq']

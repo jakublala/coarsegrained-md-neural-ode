@@ -49,29 +49,27 @@ class ODEFunc(nn.Module):
             # normalise quaternions to unit length
             q = normalize_quat(q, dim=2)
             
-            # assert torch.norm(q, dim=2).max() < 1.001, 'quaternions not normalised'
-            
             # get vector separation between bodies (pointing from the first atom to the second)
             r_vector = x[:, 1, :] - x[:, 0, :]
+            r_norm = torch.norm(r_vector, dim=1).view(-1, 1)
             
             # combine NN inputs
-            rq = torch.cat((r_vector, q.reshape(-1, 8)), dim=1).reshape(-1, self.dim)
+            rq = torch.cat((r_norm, q.reshape(-1, 8)), dim=1).reshape(-1, self.dim)
             # assert torch.all(torch.flatten(q[:, 0, :]) == torch.swapaxes(q, 0, 1).reshape(-1, 8)[0, :]), 'incorrect resize'
 
             # get energy and gradients
             # TODO: check that harmonic restraint is calculated correctly
             u = self.net(rq) + self.harmonic_restraint(rq) # [number of trajectories, potential energy]
             
-            grad = compute_grad(inputs=rq, output=u) # [force _ torque, number of trajectories]
-            
-            grad_r, grad_q = torch.split(grad, [3, self.dim-3], dim=1)
-            grad_q = grad_q.view(-1, self.nparticles, 4)
+            # [force _ torque, number of trajectories]
+            grad_r = compute_grad(inputs=r_vector, output=u)
+            grad_q = compute_grad(inputs=rq, output=u)[:, 1:].view(-1, self.nparticles, 4)
             
             # get force and update translational motion
             # TODO: do this without assigning variables to speed up computation
             # TODO: check that signs in force are correct
-            fA = - grad_r # [force, number of trajectories]
-            fB = grad_r 
+            fA = grad_r # [force, number of trajectories]
+            fB = - grad_r 
             f = torch.stack((fA, fB), dim=1)
             # HACK: same mass for all bodies
             dvdt = f / self.mass
@@ -94,7 +92,7 @@ class ODEFunc(nn.Module):
     
     def harmonic_restraint(self, rq):
         # TODO: train different ks separately, or do a batch of k spring constants, that you update with each get_batch?
-        return 0.5 * self.k * torch.square(torch.norm(rq[:, 0:3], dim=1)).view(-1, 1)
+        return 0.5 * self.k * torch.square(rq[:, 0]).view(-1, 1)
 
     def G(self, q):
         # TODO: move this somewhere; make sure it's fast; maybe torch.stack is not ideal
