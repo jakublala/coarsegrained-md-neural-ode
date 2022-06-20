@@ -2,6 +2,8 @@ from multiprocessing import allow_connection_pickling
 import torch
 from torch.autograd import grad
 import numpy as np
+from datetime import datetime
+
 def G(q):
         return np.array([[-q[1], q[0], q[3], -q[2]], [-q[2], -q[3], q[0], q[1]], [-q[3], q[2], -q[1], q[0]]]).squeeze()
     
@@ -123,3 +125,9 @@ def compute_grad(inputs, output, create_graph=True, retain_graph=True, allow_unu
                    create_graph=create_graph, retain_graph=retain_graph, allow_unused=allow_unused)
     
     return gradspred
+
+def get_run_ID():
+    """
+    Returns a unique ID for the current run based on the current date and time.
+    """
+    return datetime.now().strftime('%Y-%m-%d_%H-%M-%S')

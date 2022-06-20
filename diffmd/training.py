@@ -11,12 +11,13 @@ from data.reader import Reader
 from data.dataset import Dataset
 from diffmd.diffeqs import ODEFunc
 from diffmd.solvers import odeint_adjoint
+from diffmd.utils import get_run_ID
 
 class Trainer():
 
     def __init__(self, config):
         self.folder = config['folder']
-        
+        self.run_id = get_run_ID()
         self.device = config['device']
         
         # TODO: log everything similarly to device into print file
@@ -81,7 +82,8 @@ class Trainer():
                 
                 batch_t, batch_y0, batch_y, self.func.k, self.func.inertia, self.batch_filepath = self.dataset.get_batch(self.nbatches, self.batch_length) 
 
-                # if self.device == torch.device('cuda'):
+                # if self.device == torch.device('cuda:1'):
+                #     print('hello')
                 #     self.func = nn.DataParallel(self.func).to(self.device)
 
                 # TODO: add assertion to check right dimensions
@@ -378,7 +380,7 @@ class Trainer():
         return
 
     def save(self):
-        subfolder = f'results/depth-{self.nn_depth}-width-{self.nn_width}-lr-{self.learning_rate}-loss-{self.loss_func_name}'
+        subfolder = f'results/{self.run_id}/'
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
@@ -393,7 +395,7 @@ class Trainer():
         return
 
     def checkpoint(self):
-        subfolder = f'results/depth-{self.nn_depth}-width-{self.nn_width}-lr-{self.learning_rate}-loss-{self.loss_func_name}/{self.itr}'
+        subfolder = f'results/{self.run_id}/{self.itr}'
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
