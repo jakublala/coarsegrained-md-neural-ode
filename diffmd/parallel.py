@@ -1,0 +1,436 @@
+import time
+import torch
+import torch.nn as nn
+import os
+
+from diffmd.diffeqs import ODEFunc
+from diffmd.solvers import odeint_adjoint
+from diffmd.training import Trainer
+
+
+import torch.distributed as dist
+def setup(rank, world_size):    
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'   
+    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+
+class ParallelTrainer(Trainer):
+
+    def __init__(self, config):
+        super().__init__(config)
+
+    def train(self):
+        for self.itr in range(self.start_niter + 1, (self.start_niter + self.niters) + 1):
+            start_time = time.perf_counter()
+            
+            if self.optimizer_name == 'LBFGS':
+                # TODO: implement this or another optimizer
+                self.optimizer.step(self.closure)
+            else:
+                
+                # zero out gradients with less memory operations
+                for param in self.func.parameters():
+                    param.grad = None
+                
+                batch_t, batch_y0, batch_y, self.func.k, self.func.inertia, self.batch_filepath = self.dataset.get_batch(self.nbatches, self.batch_length) 
+
+                # if self.device == torch.device('cuda:1'):
+                #     print('hello')
+                #     self.func = nn.DataParallel(self.func).to(self.device)
+
+                # TODO: add assertion to check right dimensions
+                pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
+            
+                pred_y = torch.swapaxes(torch.cat(pred_y, dim=-1), 0, 1)
+                
+                batch_y = torch.cat(batch_y, dim=-1)
+                
+                # TODO: train only on specifics and not all of the data
+                loss = self.loss_func(pred_y, batch_y)
+                
+                loss.backward() 
+                self.optimizer.step()
+            
+                self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
+            
+            if self.itr % self.scheduling_freq == 0 and self.scheduler_name != None:
+                self.scheduler.step()
+
+            if self.itr % self.printing_freq == 0:
+                self.print_loss(self.itr, start_time)
+
+            if self.itr % self.plotting_freq == 0:
+                self.plot_traj(self.itr)
+
+            if self.itr % self.evaluation_freq == 0:
+                self.evaluate(training_dataset=True)
+
+            if self.itr % self.checkpoint_freq == 0:
+                self.checkpoint()
+
+            # early stopping
+            if self.itr % self.stopping_freq == 0:
+
+                self.loss_meter.checkpoint()
+
+                # divergent / non-convergent
+                if len(self.loss_meter.checkpoints) > 1:
+                    if self.loss_meter.checkpoints[-2] < self.loss_meter.checkpoints[-1]:
+                        print('early stopping as non-convergent')
+                        return self.func, self.loss_meter
+                
+                # TODO: add proper stale convergence and test it out
+                # stale convergence
+                # if np.sd(self.loss_meter.losses[-self.stopping_freq:]) > 0.001:
+                #     print('early stopping as stale convergence')
+                #     return self.func, self.loss_meter
+        # TODO add checkpointing
+        # TODO: add logging in
+
+        return self.func, self.loss_meter
+
+    # def closure(self):
+    #     if torch.is_grad_enabled():
+    #         self.optimizer.zero_grad()
+    #     batch_t, batch_y0, batch_y, self.func.k, self.func.inertia = self.dataset.get_batch(self.nbatches, self.batch_length)  
+    #     pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE') 
+    #     pred_y = torch.cat(pred_y, dim=-1)
+    #     batch_y = torch.swapaxes(torch.swapaxes(torch.cat(batch_y, dim=-1), 0, 2), 1, 2)
+    #     loss = torch.mean(torch.abs(pred_y - batch_y))    
+    #     self.loss_meter.update(loss.item())
+    #     if loss.requires_grad:
+    #         loss.backward()
+    #     return loss
+
+
+#     def print_loss(self, itr, start_time):
+#         print(f'Iter: {itr}, Running avg elbo: {self.loss_meter.avg}')
+#         print(f'Current loss: {self.loss_meter.val}')
+#         print('Last iteration took:     ', time.perf_counter() - start_time, flush=True)
+#         print(f'Learning rate: {self.loss_meter.lrs[-1]}')
+#         print(f'Trajectory batched last epoch: {self.batch_filepath}')
+#         t = torch.cuda.get_device_properties(0).total_memory
+#         r = torch.cuda.memory_reserved(0)
+#         a = torch.cuda.memory_allocated(0)
+#         f = r-a  # free inside reserved
+#         print(f'Total memory: {t}')
+#         print(f'Reserved memory: {r}')
+#         print(f'Allocated memory: {a}')
+#         print(f'Free memory: {f}')
+        
+
+#     def plot_traj(self, itr, subfolder='temp'):
+
+#         if itr == self.plotting_freq:
+#             if subfolder == 'temp' and os.path.exists(f'{subfolder}'):
+#                 shutil.rmtree(f'{subfolder}')
+
+#             if subfolder == 'temp' and not os.path.exists(f'{subfolder}'):
+#                 os.makedirs(f'{subfolder}')
+
+#         if subfolder == 'temp':
+#             traj_length = 1000
+#         else:
+#             traj_length = 10000
+
+#         with torch.no_grad():
+#             nbatches = 1
+#             batch_t, batch_y0, batch_y, self.func.k, self.func.inertia, self.batch_filepath = self.dataset.get_batch(nbatches, traj_length)   
+
+#             pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
+
+#             pred_y = torch.cat(pred_y, dim=-1).cpu().numpy()
+#             batch_y = torch.swapaxes(torch.cat(batch_y, dim=-1), 0, 1).cpu().numpy()
+#             batch_t = batch_t.cpu().numpy()
+            
+#             ind_vel = [0, 1, 2]
+#             ind_ang = [3, 4, 5]
+#             ind_pos = [6, 7, 8]
+#             ind_quat = [9, 10, 11, 12]
+            
+#             for i in ind_vel:
+#                 plt.title('velocities 1')
+#                 plt.plot(batch_t, batch_y[:,:,0,i], 'k--', alpha=0.3, label=f'true {i}')
+#                 plt.plot(batch_t, pred_y[:,:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
+#             plt.savefig(f'{subfolder}/{itr}_vel1.png')
+#             plt.close()
+            
+#             for i in ind_vel:
+#                 plt.title('velocities 2')
+#                 plt.plot(batch_t, batch_y[:,:,1,i], 'k--', alpha=0.3, label=f'true {i}')
+#                 plt.plot(batch_t, pred_y[:,:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
+#             plt.savefig(f'{subfolder}/{itr}_vel2.png')
+#             plt.close()
+            
+#             for i in ind_ang:
+#                 plt.title('angular velocities 1')
+#                 plt.plot(batch_t, batch_y[:,:,0,i], 'k--', alpha=0.3, label=f'true {i}')
+#                 plt.plot(batch_t, pred_y[:,:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
+#             plt.savefig(f'{subfolder}/{itr}_angvel1.png')
+#             plt.close()
+            
+#             for i in ind_ang:
+#                 plt.title('angular velocities 2')
+#                 plt.plot(batch_t, batch_y[:,:,1,i], 'k--', alpha=0.3, label=f'true {i}')
+#                 plt.plot(batch_t, pred_y[:,:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
+#             plt.savefig(f'{subfolder}/{itr}_angvel2.png')
+#             plt.close()
+            
+#             # centre of mass positions (set initial position of first COM to zero)
+#             batch_y[:,:,:,6:9] = batch_y[:,:,:,6:9] - batch_y[0,:,0,6:9]
+#             pred_y[:,:,:,6:9] = pred_y[:,:,:,6:9] - pred_y[0,:,0,6:9]
+            
+#             for i in ind_pos:
+#                 plt.title('positions 1')
+#                 plt.plot(batch_t, batch_y[:,:,0,i], 'k--', alpha=0.3, label=f'true {i}')
+#                 plt.plot(batch_t, pred_y[:,:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
+#             plt.savefig(f'{subfolder}/{itr}_pos1.png')
+#             plt.close()
+            
+#             for i in ind_pos:
+#                 plt.title('positions 2')
+#                 plt.plot(batch_t, batch_y[:,:,1,i], 'k--', alpha=0.3, label=f'true {i}')
+#                 plt.plot(batch_t, pred_y[:,:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
+#             plt.savefig(f'{subfolder}/{itr}_pos2.png')
+#             plt.close()
+
+#             # centre of mass separation
+#             batch_y_sep = np.linalg.norm(batch_y[:,:,1,6:9] - batch_y[:,:,0,6:9], axis=2)
+#             pred_y_sep = np.linalg.norm(pred_y[:,:,1,6:9] - pred_y[:,:,0,6:9], axis=2)
+
+#             plt.title('separation')
+#             plt.plot(batch_t, batch_y_sep, 'k--', alpha=0.3, label=f'true')
+#             plt.plot(batch_t, pred_y_sep, 'r-', alpha=0.5, label=f'pred')
+#             plt.savefig(f'{subfolder}/{itr}_sep.png')
+#             plt.close()
+
+#             # quaternions
+#             for i in ind_quat:
+#                 plt.title('quaternions 1')
+#                 plt.plot(batch_t, batch_y[:,:,0,i], 'k--', alpha=0.3, label=f'true {i}')
+#                 plt.plot(batch_t, pred_y[:,:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
+#             plt.savefig(f'{subfolder}/{itr}_quat1.png')
+#             plt.close() 
+            
+#             for i in ind_quat:
+#                 plt.title('quaternions 2')
+#                 plt.plot(batch_t, batch_y[:,:,1,i], 'k--', alpha=0.3, label=f'true {i}')
+#                 plt.plot(batch_t, pred_y[:,:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
+#             plt.savefig(f'{subfolder}/{itr}_quat2.png')
+#             plt.close() 
+
+#     def plot_loss(self, subfolder):
+#         # TODO: add return figure to be plotted into SigOpt
+#         plt.title('loss function evolution')
+#         plt.plot(self.loss_meter.losses)
+#         plt.savefig(f'{subfolder}/loss.png')
+#         plt.close()
+#         return
+
+#     def plot_lr(self, subfolder):
+#         plt.title('learning rate evolution')
+#         plt.plot(self.loss_meter.lrs)
+#         plt.savefig(f'{subfolder}/lr.png')
+#         plt.close()
+#         return
+
+#     def log_hyperparameters(self, subfolder):
+#         with open(f'{subfolder}/hyperparameters.txt', 'w') as f:
+#             f.write(f'device = {self.device} \n')
+#             f.write(f'dataset = {self.dataset.filenames} in {self.folder} \n')
+#             f.write(f'depth = {self.nn_depth}, width = {self.nn_width} \n')
+#             f.write(f'number of parameters = {self.nparameters} \n')
+#             f.write(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name} \n')
+#             f.write(f'scheduler = {self.scheduler_name}, scheduling factor = {self.scheduling_factor}, scheduling freq = {self.scheduling_freq} \n')
+#             f.write(f'number of batches = {self.nbatches}, batch length = {self.batch_length} \n')
+
+#         return
+
+#     def set_loss_func(self, loss_name):
+#         def all_loss_func(pred_y, true_y):
+#             return torch.mean(torch.abs(pred_y - true_y))
+
+#         def pos_loss_func(pred_y, true_y):
+#             return torch.mean(torch.abs(pred_y - true_y)[:, :, :, 6:])
+
+#         def vel_loss_func(pred_y, true_y):
+#             return torch.mean(torch.abs(pred_y - true_y)[:, :, :, :6])
+
+#         if 'all' in loss_name:
+#             return all_loss_func
+#         elif 'pos' in loss_name:
+#             return pos_loss_func
+#         elif 'vel' in loss_name:
+#             return vel_loss_func
+#         else:
+#             raise ValueError(f'loss function {loss_name} not recognised')
+
+        
+        
+
+#     def set_optimizer(self, optimizer):
+#         if optimizer == 'Adam':
+#             return torch.optim.Adam(self.func.parameters(), lr=self.learning_rate)
+#         elif optimizer == 'AdamW':
+#             return torch.optim.AdamW(self.func.parameters(), lr=self.learning_rate)
+#         elif optimizer == 'LBFGS':
+#             return torch.optim.LBFGS(self.func.parameters(), lr=self.learning_rate)
+#         else:
+#             raise Exception('optimizer not implemented')
+
+#     def set_scheduler(self, scheduler, alpha):
+#         if scheduler == 'LambdaLR':
+#             lambda1 = lambda epoch: alpha ** epoch
+#             return torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda1)
+#         elif scheduler == None:
+#             return
+#         else:
+#             raise Exception('scheduler not implemented')
+
+#     def evaluate(self, training_dataset=False):
+#         # self.print_cuda_memory()
+#         with torch.no_grad():
+#             # TODO: maybe move this elsewhere and make it more robust? maybe have an Evaluation class
+#             eval_loss = 0
+#             if training_dataset:
+#                 for t in self.dataset.trajs:
+#                     nbatches = 10000
+#                     batch_length = 100
+#                     # self.print_cuda_memory()
+#                     batch_t, batch_y0, batch_y, self.func.k, self.func.inertia, self.batch_filepath = self.dataset.get_batch(nbatches, batch_length) 
+
+#                     # self.print_cuda_memory()
+#                     pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
+                
+#                     # self.print_cuda_memory()
+#                     pred_y = torch.swapaxes(torch.cat(pred_y, dim=-1), 0, 1)
+                    
+#                     # self.print_cuda_memory()
+#                     batch_y = torch.cat(batch_y, dim=-1)
+                    
+#                     # self.print_cuda_memory()
+#                     loss = torch.mean(torch.abs(pred_y - batch_y))
+
+#                     # self.print_cuda_memory()
+#                     eval_loss += loss
+#             else:
+#                 raise Exception('test evaluation not implemented')
+#             eval_loss = float(eval_loss.detach().cpu())
+#             self.loss_meter.evals.append(eval_loss)
+            
+#             # delete all variables from GPU memory
+#             del batch_t, batch_y0, batch_y, pred_y, loss
+#             # self.print_cuda_memory()
+#         return eval_loss
+
+#     def plot_evaluation(self, subfolder):
+#         plt.title('evaluation function evolution')
+#         eval_itr = np.arange(len(self.loss_meter.evals)) * self.evaluation_freq
+#         plt.plot(eval_itr, self.loss_meter.evals)
+#         plt.savefig(f'{subfolder}/eval_loss.png')
+#         plt.close()
+#         return
+
+#     def save(self):
+#         subfolder = f'results/{self.run_id}/'
+#         if not os.path.exists(f'{subfolder}'):
+#             os.makedirs(f'{subfolder}')
+#         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
+#         self.plot_traj(self.start_niter+self.niters, subfolder)
+#         self.plot_loss(subfolder)
+#         self.plot_lr(subfolder)
+#         self.plot_evaluation(subfolder)
+#         self.log_hyperparameters(subfolder)
+#         self.log_loss(subfolder)
+#         self.log_eval(subfolder)
+#         self.log_lr(subfolder)
+#         return
+
+#     def checkpoint(self):
+#         subfolder = f'results/{self.run_id}/{self.itr}'
+#         if not os.path.exists(f'{subfolder}'):
+#             os.makedirs(f'{subfolder}')
+#         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
+#         self.plot_loss(subfolder)
+#         self.plot_lr(subfolder)
+#         self.plot_evaluation(subfolder)
+#         return None
+
+#     def print_cuda_memory(self):
+#         t = torch.cuda.get_device_properties(0).total_memory
+#         r = torch.cuda.memory_reserved(0)
+#         a = torch.cuda.memory_allocated(0)
+#         f = r-a  # free inside reserved
+#         print(f'Total memory: {t}')
+#         print(f'Reserved memory: {r}')
+#         print(f'Allocated memory: {a}')
+#         print(f'Free memory: {f}')
+#         print('====================================================')
+#         return None
+
+#     def log_loss(self, subfolder):
+#         with open(f'{subfolder}/loss.txt', 'w') as f:
+#             for loss in self.loss_meter.losses:
+#                 f.write(f'{loss}\n')
+#         return
+
+#     def log_eval(self, subfolder):
+#         with open(f'{subfolder}/eval.txt', 'w') as f:
+#             for eval in self.loss_meter.evals:
+#                 f.write(f'{eval}\n')
+#         return
+
+#     def log_lr(self, subfolder):
+#         with open(f'{subfolder}/lr.txt', 'w') as f:
+#             for lr in self.loss_meter.lrs:
+#                 f.write(f'{lr}\n')
+#         return
+
+    
+
+
+# class RunningAverageMeter(object):
+#     """Computes and stores the average and current value"""
+
+#     def __init__(self, momentum=0.99):
+#         self.momentum = momentum
+#         self.losses = []
+#         self.reset()
+#         self.checkpoints = []
+#         # TODO: do lrs and evals in separate classes and not in the same class, which makes it messy
+#         self.lrs = []
+#         self.evals = []
+
+#     def reset(self):
+#         self.val = None
+#         self.avg = 0
+
+#     def update(self, val, lr):
+#         if self.val is None:
+#             self.avg = val
+#         else:
+#             self.avg = self.avg * self.momentum + val * (1 - self.momentum)
+#         self.val = val
+#         self.log(val, lr)
+        
+    
+#     def log(self, val, lr):
+#         self.losses.append(val)
+#         self.lrs.append(lr)
+
+#     def checkpoint(self):
+#         self.checkpoints.append(self.avg)
+
+
+# class MyDataParallel(torch.nn.DataParallel):
+#     """
+#     Allow nn.DataParallel to call model's attributes.
+#     """
+#     def __getattr__(self, name):
+#         try:
+#             return super().__getattr__(name)
+#         except AttributeError:
+#             return getattr(self.module, name)
+
+# def count_parameters(model):
+#     return sum(p.numel() for p in model.parameters() if p.requires_grad)

@@ -1,9 +1,9 @@
-from data.trajectory import Trajectory
 import torch
-import quaternion
-import pandas as pd
 import numpy as np
 import os
+
+from data.trajectory import Trajectory
+from torch.utils.data import Dataset, DataLoader
 
 
 class Dataset():
