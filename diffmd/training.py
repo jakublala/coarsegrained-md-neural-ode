@@ -35,7 +35,9 @@ class Trainer():
         self.scheduling_factor = config['scheduling_factor']
         
         self.dtype = config['dtype']
-        self.dataset = Dataset(config)
+        self.training_dataset = Dataset(config, 'train')
+        self.test_dataset = Dataset(config, 'test')
+        self.validation_dataset = Dataset(config, 'validation')
         self.loss_meter = RunningAverageMeter()
         
         self.nparticles = 2
@@ -58,7 +60,7 @@ class Trainer():
             self.func.load_state_dict(torch.load(f'{self.load_folder}/model.pt'))
 
         print(f'device = {self.device}')
-        print(f'dataset = {self.dataset.filenames} in {self.folder}')
+        print(f'training datasets = {self.training_dataset.filenames} in {self.folder}')
         print(f'depth = {self.nn_depth}, width = {self.nn_width}')
         print(f'number of parameters = {self.nparameters}')
         print(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name}')
@@ -80,8 +82,10 @@ class Trainer():
                 for param in self.func.parameters():
                     param.grad = None
                 
-                batch_t, batch_y0, batch_y, self.func.k, self.func.inertia, self.batch_filepath = self.dataset.get_batch(self.nbatches, self.batch_length) 
+                batch_t, batch_y0, batch_y, self.func.k, self.func.inertia, self.batch_filepath = self.training_dataset.get_batch(self.nbatches, self.batch_length) 
 
+                print('spring constant k:', self.func.k)
+                print('batch filepath:', self.batch_filepath)
                 # if self.device == torch.device('cuda:1'):
                 #     print('hello')
                 #     self.func = nn.DataParallel(self.func).to(self.device)
@@ -111,7 +115,7 @@ class Trainer():
                 self.plot_traj(self.itr)
 
             if self.itr % self.evaluation_freq == 0:
-                self.evaluate(training_dataset=True)
+                self.evaluate(validate=False)
 
             if self.itr % self.checkpoint_freq == 0:
                 self.checkpoint()
@@ -183,7 +187,7 @@ class Trainer():
 
         with torch.no_grad():
             nbatches = 1
-            batch_t, batch_y0, batch_y, self.func.k, self.func.inertia, self.batch_filepath = self.dataset.get_batch(nbatches, traj_length)   
+            batch_t, batch_y0, batch_y, self.func.k, self.func.inertia, self.batch_filepath = self.training_dataset.get_batch(nbatches, traj_length)   
 
             pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
 
@@ -285,7 +289,7 @@ class Trainer():
     def log_hyperparameters(self, subfolder):
         with open(f'{subfolder}/hyperparameters.txt', 'w') as f:
             f.write(f'device = {self.device} \n')
-            f.write(f'dataset = {self.dataset.filenames} in {self.folder} \n')
+            f.write(f'training datasets = {self.training_dataset.filenames} in {self.folder} \n')
             f.write(f'depth = {self.nn_depth}, width = {self.nn_width} \n')
             f.write(f'number of parameters = {self.nparameters} \n')
             f.write(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name} \n')
@@ -335,34 +339,39 @@ class Trainer():
         else:
             raise Exception('scheduler not implemented')
 
-    def evaluate(self, training_dataset=False):
+    def evaluate(self, validate=False):
         # self.print_cuda_memory()
         with torch.no_grad():
             # TODO: maybe move this elsewhere and make it more robust? maybe have an Evaluation class
             eval_loss = 0
-            if training_dataset:
-                for t in self.dataset.trajs:
-                    nbatches = 10000
-                    batch_length = 100
-                    # self.print_cuda_memory()
-                    batch_t, batch_y0, batch_y, self.func.k, self.func.inertia, self.batch_filepath = self.dataset.get_batch(nbatches, batch_length) 
-
-                    # self.print_cuda_memory()
-                    pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
-                
-                    # self.print_cuda_memory()
-                    pred_y = torch.swapaxes(torch.cat(pred_y, dim=-1), 0, 1)
-                    
-                    # self.print_cuda_memory()
-                    batch_y = torch.cat(batch_y, dim=-1)
-                    
-                    # self.print_cuda_memory()
-                    loss = torch.mean(torch.abs(pred_y - batch_y))
-
-                    # self.print_cuda_memory()
-                    eval_loss += loss
+            
+            if validate:
+                dataset = self.validation_dataset
             else:
-                raise Exception('test evaluation not implemented')
+                dataset = self.test_dataset
+
+            for t in dataset.trajs:
+                nbatches = 10000
+                batch_length = 100
+                # self.print_cuda_memory()
+                # get first batches
+                batch_t, batch_y0, batch_y, self.func.k, self.func.inertia, self.batch_filepath = dataset.get_batch(nbatches, batch_length) 
+
+                # self.print_cuda_memory()
+                pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
+            
+                # self.print_cuda_memory()
+                pred_y = torch.swapaxes(torch.cat(pred_y, dim=-1), 0, 1)
+                
+                # self.print_cuda_memory()
+                batch_y = torch.cat(batch_y, dim=-1)
+                
+                # self.print_cuda_memory()
+                loss = torch.mean(torch.abs(pred_y - batch_y))
+
+                # self.print_cuda_memory()
+                eval_loss += loss
+            
             eval_loss = float(eval_loss.detach().cpu())
             self.loss_meter.evals.append(eval_loss)
             

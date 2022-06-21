@@ -8,8 +8,8 @@ from torch.utils.data import Dataset, DataLoader
 
 class Dataset():
     # TODO: add a TEST dataset and then initialize Dataset function outside of TRAINING
-    def __init__(self, config):
-        self.folder = config['folder']
+    def __init__(self, config, dataset_type):
+        self.folder = self.set_folder(config, dataset_type)
         self.filenames = self.get_filenames()
         self.device = config['device']
         self.trajs = self.get_trajectories()
@@ -88,3 +88,10 @@ class Dataset():
         
         
         return batch_t, pos_init, batch_trajs, trajectory.k, trajectory.inertia.type(self.dtype), trajectory.file_path
+
+    def set_folder(self, config, dataset_type):
+        if dataset_type in ['train', 'validation', 'test']:
+            return config['folder']+f'/{dataset_type}/'
+        else:
+            raise ValueError('dataset_type must be either train, test or validation')
+        
