@@ -13,6 +13,7 @@ class Trajectory():
         self.device = device
         self.temp, self.k, self.r0, self.seed = self.get_metadata_from_file_path(self.file_path)
         self.reader = Reader(self.file_path)
+        self.timesteps = self.reader.logged_timesteps
         self.traj, self.inertia = self.get_traj(self.reader)
         self.dt = self.get_dt(self.reader)
         
@@ -55,7 +56,7 @@ class Trajectory():
     def get_data(self):
         # train_split = 0.9
         # test_split = 1 - train_split
-        end_index = self.reader.n_logged_timesteps // 1
+        end_index = self.reader.n_logged_timesteps
         df = pd.read_csv(self.file_path+'-reduced_traj.csv')
         # HACK: do this based on the column names, not explicitly
         com = ['c_com_1[1]', 'c_com_1[2]', 'c_com_1[3]', 'c_com_2[1]', 'c_com_2[2]', 'c_com_2[3]']
@@ -131,8 +132,7 @@ class Trajectory():
         ang_vel_2 = quat2.conj() * ang_vel_2 * quat2
         ang_vel_1 = quaternion.as_vector_part(ang_vel_1)
         ang_vel_2 = quaternion.as_vector_part(ang_vel_2)
-        ang_vel = torch.from_numpy(np.hstack((ang_vel_1, ang_vel_2))).to(self.device).view(ntraj, -1, nparticles, angvel_dim)
-
+        ang_vel = torch.from_numpy(np.hstack((ang_vel_1, ang_vel_2))).to(self.device).view(ntraj, -1, nparticles, angvel_dim)    
         return (vel, ang_vel, coms, quats)
 
         
