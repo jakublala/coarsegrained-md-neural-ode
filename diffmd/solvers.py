@@ -35,13 +35,10 @@ class VelVerlet_NVE(FixedGridODESolver):
         """
         NUM_VAR = 4 # vels and coords for NVE
 
-        # #HACK: inertia
-        inertia = torch.Tensor([[3, 3, 6], [3, 3, 6]]).to(state[0].device).type(state[0].dtype)
+        # HACK: inertia
+        self.inertia = torch.Tensor([[3, 3, 6], [3, 3, 6]]).to(state[0].device).type(state[0].dtype)
         
         if len(state) == NUM_VAR: # integrator in the forward call 
-            # HACK
-            self.inertia = diffeq.inertia 
-
             dvdt_0, dwdt_0, dxdt_0, dqdt_0 = diffeq(state)
             # print(dvdt_0.type())
             
@@ -52,7 +49,7 @@ class VelVerlet_NVE(FixedGridODESolver):
             # angular velocity half-step
             w_step_half = 1/2 * dwdt_0 * dt # body-fixed
             w_half_body = state[1] + w_step_half # 1)
-            l_half_body = w_half_body * inertia
+            l_half_body = w_half_body * self.inertia
             l_half_system = quaternion_apply(state[3], l_half_body) # 2)
 
             # full Richardson update
@@ -65,7 +62,7 @@ class VelVerlet_NVE(FixedGridODESolver):
             
             q_half_invert = quaternion_invert(q_half)
             l_half_body = quaternion_apply(q_half_invert, l_half_system) # 5)
-            w_half_body = l_half_body / inertia
+            w_half_body = l_half_body / self.inertia
             
             # 2nd`half Richardson update
             q_half = q_half + 0.5 * 0.5 * quatvec(q_half, w_half_body) * dt # 6)

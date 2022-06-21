@@ -84,11 +84,9 @@ class Trainer():
                 
                 batch_t, batch_y0, batch_y, self.func.k, self.func.inertia, self.batch_filepath = self.training_dataset.get_batch(self.nbatches, self.batch_length) 
 
-                print('spring constant k:', self.func.k)
-                print('batch filepath:', self.batch_filepath)
-                # if self.device == torch.device('cuda:1'):
-                #     print('hello')
-                #     self.func = nn.DataParallel(self.func).to(self.device)
+                if self.device == torch.device('cuda'):
+                    print('hello')
+                    self.func = nn.DataParallel(self.func, device_ids=['cuda:0', 'cuda:1']).to(self.device)
 
                 # TODO: add assertion to check right dimensions
                 pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')

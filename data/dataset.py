@@ -3,18 +3,27 @@ import numpy as np
 import os
 
 from data.trajectory import Trajectory
-from torch.utils.data import Dataset, DataLoader
+import torch.utils.data
 
 
-class Dataset():
-    # TODO: add a TEST dataset and then initialize Dataset function outside of TRAINING
+class Dataset(torch.utils.data.Dataset):
     def __init__(self, config, dataset_type):
+        self.device = config['device']
+        self.dtype = config['dtype']
+        self.batch_length = config['batch_length']
+
         self.folder = self.set_folder(config, dataset_type)
         self.filenames = self.get_filenames()
-        self.device = config['device']
         self.trajs = self.get_trajectories()
-        self.dtype = config['dtype']
+        self.data = self.get_data()
+        self.init_IDS = self.get_init_IDS()
         
+    def __len__(self):
+        return len(self.init_IDS)
+
+    def __getitem__(self, index):
+        return
+
     def get_filenames(self):
         filenames = [f for f in os.listdir(self.folder) if os.path.isfile(os.path.join(self.folder, f))]
         filenames = [f.replace('-info.dat', '') for f in filenames if 'NVE' in f and '.dat' in f]
@@ -94,4 +103,15 @@ class Dataset():
             return config['folder']+f'/{dataset_type}/'
         else:
             raise ValueError('dataset_type must be either train, test or validation')
+
+    def get_data(self):
+        for t in self.trajs:
+            print(t.traj.shape)
+            
+
+
+    # def get_init_IDS(self):
+    #     init_IDS = []
+    #     for traj in self.trajs:
+    #         init_IDS.append(traj.reader.init_IDS)
         
