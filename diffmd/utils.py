@@ -130,4 +130,4 @@ def get_run_ID():
     """
     Returns a unique ID for the current run based on the current date and time.
     """
-    return datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    return datetime.now().strftime('%Y-%m-%d_%H-%M-%S').split('_')

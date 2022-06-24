@@ -17,7 +17,7 @@ class Trainer():
 
     def __init__(self, config):
         self.folder = config['folder']
-        self.run_id = get_run_ID()
+        self.day, self.time = get_run_ID()
         self.device = config['device']
         
         # TODO: log everything similarly to device into print file
@@ -99,7 +99,8 @@ class Trainer():
                 
                 # TODO: train only on specifics and not all of the data
                 loss = self.loss_func(pred_y, batch_y)
-                
+                # loss = torch.mean(torch.abs(pred_y[:, -1, :, :] - batch_y[:, -1, :, :]))
+            
                 loss.backward() 
                 self.optimizer.step()
             
@@ -389,7 +390,7 @@ class Trainer():
         return
 
     def save(self):
-        subfolder = f'results/{self.run_id}/'
+        subfolder = f'results/{self.day}/{self.time}'
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
@@ -404,7 +405,7 @@ class Trainer():
         return
 
     def checkpoint(self):
-        subfolder = f'results/{self.run_id}/{self.itr}'
+        subfolder = f'results/{self.day}/{self.time}/{self.itr}'
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
