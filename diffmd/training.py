@@ -21,11 +21,11 @@ class Trainer():
         self.device = config['device']
         
         # TODO: log everything similarly to device into print file
-        self.niters = config['niters']
-        self.start_niter = config['start_niter']
+        self.epochs = config['epochs']
+        self.start_epoch = config['start_epoch']
         self.learning_rate = config['learning_rate']
         self.batch_length = config['batch_length']
-        self.nbatches = config['nbatches']
+        self.batch_size = config['batch_size']
         self.nn_width = config['nn_width']
         self.nn_depth = config['nn_depth']
         self.load_folder = config['load_folder']
@@ -35,9 +35,11 @@ class Trainer():
         self.scheduling_factor = config['scheduling_factor']
         
         self.dtype = config['dtype']
-        self.training_dataset = Dataset(config, 'train')
-        self.test_dataset = Dataset(config, 'test')
-        self.validation_dataset = Dataset(config, 'validation')
+        
+        self.training_generator = self.get_generator(config, 'train') 
+        self.test_generator = self.get_generator(config, 'test') 
+        self.validation_generator = self.get_generator(config, 'validation') 
+        
         self.loss_meter = RunningAverageMeter()
         
         self.nparticles = 2
@@ -58,19 +60,16 @@ class Trainer():
         
         if self.load_folder != None:
             self.func.load_state_dict(torch.load(f'{self.load_folder}/model.pt'))
-
         print(f'device = {self.device}')
-        print(f'training datasets = {self.training_dataset.filenames} in {self.folder}')
         print(f'depth = {self.nn_depth}, width = {self.nn_width}')
         print(f'number of parameters = {self.nparameters}')
         print(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name}')
         print(f'scheduler = {self.scheduler_name}, scheduling factor = {self.scheduling_factor}, scheduling freq = {self.scheduling_freq}')
-        print(f'number of batches = {self.nbatches}, batch length = {self.batch_length}')
-
+        print(f'batch size = {self.batch_size}, batch length = {self.batch_length}')
 
 
     def train(self):
-        for self.itr in range(self.start_niter + 1, (self.start_niter + self.niters) + 1):
+        for self.epoch in range(self.start_epoch + 1, (self.start_epoch + self.epochs) + 1):
             start_time = time.perf_counter()
             
             if self.optimizer_name == 'LBFGS':
@@ -82,18 +81,19 @@ class Trainer():
                 for param in self.func.parameters():
                     param.grad = None
                 
-                batch_t, batch_y0, batch_y, self.func.k, self.func.inertia, self.batch_filepath = self.training_dataset.get_batch(self.nbatches, self.batch_length) 
+                itr = 0
+                # batch_t, batch_y0, batch_y, self.func.k, self.func.inertia, self.batch_filepath = self.training_dataset.get_batch(self.nbatches, self.batch_length) 
+                for batch_y0, batch_y in self.training_generator:
+                    batch_y0, batch_y = batch_y0.to(self.device), batch_y.to(self.device) 
+                    dt = batch_y0[1]
+                    batch_t = torch.linspace(0.0,dt*(self.batch_length-1),self.batch_length).to(self.device)
 
-                if self.device == torch.device('cuda'):
-                    print('hello')
-                    self.func = nn.DataParallel(self.func, device_ids=['cuda:0', 'cuda:1']).to(self.device)
-
-                # TODO: add assertion to check right dimensions
-                pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
+                    # TODO: add assertion to check right dimensions
+                    pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE')
             
-                pred_y = torch.swapaxes(torch.cat(pred_y, dim=-1), 0, 1)
+                    pred_y = torch.swapaxes(torch.cat(pred_y, dim=-1), 0, 1)
                 
-                batch_y = torch.cat(batch_y, dim=-1)
+                    batch_y = torch.cat(batch_y, dim=-1)
                 
                 # TODO: train only on specifics and not all of the data
                 loss = self.loss_func(pred_y, batch_y)
@@ -102,25 +102,23 @@ class Trainer():
                 loss.backward() 
                 self.optimizer.step()
             
-                self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
-            
-            if self.itr % self.scheduling_freq == 0 and self.scheduler_name != None:
+            if self.epoch % self.scheduling_freq == 0 and self.scheduler_name != None:
                 self.scheduler.step()
 
-            if self.itr % self.printing_freq == 0:
-                self.print_loss(self.itr, start_time)
+            if self.epoch % self.printing_freq == 0:
+                self.print_loss(self.epoch, start_time)
 
-            if self.itr % self.plotting_freq == 0:
-                self.plot_traj(self.itr)
+            if self.epoch % self.plotting_freq == 0:
+                self.plot_traj(self.epoch)
 
-            if self.itr % self.evaluation_freq == 0:
+            if self.epoch % self.evaluation_freq == 0:
                 self.evaluate(validate=False)
 
-            if self.itr % self.checkpoint_freq == 0:
+            if self.epoch % self.checkpoint_freq == 0:
                 self.checkpoint()
 
             # early stopping
-            if self.itr % self.stopping_freq == 0:
+            if self.epoch % self.stopping_freq == 0:
 
                 self.loss_meter.checkpoint()
 
@@ -293,7 +291,7 @@ class Trainer():
             f.write(f'number of parameters = {self.nparameters} \n')
             f.write(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name} \n')
             f.write(f'scheduler = {self.scheduler_name}, scheduling factor = {self.scheduling_factor}, scheduling freq = {self.scheduling_freq} \n')
-            f.write(f'number of batches = {self.nbatches}, batch length = {self.batch_length} \n')
+            f.write(f'number of batches = {self.batch_size}, batch length = {self.batch_length} \n')
 
         return
 
@@ -317,7 +315,9 @@ class Trainer():
             raise ValueError(f'loss function {loss_name} not recognised')
 
         
-        
+    def get_generator(self, config, dataset_type):
+        params = {'batch_size': self.batch_size, 'shuffle':config['shuffle'], 'num_workers':config['num_workers']}
+        return torch.utils.data.DataLoader(Dataset(config, dataset_type), **params)
 
     def set_optimizer(self, optimizer):
         if optimizer == 'Adam':
@@ -392,7 +392,7 @@ class Trainer():
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
-        self.plot_traj(self.start_niter+self.niters, subfolder)
+        self.plot_traj(self.start_epoch+self.epochs, subfolder)
         self.plot_loss(subfolder)
         self.plot_lr(subfolder)
         self.plot_evaluation(subfolder)

@@ -13,8 +13,7 @@ class ODEFunc(nn.Module):
         self.mass = 7.0 # HACK
         self.inertia = torch.Tensor().type(self.dtype)
         self.k = torch.Tensor().type(self.dtype)
-        # TODO: add self.r0 => harmonic restarint
-
+        
         # define neural net
         layers = []
         for i in range(depth):
@@ -35,6 +34,8 @@ class ODEFunc(nn.Module):
                 nn.init.constant_(m.bias,val=0)
 
     def forward(self, state):
+
+        state, dt, self.k, self.r0 = state
 
         with torch.set_grad_enabled(True):   
             # [number of bodies, number of trajectories, number of dimensions] 

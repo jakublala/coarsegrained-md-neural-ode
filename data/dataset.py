@@ -1,3 +1,4 @@
+from re import A
 import torch
 import numpy as np
 import os
@@ -15,14 +16,29 @@ class Dataset(torch.utils.data.Dataset):
         self.folder = self.set_folder(config, dataset_type)
         self.filenames = self.get_filenames()
         self.trajs = self.get_trajectories()
+        
         self.data = self.get_data()
         self.init_IDS = self.get_init_IDS()
+
+        # add logging in trajectory names of the used trajectories
         
     def __len__(self):
         return len(self.init_IDS)
 
     def __getitem__(self, index):
-        return
+        init_id = self.init_IDS[index]
+        traj_id, timestep_id = [int(i) for i in init_id.split('-')]
+        dt = self.trajs[traj_id].dt
+        k = self.trajs[traj_id].k
+        r0 = self.trajs[traj_id].r0
+        
+        # get initial condition
+        init = (self.data[traj_id, timestep_id], dt, k, r0)
+
+        # get true trajectory
+        true_traj = self.data[traj_id, timestep_id:(timestep_id+self.batch_length)]
+
+        return init, true_traj
 
     def get_filenames(self):
         filenames = [f for f in os.listdir(self.folder) if os.path.isfile(os.path.join(self.folder, f))]
@@ -105,13 +121,15 @@ class Dataset(torch.utils.data.Dataset):
             raise ValueError('dataset_type must be either train, test or validation')
 
     def get_data(self):
-        for t in self.trajs:
-            print(t.traj.shape)
-            
+        data = [torch.cat(t.traj, dim=-1) for t in self.trajs]
+        data = torch.cat(data, dim=0)
+        return data    
 
 
-    # def get_init_IDS(self):
-    #     init_IDS = []
-    #     for traj in self.trajs:
-    #         init_IDS.append(traj.reader.init_IDS)
-        
+    def get_init_IDS(self):
+        init_IDS = []
+        for traj_id, traj in enumerate(self.trajs):
+            ids = list(range(traj.reader.n_logged_timesteps))
+            ids = [f'{traj_id}-{i}' for i in ids]
+            init_IDS += ids[:-self.batch_length]
+        return init_IDS
