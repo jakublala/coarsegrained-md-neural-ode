@@ -34,9 +34,6 @@ class ODEFunc(nn.Module):
                 nn.init.constant_(m.bias,val=0)
 
     def forward(self, state):
-
-        state, dt, self.k, self.r0 = state
-
         with torch.set_grad_enabled(True):   
             # [number of bodies, number of trajectories, number of dimensions] 
             v = state[0]
@@ -48,7 +45,7 @@ class ODEFunc(nn.Module):
             q.requires_grad = True
             
             # normalise quaternions to unit length
-            q = normalize_quat(q, dim=2)
+            q = normalize_quat(q)
             
             # get vector separation between bodies (pointing from the first atom to the second)
             r_vector = x[:, 1, :] - x[:, 0, :]

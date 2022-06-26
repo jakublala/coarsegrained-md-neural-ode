@@ -86,9 +86,9 @@ def quat_to_euler_angles(q):
     eul3 = torch.atan2(2*(q0*q3 + q1*q2), 1 - 2*(q2**2 + q3**2))
     return torch.stack([eul1, eul2, eul3], dim=2)
 
-def normalize_quat(q, dim):
+def normalize_quat(q):
     # TODO: documentation
-    return q / torch.norm(q, dim=dim).unsqueeze(2)
+    return q / torch.norm(q, dim=-1).unsqueeze(-1)
 
 def quat_rotation(v, q, dim, is_vector=True):
     # TODO; documentation and improve generalizibility
@@ -130,4 +130,7 @@ def get_run_ID():
     """
     Returns a unique ID for the current run based on the current date and time.
     """
-    return datetime.now().strftime('%Y-%m-%d_%H-%M-%S').split('_')
+    return datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+
+def count_parameters(model):
+    return sum(p.numel() for p in model.parameters() if p.requires_grad)

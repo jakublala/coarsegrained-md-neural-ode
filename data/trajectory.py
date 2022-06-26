@@ -15,8 +15,7 @@ class Trajectory():
         self.reader = Reader(self.file_path)
         self.timesteps = self.reader.logged_timesteps
         self.traj, self.inertia = self.get_traj(self.reader)
-        self.dt = self.get_dt(self.reader)
-        
+        self.dt = self.get_dt(self.reader)     
 
     def get_metadata_from_file_path(self, file_path):
         # TODO: documentation
@@ -31,9 +30,8 @@ class Trajectory():
             k = float(file_path[2][file_path[2].find('k') + (2+1):])
             r0 = float(file_path[3][file_path[3].find('r0') + (2+1):])
             seed = int(file_path[4][file_path[4].find('s') + (1+1):])
-        # return torch.Tensor([temp]).to(self.device), torch.Tensor([k]).to(self.device), torch.Tensor([r0]).to(self.device), torch.Tensor([seed]).to(self.device)
-        return temp, k, r0, seed
-
+        return torch.Tensor([temp]), torch.Tensor([k]), torch.Tensor([r0]), torch.Tensor([seed])
+        
     def get_traj(self, reader):
         # TODO: add options to train on just a part of trajectory
         # TODO: documentation
@@ -85,7 +83,7 @@ class Trajectory():
         return centre_of_masses, quaternions, velocities, ang_velocities, ang_momenta, inertia
 
     def process_inertia(self, inertia):
-        assert np.all(inertia.std().iloc[1:].to_numpy() == 0), 'inertia is not constant'
+        assert np.all(inertia.std().iloc[1:].to_numpy() == 0), 'inertia in data is not constant'
         inertia = inertia.iloc[0, 1:].to_numpy().reshape(2, 3)
         return torch.from_numpy(inertia).to(self.device)
 

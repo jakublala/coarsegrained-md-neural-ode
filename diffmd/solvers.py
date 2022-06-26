@@ -18,6 +18,14 @@ class VelVerlet_NVE(FixedGridODESolver):
     Velocity Verlet updater for NVE ODE forward and backward with translational and rotational motion
     # TODO: rename so that it's clear that it has a kinetic (quaternion) component
     """
+    def __init__(self, diffeq, state, step_size=None, grid_constructor=None, inertia=None, **unused_kwargs):
+        super().__init__(diffeq, state, step_size, grid_constructor, **unused_kwargs)
+
+        if inertia is None:
+            raise ValueError("inertia must be provided")
+        else:
+            self.inertia = inertia
+
     def step_func(self, diffeq, dt, state):
         """
         Propagates state vectors and ajoints one step in time
@@ -33,11 +41,8 @@ class VelVerlet_NVE(FixedGridODESolver):
         Raises:
             -
         """
-        NUM_VAR = 4 # vels and coords for NVE
-
-        # HACK: inertia
-        self.inertia = torch.Tensor([[3, 3, 6], [3, 3, 6]]).to(state[0].device).type(state[0].dtype)
-        
+        NUM_VAR = 4 # angvels, vels, coords and rotations for NVE
+ 
         if len(state) == NUM_VAR: # integrator in the forward call 
             dvdt_0, dwdt_0, dxdt_0, dqdt_0 = diffeq(state)
             # print(dvdt_0.type())
@@ -54,23 +59,24 @@ class VelVerlet_NVE(FixedGridODESolver):
 
             # full Richardson update
             q_full = state[3] + 0.5 * quatvec(state[3], w_half_body) * dt # 3)
-            q_full = normalize_quat(q_full, dim=2)
+            q_full = normalize_quat(q_full)
             
             # half Richardson update
             q_half = state[3] + 0.5 * 0.5 * quatvec(state[3], w_half_body) * dt # 4)
-            q_half = normalize_quat(q_half, dim=2)
-            
+            q_half = normalize_quat(q_half)
+
+            # re-compute angular velocity at new rotation            
             q_half_invert = quaternion_invert(q_half)
             l_half_body = quaternion_apply(q_half_invert, l_half_system) # 5)
             w_half_body = l_half_body / self.inertia
             
             # 2nd`half Richardson update
             q_half = q_half + 0.5 * 0.5 * quatvec(q_half, w_half_body) * dt # 6)
-            q_half = normalize_quat(q_half, dim=2)
+            q_half = normalize_quat(q_half)
             
             # corrected Richardson update
             q_new = 2 * q_half - q_full # 7)
-            q_new = normalize_quat(q_new, dim=2)
+            q_new = normalize_quat(q_new)
             
             # reverse engineer quaternion to step in time
             q_step_full = q_new - state[3]
@@ -81,25 +87,6 @@ class VelVerlet_NVE(FixedGridODESolver):
             # final update of velocities 
             v_step_full = v_step_half + 1/2 * dvdt_full * dt
             w_step_full = w_step_half + 1/2 * dwdt_full * dt # 8)
-
-            
-
-            # dvdt_0, dwdt_0, dxdt_0, dqdt_0 = diffeq(state)
-
-            # # angular/translational velocity half-step
-            # v_step_half = 1/2 * dvdt_0 * dt 
-            # w_step_half = 1/2 * dwdt_0 * dt
- 
-            # # full-step change in position/rotation
-            # x_step_full = (state[0] + v_step_half) * dt 
-            # q_step_full =  0.5 * quatvec(state[3], state[1] + w_step_half) * dt
-            
-            # # gradient full at t + dt 
-            # dvdt_full, dwdt_full, dxdt_full, dqdt_0 = diffeq((state[0] + v_step_half, state[1] + w_step_half, state[2] + x_step_full, state[3] + q_step_full))
-            
-            # v_step_full = v_step_half + 1/2 * dvdt_full * dt
-            # w_step_full = w_step_half + 1/2 * dwdt_full * dt
-            
 
             return tuple((v_step_full, w_step_full, x_step_full, q_step_full))
         
@@ -117,28 +104,28 @@ class VelVerlet_NVE(FixedGridODESolver):
             # angular velocity half-step
             w_step_half = 1/2 * dwdt_0 * dt # body-fixed
             w_half_body = state[1] + w_step_half # 1)
-            l_half_body = w_half_body * inertia
+            l_half_body = w_half_body * self.inertia
             l_half_system = quaternion_apply(state[3], l_half_body) # 2)
 
             # full Richardson update
             q_full = state[3] + 0.5 * quatvec(state[3], w_half_body) * dt # 3)
-            q_full = normalize_quat(q_full, dim=2)
+            q_full = normalize_quat(q_full)
             
             # half Richardson update
             q_half = state[3] + 0.5 * 0.5 * quatvec(state[3], w_half_body) * dt # 4)
-            q_half = normalize_quat(q_half, dim=2)
+            q_half = normalize_quat(q_half)
             
             q_half_invert = quaternion_invert(q_half)
             l_half_body = quaternion_apply(q_half_invert, l_half_system) # 5)
-            w_half_body = l_half_body / inertia
+            w_half_body = l_half_body / self.inertia
             
             # 2nd`half Richardson update
             q_half = q_half + 0.5 * 0.5 * quatvec(q_half, w_half_body) * dt # 6)
-            q_half = normalize_quat(q_half, dim=2)
+            q_half = normalize_quat(q_half)
             
             # corrected Richardson update
             q_new = 2 * q_half - q_full # 7)
-            q_new = normalize_quat(q_new, dim=2)
+            q_new = normalize_quat(q_new)
 
             # reverse engineer quaternion to step in time
             q_step_full = q_new - state[3]

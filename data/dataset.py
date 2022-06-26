@@ -8,10 +8,10 @@ import torch.utils.data
 
 
 class Dataset(torch.utils.data.Dataset):
-    def __init__(self, config, dataset_type):
+    def __init__(self, config, dataset_type, batch_length):
         self.device = config['device']
         self.dtype = config['dtype']
-        self.batch_length = config['batch_length']
+        self.batch_length = batch_length
 
         self.folder = self.set_folder(config, dataset_type)
         self.filenames = self.get_filenames()
@@ -31,13 +31,14 @@ class Dataset(torch.utils.data.Dataset):
         dt = self.trajs[traj_id].dt
         k = self.trajs[traj_id].k
         r0 = self.trajs[traj_id].r0
+        inertia = self.trajs[traj_id].inertia
         
         # get initial condition
-        init = (self.data[traj_id, timestep_id], dt, k, r0)
-
+        init = (self.data[traj_id, timestep_id], dt, k, r0, inertia)
+        
         # get true trajectory
         true_traj = self.data[traj_id, timestep_id:(timestep_id+self.batch_length)]
-
+        
         return init, true_traj
 
     def get_filenames(self):
