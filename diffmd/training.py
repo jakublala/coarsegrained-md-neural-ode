@@ -416,7 +416,7 @@ class Trainer():
         return
 
     def checkpoint(self):
-        subfolder = f'results/{self.day}/{self.time}/{self.itr}'
+        subfolder = f'results/{self.run_id}/{self.epoch}'
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
