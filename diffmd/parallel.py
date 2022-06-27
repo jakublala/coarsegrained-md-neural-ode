@@ -1,7 +1,10 @@
 import os
+import time
+
 import torch.distributed as dist
 from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import DataLoader
+import torch.multiprocessing as mp
 
 from diffmd.training import Trainer
 from diffmd.diffeqs import ODEFunc
@@ -14,15 +17,57 @@ class ParallelTrainer(Trainer):
     def __init__(self, config):
         super().__init__(config)
 
-        self.setup_process(self.rank, self.world_size)
-        
-        
-        self.func = ODEFunc(self.nparticles, self.dim, self.nn_width, self.nn_depth, self.dtype).to(self.device).to(rank)
-        model = DDP(model, device_ids=[rank], output_device=rank, find_unused_parameters=True)
-        # device_ids tell DDP where is your model
-        # output_device tells DDP where to output, in our case, it is rank
-        # find_unused_parameters=True instructs DDP to find unused output of the forward() function of any module in the model
+    def spawn_processes(self, world_size):
+        mp.spawn(
+        self.process,
+        args=(world_size),
+        nprocs=world_size
+    )
 
+    def process(self, rank, world_size):
+        self.setup_process(rank, world_size)
+
+        self.training_dataloader = self.get_parallel_dataloader(self.training_dataset, rank, world_size, self.batch_size)
+        self.test_dataloader = self.get_parallel_dataloader(self.test_dataset, rank, world_size, self.batch_size)
+        self.validation_dataloader = self.get_parallel_dataloader(self.validation_dataset, rank, world_size, self.batch_size)
+
+        self.func = ODEFunc(self.nparticles, self.dim, self.nn_width, self.nn_depth, self.dtype).to(self.device).to(rank)
+        self.func = DDP(self.func, device_ids=[rank], output_device=rank, find_unused_parameters=True)
+        
+        self.train()
+        
+        # add early stopping?
+        cleanup()
+
+    def train(self):
+        for self.epoch in range(self.start_epoch + 1, (self.start_epoch + self.epochs) + 1):
+            self.training_dataloader.sampler.set_epoch(self.epoch)       
+            self.start_time = time.perf_counter()
+        
+            
+            # zero out gradients with less memory operations
+            for param in self.func.parameters():
+                param.grad = None
+
+            for self.itr, (batch_input, batch_y) in enumerate(self.training_dataloader):
+                itr_start_time = time.perf_counter()
+
+                # forward pass
+                pred_y = self.forward_pass(batch_input, batch_y).cpu()
+
+                loss = self.loss_func(pred_y, batch_y)
+
+                # backward pass                    
+                loss.backward() 
+                self.optimizer.step()
+            
+                self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
+                
+                if (self.itr+1) % self.itr_printing_freq == 0:
+                    self.print_iteration(itr_start_time)
+
+            self.print_epoch()
+        return self.func, self.loss_meter
 
     def setup_process(self, rank, world_size): # setup the process group
         # rank is the gpu id of the process
@@ -38,65 +83,9 @@ class ParallelTrainer(Trainer):
         return dataloader
 
 
-    def process(self, rank, world_size):
-        self.setup_process(rank, world_size)
-
-        self.training_dataloader = self.get_parallel_dataloader(self.training_dataset, rank, world_size, self.batch_size)
-        self.test_dataloader = self.get_parallel_dataloader(self.test_dataset, rank, world_size, self.batch_size)
-        self.validation_dataloader = self.get_parallel_dataloader(self.validation_dataset, rank, world_size, self.batch_size)
-
-        self.func = ODEFunc(self.nparticles, self.dim, self.nn_width, self.nn_depth, self.dtype).to(self.device).to(rank)
-        model = DDP(model, device_ids=[rank], output_device=rank, find_unused_parameters=True)
-        
-        self.train()
-        
-        cleanup()
-        
-
-
-
-
-# suppose we have 3 gpus
-world_size = 3        
-mp.spawn(
-    main,
-    args=(world_size),
-    nprocs=world_size
-)
-
 def cleanup():
     dist.destroy_process_group()
 
-def main(rank, world_size):
-    # setup the process groups
-    setup(rank, world_size)    # prepare the dataloader
-    dataloader = prepare(rank, world_size)
-    
-    # instantiate the model(it's your own model) and move it to the right device
-    model = Your_Model().to(rank)
-    
-    # wrap the model with DDP
-    # device_ids tell DDP where is your model
-    # output_device tells DDP where to output, in our case, it is rank
-    # find_unused_parameters=True instructs DDP to find unused output of the forward() function of any module in the model    model = DDP(model, device_ids=[rank], output_device=rank, find_unused_parameters=True)    #################### The above is defined previously
-   
-    optimizer = Your_Optimizer()
-    loss_fn = Your_Loss()    
-    
-    for epoch in epochs:
-        # if we are using DistributedSampler, we have to tell it which epoch this is
-        dataloader.sampler.set_epoch(epoch)       
-        
-        for step, x in enumerate(dataloader):
-            optimizer.zero_grad(set_to_none=True)
-            
-            pred = model(x)
-            label = x['label']
-            
-            loss = loss_fn(pred, label)
-            loss.backward()
-            optimizer.step()    
-    
 
 # # in case we load a DDP model checkpoint to a non-DDP modelmodel_dict = OrderedDict()
 # pattern = re.compile('module.')
