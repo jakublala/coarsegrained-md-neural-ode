@@ -130,7 +130,7 @@ def get_run_ID():
     """
     Returns a unique ID for the current run based on the current date and time.
     """
-    return datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    return datetime.now().strftime('%Y-%m-%d_%H-%M-%S').split('_')
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)

@@ -50,6 +50,7 @@ class Dataset(torch.utils.data.Dataset):
         return [Trajectory(self.folder+filename, self.device) for filename in self.filenames]
 
     def get_batch(self, batch_size, batch_length):
+        # OBSOLUTE
         """
         Get a batch of data from a trajectory.
             
@@ -130,7 +131,7 @@ class Dataset(torch.utils.data.Dataset):
     def get_init_IDS(self):
         init_IDS = []
         for traj_id, traj in enumerate(self.trajs):
-            ids = list(range(traj.reader.n_logged_timesteps))
+            ids = list(range(traj.reader.n_logged_timesteps // 20))
             ids = [f'{traj_id}-{i}' for i in ids]
             init_IDS += ids[:-self.batch_length]
         return init_IDS

@@ -19,7 +19,7 @@ class Trajectory():
 
     def get_metadata_from_file_path(self, file_path):
         # TODO: documentation
-        file_path = file_path.split('_')
+        file_path = file_path[file_path.rfind('/')+1:].split('_')
         if 'temp' in file_path[0]:
             temp = float(file_path[0][file_path[0].find('temp') + (4+1):])
             k = float(file_path[1][file_path[1].find('k') + (2+1):])
@@ -54,7 +54,7 @@ class Trajectory():
     def get_data(self):
         # train_split = 0.9
         # test_split = 1 - train_split
-        end_index = self.reader.n_logged_timesteps
+        end_index = self.reader.n_logged_timesteps // 20
         df = pd.read_csv(self.file_path+'-reduced_traj.csv')
         # HACK: do this based on the column names, not explicitly
         com = ['c_com_1[1]', 'c_com_1[2]', 'c_com_1[3]', 'c_com_2[1]', 'c_com_2[2]', 'c_com_2[3]']
@@ -103,19 +103,19 @@ class Trajectory():
         com1 = centre_of_masses.loc[:, ['c_com_1[1]', 'c_com_1[2]', 'c_com_1[3]']].to_numpy()
         com2 = centre_of_masses.loc[:, ['c_com_2[1]', 'c_com_2[2]', 'c_com_2[3]']].to_numpy()
         # separation = np.linalg.norm(com1-com2, axis=1).reshape(-1, 1)
-        coms = torch.from_numpy(np.hstack((com1, com2))).to(self.device).view(ntraj, -1, nparticles, com_dim)
+        coms = torch.from_numpy(np.hstack((com1, com2))).to('cpu').view(ntraj, -1, nparticles, com_dim)
         
         # Get quaternion rotations (swap axes to put real part first)
         quat1 = quaternions.loc[:, ['c_q_1[4]', 'c_q_1[1]', 'c_q_1[2]', 'c_q_1[3]']].to_numpy()
         quat2 = quaternions.loc[:, ['c_q_2[4]', 'c_q_2[1]', 'c_q_2[2]', 'c_q_2[3]']].to_numpy()
-        quats = torch.from_numpy(np.hstack((quat1, quat2))).to(self.device).view(ntraj, -1, nparticles, quat_dim)
+        quats = torch.from_numpy(np.hstack((quat1, quat2))).to('cpu').view(ntraj, -1, nparticles, quat_dim)
         
         # Get translation velocities
         vel1 = velocities.loc[:, ['c_vel_1[1]', 'c_vel_1[2]', 'c_vel_1[3]']].to_numpy()
         vel2 = velocities.loc[:, ['c_vel_2[1]', 'c_vel_2[2]', 'c_vel_2[3]']].to_numpy() 
         # hexagon_mass = 7.0
         # mom = torch.from_numpy(np.hstack((vel1 * hexagon_mass, vel2 * hexagon_mass))).to(device).view(ntraj, -1, nparticles, vel_dim)
-        vel = torch.from_numpy(np.hstack((vel1, vel2))).to(self.device).view(ntraj, -1, nparticles, vel_dim)
+        vel = torch.from_numpy(np.hstack((vel1, vel2))).to('cpu').view(ntraj, -1, nparticles, vel_dim)
 
         # Get angular velocities (system-fixed)
         ang_vel_1 = ang_velocities.loc[:, ['c_av_1[1]', 'c_av_1[2]', 'c_av_1[3]']].to_numpy()
@@ -130,7 +130,7 @@ class Trajectory():
         ang_vel_2 = quat2.conj() * ang_vel_2 * quat2
         ang_vel_1 = quaternion.as_vector_part(ang_vel_1)
         ang_vel_2 = quaternion.as_vector_part(ang_vel_2)
-        ang_vel = torch.from_numpy(np.hstack((ang_vel_1, ang_vel_2))).to(self.device).view(ntraj, -1, nparticles, angvel_dim)    
+        ang_vel = torch.from_numpy(np.hstack((ang_vel_1, ang_vel_2))).to('cpu').view(ntraj, -1, nparticles, angvel_dim)    
         return (vel, ang_vel, coms, quats)
 
         
