@@ -41,7 +41,7 @@ class Trainer():
         # dataset setup
         self.training_dataset = Dataset(config, dataset_type='train', batch_length=self.batch_length)
         self.test_dataset = Dataset(config, dataset_type='test', batch_length=self.eval_batch_length)
-        self.validate_dataset = Dataset(config, dataset_type='validate', batch_length=self.eval_batch_length)
+        self.validate_dataset = Dataset(config, dataset_type='validation', batch_length=self.eval_batch_length)
         self.training_dataloader = self.get_dataloader(config, self.training_dataset) 
         self.test_dataloader = self.get_dataloader(config, self.test_dataset) 
         self.validation_dataloader = self.get_dataloader(config, self.validate_dataset)
@@ -51,6 +51,7 @@ class Trainer():
         self.nparticles = 2
         self.dim = 1 + (2*4)
         self.printing_freq = config['printing_freq']
+        self.itr_printing_freq = config['itr_printing_freq']
         self.plotting_freq = config['plotting_freq']
         self.stopping_freq = config['stopping_freq']
         self.scheduling_freq = config['scheduling_freq']
@@ -97,34 +98,28 @@ class Trainer():
         for self.epoch in range(self.start_epoch + 1, (self.start_epoch + self.epochs) + 1):
             start_time = time.perf_counter()
             
-            if self.optimizer_name == 'LBFGS':
-                # TODO: implement this or another optimizer
-                self.optimizer.step(self.closure)
-            else:
-                
-                # zero out gradients with less memory operations
-                for param in self.func.parameters():
-                    param.grad = None
-                
-                itr = 0
-                
-                for batch_input, batch_y in self.training_dataloader:
-                    # forward pass
-                    pred_y = self.forward_pass(batch_input, batch_y)
+            # zero out gradients with less memory operations
+            for param in self.func.parameters():
+                param.grad = None
 
-                    # TODO: train only on specifics and not all of the data
-                    loss = self.loss_func(pred_y, batch_y)
+            for self.itr, (batch_input, batch_y) in enumerate(self.training_dataloader):
+                itr_start_time = time.perf_counter()
 
-                    # backward pass                    
-                    loss.backward() 
-                    self.optimizer.step()
-                
-                    self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
-                    print(itr)
-                    itr += 1
-                    # TODO: add proper logging for iterations
-                    # TODO: copy it over to epoch training
+                # forward pass
+                pred_y = self.forward_pass(batch_input, batch_y).cpu()
+
+                # TODO: train only on specifics and not all of the data
+                loss = self.loss_func(pred_y, batch_y)
+
+                # backward pass                    
+                loss.backward() 
+                self.optimizer.step()
             
+                self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
+                
+                if (self.itr+1) % self.itr_printing_freq == 0:
+                    self.print_iteration(itr_start_time)
+                
             if self.epoch % self.scheduling_freq == 0 and self.scheduler_name != None:
                 self.scheduler.step()
 
@@ -144,7 +139,6 @@ class Trainer():
             if self.epoch % self.stopping_freq == 0:
 
                 self.loss_meter.checkpoint()
-
                 # divergent / non-convergent
                 if len(self.loss_meter.checkpoints) > 1:
                     if self.loss_meter.checkpoints[-2] < self.loss_meter.checkpoints[-1]:
@@ -156,29 +150,13 @@ class Trainer():
                 # if np.sd(self.loss_meter.losses[-self.stopping_freq:]) > 0.001:
                 #     print('early stopping as stale convergence')
                 #     return self.func, self.loss_meter
-        # TODO add checkpointing
-        # TODO: add logging in
-
+        
         return self.func, self.loss_meter
 
-    # def closure(self):
-    #     if torch.is_grad_enabled():
-    #         self.optimizer.zero_grad()
-    #     batch_t, batch_y0, batch_y, self.func.k, self.func.inertia = self.dataset.get_batch(self.nbatches, self.batch_length)  
-    #     pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE') 
-    #     pred_y = torch.cat(pred_y, dim=-1)
-    #     batch_y = torch.swapaxes(torch.swapaxes(torch.cat(batch_y, dim=-1), 0, 2), 1, 2)
-    #     loss = torch.mean(torch.abs(pred_y - batch_y))    
-    #     self.loss_meter.update(loss.item())
-    #     if loss.requires_grad:
-    #         loss.backward()
-    #     return loss
-
-
     def print_loss(self, itr, start_time):
-        print(f'Iter: {itr}, Running avg elbo: {self.loss_meter.avg}')
+        print(f'Epoch: {itr}, Running avg elbo: {self.loss_meter.avg}')
         print(f'Current loss: {self.loss_meter.val}')
-        print('Last iteration took:     ', time.perf_counter() - start_time, flush=True)
+        print('Last epoch took:     ', time.perf_counter() - start_time, flush=True)
         print(f'Learning rate: {self.loss_meter.lrs[-1]}')
         t = torch.cuda.get_device_properties(0).total_memory
         r = torch.cuda.memory_reserved(0)
@@ -188,7 +166,10 @@ class Trainer():
         print(f'Reserved memory: {r}')
         print(f'Allocated memory: {a}')
         print(f'Free memory: {f}')
-        
+
+    def print_iteration(self, start_time):
+        print(f'Epoch: {self.epoch}, Iteration: {self.itr+1}, Loss: {self.loss_meter.val}')
+        print(f'Last iteration took:', time.perf_counter() - start_time, flush=True)
 
     def plot_traj(self, itr, subfolder='temp'):
         if itr == self.plotting_freq:
@@ -321,24 +302,19 @@ class Trainer():
 
         return
 
-    def set_loss_func(self, loss_name):
+    def set_loss_func(self, loss_func):
         def all_loss_func(pred_y, true_y):
             return torch.mean(torch.abs(pred_y - true_y))
 
-        def pos_loss_func(pred_y, true_y):
-            return torch.mean(torch.abs(pred_y - true_y)[:, :, :, 6:])
+        def final_loss_func(pred_y, true_y):
+            return torch.mean(torch.abs(pred_y[:, -1, :, :] - true_y[:, -1, :, :]))
 
-        def vel_loss_func(pred_y, true_y):
-            return torch.mean(torch.abs(pred_y - true_y)[:, :, :, :6])
-
-        if 'all' in loss_name:
+        if loss_func == 'all':
             return all_loss_func
-        elif 'pos' in loss_name:
-            return pos_loss_func
-        elif 'vel' in loss_name:
-            return vel_loss_func
+        elif loss_func == 'final':
+            return final_loss_func
         else:
-            raise ValueError(f'loss function {loss_name} not recognised')
+            raise ValueError(f'loss function {loss_func} not recognised')
 
         
     def get_dataloader(self, config, dataset, no_batch=False):
@@ -379,7 +355,7 @@ class Trainer():
             eval_loss = []
             for batch_input, batch_y in dataloader:
                     # forward pass
-                    pred_y = self.forward_pass(batch_input, batch_y)
+                    pred_y = self.forward_pass(batch_input, batch_y, batch_length=self.eval_batch_length).cpu()
 
                     # loss across entire trajectory
                     loss = torch.mean(torch.abs(pred_y - batch_y))
@@ -389,7 +365,7 @@ class Trainer():
             self.loss_meter.evals.append(np.mean(eval_loss))
             
             # delete all variables from GPU memory
-            del batch_t, batch_y0, batch_y, pred_y, loss
+            del batch_input, batch_y, pred_y, loss
         return eval_loss
 
     def plot_evaluation(self, subfolder):
@@ -416,7 +392,7 @@ class Trainer():
         return
 
     def checkpoint(self):
-        subfolder = f'results/{self.run_id}/{self.epoch}'
+        subfolder = f'results/{self.epoch}/{self.day}/{self.time}'
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
