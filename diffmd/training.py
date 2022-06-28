@@ -97,7 +97,7 @@ class Trainer():
         
     def train(self):
         for self.epoch in range(self.start_epoch + 1, (self.start_epoch + self.epochs) + 1):
-            start_time = time.perf_counter()
+            self.start_time = time.perf_counter()
             
             # zero out gradients with less memory operations
             for param in self.func.parameters():
@@ -109,7 +109,6 @@ class Trainer():
                 # forward pass
                 pred_y = self.forward_pass(batch_input, batch_y).cpu()
 
-                # TODO: train only on specifics and not all of the data
                 loss = self.loss_func(pred_y, batch_y)
 
                 # backward pass                    
@@ -122,39 +121,26 @@ class Trainer():
                 
                 if (self.itr+1) % self.itr_printing_freq == 0:
                     self.print_iteration(itr_start_time)
-                    
-            if self.epoch % self.scheduling_freq == 0 and self.scheduler_name != None:
-                self.scheduler.step()
 
-            if self.epoch % self.printing_freq == 0:
-                self.print_loss(self.epoch, start_time)
-
-            if self.epoch % self.plotting_freq == 0:
-                self.plot_traj(self.epoch)
-
-            if self.epoch % self.evaluation_freq == 0:
-                self.evaluate(validate=False)
-
-            if self.epoch % self.checkpoint_freq == 0:
-                self.checkpoint()
-
-            # early stopping
-            if self.epoch % self.stopping_freq == 0:
-
-                self.loss_meter.checkpoint()
-                # divergent / non-convergent
-                if len(self.loss_meter.checkpoints) > 1:
-                    if self.loss_meter.checkpoints[-2] < self.loss_meter.checkpoints[-1]:
-                        print('early stopping as non-convergent')
-                        return self.func, self.loss_meter
-                
-                # TODO: add proper stale convergence and test it out
-                # stale convergence
-                # if np.sd(self.loss_meter.losses[-self.stopping_freq:]) > 0.001:
-                #     print('early stopping as stale convergence')
-                #     return self.func, self.loss_meter
-        
+            self.print_epoch()
         return self.func, self.loss_meter
+
+    def print_epoch(self):
+        if self.epoch % self.scheduling_freq == 0 and self.scheduler_name != None:
+            self.scheduler.step()
+
+        if self.epoch % self.printing_freq == 0:
+            self.print_loss(self.epoch, self.start_time)
+
+        if self.epoch % self.plotting_freq == 0:
+            self.plot_traj(self.epoch)
+
+        if self.epoch % self.evaluation_freq == 0:
+            self.evaluate(validate=False)
+
+        if self.epoch % self.checkpoint_freq == 0:
+            self.checkpoint()
+
 
     def print_loss(self, itr, start_time):
         print(f'Epoch: {itr}, Running avg elbo: {self.loss_meter.avg}')
@@ -198,19 +184,12 @@ class Trainer():
             pred_y = self.forward_pass(batch_input, batch_y, batch_length=batch_length).squeeze().cpu().numpy()
             batch_y = batch_y.cpu().numpy()
             batch_t = self.get_batch_t(batch_input[1], batch_length=batch_length).cpu().numpy()
-            print(pred_y[:, 0, 0])
-            assert 0 == 1
-        
 
             ind_vel = [0, 1, 2]
             ind_ang = [3, 4, 5]
             ind_pos = [6, 7, 8]
             ind_quat = [9, 10, 11, 12]
             
-            print(batch_t.shape)
-            print(batch_y.shape)
-            print(pred_y.shape)
-
             for i in ind_vel:
                 plt.title('velocities 1')
                 plt.plot(batch_t, batch_y[:,0,i], 'k--', alpha=0.3, label=f'true {i}')
