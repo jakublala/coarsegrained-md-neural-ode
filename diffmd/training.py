@@ -13,8 +13,6 @@ from data.dataset import Dataset
 from diffmd.diffeqs import ODEFunc
 from diffmd.solvers import odeint_adjoint
 from diffmd.utils import get_run_ID, count_parameters
-from diffmd.losses import *
-from diffmd.schedulers import *
 
 class Trainer():
 
@@ -43,10 +41,10 @@ class Trainer():
         # dataset setup
         self.training_dataset = Dataset(config, dataset_type='train', batch_length=self.batch_length)
         self.test_dataset = Dataset(config, dataset_type='test', batch_length=self.eval_batch_length)
-        self.validation_dataset = Dataset(config, dataset_type='validation', batch_length=self.eval_batch_length)
+        self.validate_dataset = Dataset(config, dataset_type='validation', batch_length=self.eval_batch_length)
         self.training_dataloader = self.get_dataloader(config, self.training_dataset) 
         self.test_dataloader = self.get_dataloader(config, self.test_dataset) 
-        self.validation_dataloader = self.get_dataloader(config, self.validation_dataset)
+        self.validation_dataloader = self.get_dataloader(config, self.validate_dataset)
         
         self.loss_meter = RunningAverageMeter()
         
@@ -81,27 +79,25 @@ class Trainer():
                     
         batch_y0, dt, k, r0, inertia =  batch_input
         batch_y0 = tuple(i.to(self.device).type(self.dtype) for i in torch.split(batch_y0, [3, 3, 3, 4], dim=-1))
-        
+
         # get timesteps
         batch_t = self.get_batch_t(dt, batch_length)
         
-        # TODO: change .module to not fuck up non-parallilized code
         # set constants
-        self.func.module.k = k.to(self.device).type(self.dtype)
+        self.func.k = k.to(self.device).type(self.dtype)
         self.func.r0 = r0.to(self.device).type(self.dtype)
-        self.func.module.inertia = inertia.to(self.device).type(self.dtype)
+        self.func.inertia = inertia.to(self.device).type(self.dtype)
         options = dict(inertia=inertia.to(self.device).type(self.dtype))
         
         # TODO: add assertion to check right dimensions
-        print('before ode int adjoint')
         pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE', options=options)
-        print('after ode int adjoint')
         pred_y = torch.swapaxes(torch.cat(pred_y, dim=-1), 0, 1)
+        
         return pred_y
         
     def train(self):
         for self.epoch in range(self.start_epoch + 1, (self.start_epoch + self.epochs) + 1):
-            self.start_time = time.perf_counter()
+            start_time = time.perf_counter()
             
             # zero out gradients with less memory operations
             for param in self.func.parameters():
@@ -113,43 +109,52 @@ class Trainer():
                 # forward pass
                 pred_y = self.forward_pass(batch_input, batch_y).cpu()
 
-                print('finished forward pass')
-
+                # TODO: train only on specifics and not all of the data
                 loss = self.loss_func(pred_y, batch_y)
 
-                layers=[x.data for x in self.func.module.parameters()]
-                print(layers[5])
-
-
-                # backward pass         
-                print('backward pass') 
+                # backward pass                    
                 loss.backward() 
                 self.optimizer.step()
             
                 self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
                 
+                self.plot_traj(self.epoch)
+                
                 if (self.itr+1) % self.itr_printing_freq == 0:
                     self.print_iteration(itr_start_time)
+                    
+            if self.epoch % self.scheduling_freq == 0 and self.scheduler_name != None:
+                self.scheduler.step()
 
-            self.print_epoch()
+            if self.epoch % self.printing_freq == 0:
+                self.print_loss(self.epoch, start_time)
+
+            if self.epoch % self.plotting_freq == 0:
+                self.plot_traj(self.epoch)
+
+            if self.epoch % self.evaluation_freq == 0:
+                self.evaluate(validate=False)
+
+            if self.epoch % self.checkpoint_freq == 0:
+                self.checkpoint()
+
+            # early stopping
+            if self.epoch % self.stopping_freq == 0:
+
+                self.loss_meter.checkpoint()
+                # divergent / non-convergent
+                if len(self.loss_meter.checkpoints) > 1:
+                    if self.loss_meter.checkpoints[-2] < self.loss_meter.checkpoints[-1]:
+                        print('early stopping as non-convergent')
+                        return self.func, self.loss_meter
+                
+                # TODO: add proper stale convergence and test it out
+                # stale convergence
+                # if np.sd(self.loss_meter.losses[-self.stopping_freq:]) > 0.001:
+                #     print('early stopping as stale convergence')
+                #     return self.func, self.loss_meter
+        
         return self.func, self.loss_meter
-
-    def print_epoch(self):
-        if self.epoch % self.scheduling_freq == 0 and self.scheduler_name != None:
-            self.scheduler.step()
-
-        if self.epoch % self.printing_freq == 0:
-            self.print_loss(self.epoch, self.start_time)
-
-        if self.epoch % self.plotting_freq == 0:
-            self.plot_traj(self.epoch)
-
-        if self.epoch % self.evaluation_freq == 0:
-            self.evaluate(validate=False)
-
-        if self.epoch % self.checkpoint_freq == 0:
-            self.checkpoint()
-
 
     def print_loss(self, itr, start_time):
         print(f'Epoch: {itr}, Running avg elbo: {self.loss_meter.avg}')
@@ -193,12 +198,19 @@ class Trainer():
             pred_y = self.forward_pass(batch_input, batch_y, batch_length=batch_length).squeeze().cpu().numpy()
             batch_y = batch_y.cpu().numpy()
             batch_t = self.get_batch_t(batch_input[1], batch_length=batch_length).cpu().numpy()
-            
+            print(pred_y[:, 0, 0])
+            assert 0 == 1
+        
+
             ind_vel = [0, 1, 2]
             ind_ang = [3, 4, 5]
             ind_pos = [6, 7, 8]
             ind_quat = [9, 10, 11, 12]
             
+            print(batch_t.shape)
+            print(batch_y.shape)
+            print(pred_y.shape)
+
             for i in ind_vel:
                 plt.title('velocities 1')
                 plt.plot(batch_t, batch_y[:,0,i], 'k--', alpha=0.3, label=f'true {i}')
@@ -301,6 +313,12 @@ class Trainer():
         return
 
     def set_loss_func(self, loss_func):
+        def all_loss_func(pred_y, true_y):
+            return torch.mean(torch.abs(pred_y - true_y))
+
+        def final_loss_func(pred_y, true_y):
+            return torch.mean(torch.abs(pred_y[:, -1, :, :] - true_y[:, -1, :, :]))
+
         if loss_func == 'all':
             return all_loss_func
         elif loss_func == 'final':
@@ -329,8 +347,8 @@ class Trainer():
 
     def set_scheduler(self, scheduler, alpha):
         if scheduler == 'LambdaLR':
-            # TODO: do not work in parallel
-            return torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda epoch: alpha ** epoch)
+            lambda1 = lambda epoch: alpha ** epoch
+            return torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda1)
         elif scheduler == None:
             return
         else:
@@ -354,7 +372,8 @@ class Trainer():
 
                     eval_loss.append(loss.cpu().item())
             
-            self.loss_meter.evals.append(np.mean(eval_loss))
+            eval_loss = np.mean(eval_loss)
+            self.loss_meter.evals.append(eval_loss)
             
             # delete all variables from GPU memory
             del batch_input, batch_y, pred_y, loss
@@ -384,7 +403,7 @@ class Trainer():
         return
 
     def checkpoint(self):
-        subfolder = f'results/{self.epoch}/{self.day}/{self.time}'
+        subfolder = f'results/{self.day}/{self.time}/{self.epoch}'
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
@@ -428,9 +447,9 @@ class Trainer():
             batch_length = self.batch_length
 
         if type(dt) == torch.Tensor:
-            return torch.linspace(0.0,dt[0],batch_length).to(self.device).type(self.dtype)
+            return torch.linspace(0.0,dt[0]*(batch_length-1),batch_length).to(self.device).type(self.dtype)
         else:
-            return torch.linspace(0.0,dt,batch_length).to(self.device).type(self.dtype)
+            return torch.linspace(0.0,dt*(batch_length-1),batch_length).to(self.device).type(self.dtype)
 
 class RunningAverageMeter(object):
     """Computes and stores the average and current value"""
