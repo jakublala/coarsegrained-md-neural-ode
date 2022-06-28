@@ -79,7 +79,7 @@ class Trainer():
                     
         batch_y0, dt, k, r0, inertia =  batch_input
         batch_y0 = tuple(i.to(self.device).type(self.dtype) for i in torch.split(batch_y0, [3, 3, 3, 4], dim=-1))
-        
+
         # get timesteps
         batch_t = self.get_batch_t(dt, batch_length)
         
@@ -92,6 +92,7 @@ class Trainer():
         # TODO: add assertion to check right dimensions
         pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE', options=options)
         pred_y = torch.swapaxes(torch.cat(pred_y, dim=-1), 0, 1)
+        
         return pred_y
         
     def train(self):
@@ -117,9 +118,11 @@ class Trainer():
             
                 self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
                 
+                self.plot_traj(self.epoch)
+                
                 if (self.itr+1) % self.itr_printing_freq == 0:
                     self.print_iteration(itr_start_time)
-                
+                    
             if self.epoch % self.scheduling_freq == 0 and self.scheduler_name != None:
                 self.scheduler.step()
 
@@ -195,12 +198,19 @@ class Trainer():
             pred_y = self.forward_pass(batch_input, batch_y, batch_length=batch_length).squeeze().cpu().numpy()
             batch_y = batch_y.cpu().numpy()
             batch_t = self.get_batch_t(batch_input[1], batch_length=batch_length).cpu().numpy()
-            
+            print(pred_y[:, 0, 0])
+            assert 0 == 1
+        
+
             ind_vel = [0, 1, 2]
             ind_ang = [3, 4, 5]
             ind_pos = [6, 7, 8]
             ind_quat = [9, 10, 11, 12]
             
+            print(batch_t.shape)
+            print(batch_y.shape)
+            print(pred_y.shape)
+
             for i in ind_vel:
                 plt.title('velocities 1')
                 plt.plot(batch_t, batch_y[:,0,i], 'k--', alpha=0.3, label=f'true {i}')
@@ -362,7 +372,8 @@ class Trainer():
 
                     eval_loss.append(loss.cpu().item())
             
-            self.loss_meter.evals.append(np.mean(eval_loss))
+            eval_loss = np.mean(eval_loss)
+            self.loss_meter.evals.append(eval_loss)
             
             # delete all variables from GPU memory
             del batch_input, batch_y, pred_y, loss
@@ -392,7 +403,7 @@ class Trainer():
         return
 
     def checkpoint(self):
-        subfolder = f'results/{self.epoch}/{self.day}/{self.time}'
+        subfolder = f'results/{self.day}/{self.time}/{self.epoch}'
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
@@ -436,9 +447,9 @@ class Trainer():
             batch_length = self.batch_length
 
         if type(dt) == torch.Tensor:
-            return torch.linspace(0.0,dt[0],batch_length).to(self.device).type(self.dtype)
+            return torch.linspace(0.0,dt[0]*(batch_length-1),batch_length).to(self.device).type(self.dtype)
         else:
-            return torch.linspace(0.0,dt,batch_length).to(self.device).type(self.dtype)
+            return torch.linspace(0.0,dt*(batch_length-1),batch_length).to(self.device).type(self.dtype)
 
 class RunningAverageMeter(object):
     """Computes and stores the average and current value"""
