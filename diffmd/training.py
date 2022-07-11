@@ -118,8 +118,6 @@ class Trainer():
             
                 self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
                 
-                self.plot_traj(self.epoch)
-                
                 if (self.itr+1) % self.itr_printing_freq == 0:
                     self.print_iteration(itr_start_time)
                     
@@ -309,7 +307,7 @@ class Trainer():
             f.write(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name} \n')
             f.write(f'scheduler = {self.scheduler_name}, scheduling factor = {self.scheduling_factor}, scheduling freq = {self.scheduling_freq} \n')
             f.write(f'number of batches = {self.batch_size}, traj length = {self.batch_length} \n')
-
+            f.write(f'loss function = {self.loss_func_name} \n')
         return
 
     def set_loss_func(self, loss_func):
