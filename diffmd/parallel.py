@@ -22,15 +22,18 @@ class ParallelTrainer(Trainer):
         self.process,
         args=(world_size),
         nprocs=world_size
-    )
-
+        )
+    
     def process(self, rank, world_size):
+        print('setting up process')
         self.setup_process(rank, world_size)
 
+        print('starting dataloader')
+        print('rank: ', rank)
         self.training_dataloader = self.get_parallel_dataloader(self.training_dataset, rank, world_size, self.batch_size)
         self.test_dataloader = self.get_parallel_dataloader(self.test_dataset, rank, world_size, self.batch_size)
         self.validation_dataloader = self.get_parallel_dataloader(self.validation_dataset, rank, world_size, self.batch_size)
-
+        
         self.func = ODEFunc(self.nparticles, self.dim, self.nn_width, self.nn_depth, self.dtype).to(self.device).to(rank)
         self.func = DDP(self.func, device_ids=[rank], output_device=rank, find_unused_parameters=True)
         
