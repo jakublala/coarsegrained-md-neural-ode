@@ -13,6 +13,8 @@ from data.dataset import Dataset
 from diffmd.diffeqs import ODEFunc
 from diffmd.solvers import odeint_adjoint
 from diffmd.utils import get_run_ID, count_parameters
+from diffmd.losses import *
+from diffmd.schedulers import *
 
 class Trainer():
 

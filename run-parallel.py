@@ -1,4 +1,7 @@
 import torch
+import torch.multiprocessing as mp
+import sys
+
 torch.cuda.empty_cache()
 from diffmd.parallel import ParallelTrainer
 
@@ -20,11 +23,11 @@ config = dict(
     eval_batch_length=5,
     load_folder=None,
     dtype=torch.float32,
-    itr_printing_freq=100,
+    itr_printing_freq=10,
     printing_freq=1,
     plotting_freq=1,
     stopping_freq=5,
-    scheduler='LambdaLR',
+    scheduler=None,
     scheduling_factor=0.95,
     scheduling_freq=1,
     evaluation_freq=1,
@@ -32,7 +35,25 @@ config = dict(
     loss_func = 'all',
     )
 
-trainer = ParallelTrainer(config)
-trainer.spawn_processes(2)
-trainer.save()
+
+def main(rank, world_size):
+    print('HELLO RANK:', rank, flush=True)
+    sys.stdout.flush()
+    return trainer.process(rank, world_size)
+
+if __name__ == '__main__':
+    
+    trainer = ParallelTrainer(config)
+    
+    world_size = 4
+    
+    mp.spawn(
+        main,
+        args=(world_size),
+        nprocs=world_size
+    )
+
+    trainer.save()
+
+
 
