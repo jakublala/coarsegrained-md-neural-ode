@@ -1,6 +1,7 @@
 import torch
 import torch.multiprocessing as mp
 import sys
+import os
 
 torch.cuda.empty_cache()
 from diffmd.parallel import ParallelTrainer
@@ -35,22 +36,17 @@ config = dict(
     loss_func = 'all',
     )
 
-
-def main(rank, world_size):
-    print('HELLO RANK:', rank, flush=True)
-    sys.stdout.flush()
-    return trainer.process(rank, world_size)
-
 if __name__ == '__main__':
-    
+
     trainer = ParallelTrainer(config)
     
-    world_size = 4
+    world_size = 2
     
     mp.spawn(
-        main,
-        args=(world_size),
-        nprocs=world_size
+        trainer.process,
+        args=(world_size,),
+        nprocs=world_size,
+        join=True
     )
 
     trainer.save()
