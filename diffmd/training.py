@@ -311,12 +311,6 @@ class Trainer():
         return
 
     def set_loss_func(self, loss_func):
-        def all_loss_func(pred_y, true_y):
-            return torch.mean(torch.abs(pred_y - true_y))
-
-        def final_loss_func(pred_y, true_y):
-            return torch.mean(torch.abs(pred_y[:, -1, :, :] - true_y[:, -1, :, :]))
-
         if loss_func == 'all':
             return all_loss_func
         elif loss_func == 'final':
@@ -345,8 +339,8 @@ class Trainer():
 
     def set_scheduler(self, scheduler, alpha):
         if scheduler == 'LambdaLR':
-            lambda1 = lambda epoch: alpha ** epoch
-            return torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda1)
+            # lambda1 = lambda epoch: alpha ** epoch
+            return torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda_lr)
         elif scheduler == None:
             return
         else:
@@ -480,3 +474,14 @@ class RunningAverageMeter(object):
 
     def checkpoint(self):
         self.checkpoints.append(self.avg)
+
+# Types of loss functions
+def all_loss_func(pred_y, true_y):
+    return torch.mean(torch.abs(pred_y - true_y))
+
+def final_loss_func(pred_y, true_y):
+    return torch.mean(torch.abs(pred_y[:, -1, :, :] - true_y[:, -1, :, :]))
+
+def lambda_lr(epoch):
+    return 0.95 ** epoch
+            
