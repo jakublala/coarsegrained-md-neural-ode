@@ -43,10 +43,10 @@ class Trainer():
         # dataset setup
         self.training_dataset = Dataset(config, dataset_type='train', batch_length=self.batch_length)
         self.test_dataset = Dataset(config, dataset_type='test', batch_length=self.eval_batch_length)
-        self.validate_dataset = Dataset(config, dataset_type='validation', batch_length=self.eval_batch_length)
+        self.validation_dataset = Dataset(config, dataset_type='validation', batch_length=self.eval_batch_length)
         self.training_dataloader = self.get_dataloader(config, self.training_dataset) 
         self.test_dataloader = self.get_dataloader(config, self.test_dataset) 
-        self.validation_dataloader = self.get_dataloader(config, self.validate_dataset)
+        self.validation_dataloader = self.get_dataloader(config, self.validation_dataset)
         
         self.loss_meter = RunningAverageMeter()
         
@@ -85,14 +85,17 @@ class Trainer():
         # get timesteps
         batch_t = self.get_batch_t(dt, batch_length)
         
+        # TODO: change .module to not fuck up non-parallilized code
         # set constants
-        self.func.k = k.to(self.device).type(self.dtype)
+        self.func.module.k = k.to(self.device).type(self.dtype)
         self.func.r0 = r0.to(self.device).type(self.dtype)
-        self.func.inertia = inertia.to(self.device).type(self.dtype)
+        self.func.module.inertia = inertia.to(self.device).type(self.dtype)
         options = dict(inertia=inertia.to(self.device).type(self.dtype))
         
         # TODO: add assertion to check right dimensions
+        print('before ode int adjoint')
         pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE', options=options)
+        print('after ode int adjoint')
         pred_y = torch.swapaxes(torch.cat(pred_y, dim=-1), 0, 1)
         return pred_y
         
@@ -110,9 +113,16 @@ class Trainer():
                 # forward pass
                 pred_y = self.forward_pass(batch_input, batch_y).cpu()
 
+                print('finished forward pass')
+
                 loss = self.loss_func(pred_y, batch_y)
 
-                # backward pass                    
+                layers=[x.data for x in self.func.module.parameters()]
+                print(layers[5])
+
+
+                # backward pass         
+                print('backward pass') 
                 loss.backward() 
                 self.optimizer.step()
             

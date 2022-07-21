@@ -17,26 +17,20 @@ class ParallelTrainer(Trainer):
     def __init__(self, config):
         super().__init__(config)
 
-    def spawn_processes(self, world_size):
-        mp.spawn(
-        self.process,
-        args=(world_size),
-        nprocs=world_size
-        )
-    
     def process(self, rank, world_size):
         print('setting up process')
         self.setup_process(rank, world_size)
-
+        
         print('starting dataloader')
         print('rank: ', rank)
+        print('self.device: ', self.device)
         self.training_dataloader = self.get_parallel_dataloader(self.training_dataset, rank, world_size, self.batch_size)
         self.test_dataloader = self.get_parallel_dataloader(self.test_dataset, rank, world_size, self.batch_size)
         self.validation_dataloader = self.get_parallel_dataloader(self.validation_dataset, rank, world_size, self.batch_size)
         
         self.func = ODEFunc(self.nparticles, self.dim, self.nn_width, self.nn_depth, self.dtype).to(self.device).to(rank)
-        self.func = DDP(self.func, device_ids=[rank], output_device=rank, find_unused_parameters=True)
-        
+        self.func = DDP(self.func, device_ids=[rank], output_device=rank, find_unused_parameters=False, static_graph=False)
+
         self.train()
         
         # add early stopping?
@@ -76,7 +70,9 @@ class ParallelTrainer(Trainer):
         # rank is the gpu id of the process
         os.environ['MASTER_ADDR'] = 'localhost'
         os.environ['MASTER_PORT'] = '12355'    
+        os.environ['TORCH_DISTRIBUTED_DEBUG'] = 'DETAIL'
         dist.init_process_group("nccl", rank=rank, world_size=world_size)
+        self.device = f'cuda:{rank}'
 
     def get_parallel_dataloader(self, dataset, rank, world_size, batch_size=32, pin_memory=False, num_workers=0): # split the dataloader
         # TODO: documentation
