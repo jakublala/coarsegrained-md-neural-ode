@@ -10,21 +10,21 @@ from diffmd.parallel import ParallelTrainer
 config = dict(
     folder = 'dataset/single_temp_overfit', 
     device = torch.device('cpu'), 
-    epochs = 1,
+    epochs = 2,
     start_epoch = 0,
     optimizer = 'Adam',
-    batch_length=2,
-    batch_size=2000,
+    batch_length=20,
+    batch_size=600,
     shuffle=True,
     num_workers=0,
     learning_rate=0.003,
     nn_depth=2,
     nn_width=1000,
     activation_function=None,
-    eval_batch_length=5,
+    eval_batch_length=100,
     load_folder=None,
     dtype=torch.float32,
-    itr_printing_freq=10,
+    itr_printing_freq=1,
     printing_freq=1,
     plotting_freq=1,
     stopping_freq=5,
@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
     trainer = ParallelTrainer(config)
     
-    world_size = 2
+    world_size = torch.cuda.device_count()
     
     mp.spawn(
         trainer.process,
@@ -48,8 +48,6 @@ if __name__ == '__main__':
         nprocs=world_size,
         join=True
     )
-
-    trainer.save()
 
 
 

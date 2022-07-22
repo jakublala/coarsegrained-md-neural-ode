@@ -1,4 +1,5 @@
 from distutils.command.config import config
+from this import d
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
@@ -41,10 +42,10 @@ class Trainer():
         # dataset setup
         self.training_dataset = Dataset(config, dataset_type='train', batch_length=self.batch_length)
         self.test_dataset = Dataset(config, dataset_type='test', batch_length=self.eval_batch_length)
-        self.validate_dataset = Dataset(config, dataset_type='validation', batch_length=self.eval_batch_length)
+        self.validation_dataset = Dataset(config, dataset_type='validation', batch_length=self.eval_batch_length)
         self.training_dataloader = self.get_dataloader(config, self.training_dataset) 
         self.test_dataloader = self.get_dataloader(config, self.test_dataset) 
-        self.validation_dataloader = self.get_dataloader(config, self.validate_dataset)
+        self.validation_dataloader = self.get_dataloader(config, self.validation_dataset)
         
         self.loss_meter = RunningAverageMeter()
         
@@ -76,7 +77,7 @@ class Trainer():
 
     def forward_pass(self, batch_input, batch_y, batch_length=None):
         batch_y = batch_y.to(self.device).type(self.dtype)
-                    
+        
         batch_y0, dt, k, r0, inertia =  batch_input
         batch_y0 = tuple(i.to(self.device).type(self.dtype) for i in torch.split(batch_y0, [3, 3, 3, 4], dim=-1))
 
@@ -97,7 +98,7 @@ class Trainer():
         
     def train(self):
         for self.epoch in range(self.start_epoch + 1, (self.start_epoch + self.epochs) + 1):
-            start_time = time.perf_counter()
+            self.start_time = time.perf_counter()
             
             # zero out gradients with less memory operations
             for param in self.func.parameters():
@@ -112,47 +113,65 @@ class Trainer():
                 # TODO: train only on specifics and not all of the data
                 loss = self.loss_func(pred_y, batch_y)
 
+                # print('----itr----')
+                # print(self.itr)
+
+                # print('------pred_y------')
+                # print(pred_y.shape)
+                # print(pred_y)
+
+                # print('------batch_y------')
+                # print(batch_y.shape)
+                # print(batch_y)
+
+
                 # backward pass                    
                 loss.backward() 
                 self.optimizer.step()
+
+                # for p in self.func.parameters():
+                #     print(p.grad)
             
                 self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
                 
                 if (self.itr+1) % self.itr_printing_freq == 0:
                     self.print_iteration(itr_start_time)
                     
-            if self.epoch % self.scheduling_freq == 0 and self.scheduler_name != None:
-                self.scheduler.step()
-
-            if self.epoch % self.printing_freq == 0:
-                self.print_loss(self.epoch, start_time)
-
-            if self.epoch % self.plotting_freq == 0:
-                self.plot_traj(self.epoch)
-
-            if self.epoch % self.evaluation_freq == 0:
-                self.evaluate(validate=False)
-
-            if self.epoch % self.checkpoint_freq == 0:
-                self.checkpoint()
-
-            # early stopping
-            if self.epoch % self.stopping_freq == 0:
-
-                self.loss_meter.checkpoint()
-                # divergent / non-convergent
-                if len(self.loss_meter.checkpoints) > 1:
-                    if self.loss_meter.checkpoints[-2] < self.loss_meter.checkpoints[-1]:
-                        print('early stopping as non-convergent')
-                        return self.func, self.loss_meter
-                
-                # TODO: add proper stale convergence and test it out
-                # stale convergence
-                # if np.sd(self.loss_meter.losses[-self.stopping_freq:]) > 0.001:
-                #     print('early stopping as stale convergence')
-                #     return self.func, self.loss_meter
+            self.after_epoch()
         
         return self.func, self.loss_meter
+
+    def after_epoch(self):
+        if self.epoch % self.scheduling_freq == 0 and self.scheduler_name != None:
+                self.scheduler.step()
+
+        if self.epoch % self.printing_freq == 0:
+            self.print_loss(self.epoch, self.start_time)
+
+        if self.epoch % self.plotting_freq == 0:
+            self.plot_traj(self.epoch)
+
+        if self.epoch % self.evaluation_freq == 0:
+            self.evaluate(validate=False)
+
+        if self.epoch % self.checkpoint_freq == 0:
+            self.checkpoint()
+
+        # early stopping
+        if self.epoch % self.stopping_freq == 0:
+
+            self.loss_meter.checkpoint()
+            # divergent / non-convergent
+            if len(self.loss_meter.checkpoints) > 1:
+                if self.loss_meter.checkpoints[-2] < self.loss_meter.checkpoints[-1]:
+                    print('early stopping as non-convergent')
+                    return self.func, self.loss_meter
+            
+            # TODO: add proper stale convergence and test it out
+            # stale convergence
+            # if np.sd(self.loss_meter.losses[-self.stopping_freq:]) > 0.001:
+            #     print('early stopping as stale convergence')
+            #     return self.func, self.loss_meter
 
     def print_loss(self, itr, start_time):
         print(f'Epoch: {itr}, Running avg elbo: {self.loss_meter.avg}')
@@ -163,10 +182,10 @@ class Trainer():
         r = torch.cuda.memory_reserved(0)
         a = torch.cuda.memory_allocated(0)
         f = r-a  # free inside reserved
-        print(f'Total memory: {t}')
-        print(f'Reserved memory: {r}')
-        print(f'Allocated memory: {a}')
-        print(f'Free memory: {f}')
+        # print(f'Total memory: {t}')
+        # print(f'Reserved memory: {r}')
+        # print(f'Allocated memory: {a}')
+        # print(f'Free memory: {f}')
 
     def print_iteration(self, start_time):
         print(f'Epoch: {self.epoch}, Iteration: {self.itr+1}, Loss: {self.loss_meter.val}')
@@ -202,10 +221,6 @@ class Trainer():
             ind_pos = [6, 7, 8]
             ind_quat = [9, 10, 11, 12]
             
-            print(batch_t.shape)
-            print(batch_y.shape)
-            print(pred_y.shape)
-
             for i in ind_vel:
                 plt.title('velocities 1')
                 plt.plot(batch_t, batch_y[:,0,i], 'k--', alpha=0.3, label=f'true {i}')
@@ -284,6 +299,7 @@ class Trainer():
         # TODO: add return figure to be plotted into SigOpt
         plt.title('loss function evolution')
         plt.plot(self.loss_meter.losses)
+        plt.xlabel('Number of Iterations')
         plt.savefig(f'{subfolder}/loss.png')
         plt.close()
         return
@@ -372,6 +388,7 @@ class Trainer():
         plt.title('evaluation function evolution')
         eval_itr = np.arange(len(self.loss_meter.evals)) * self.evaluation_freq
         plt.plot(eval_itr, self.loss_meter.evals)
+        plt.xlabel('Number of epochs')
         plt.savefig(f'{subfolder}/eval_loss.png')
         plt.close()
         return
