@@ -50,7 +50,7 @@ To run the code, one has to first get comfortable with the `Trainer` class that 
 * `evaluation_freq`: frequency of evaluating the model on the test dataset
 * `checkpoint_freq`: frequency of saving a checkpoint of the model
 
-For an example run file look at [run-example.py](run-example.py)
+For an example run file look at [run-example.py](run-example.py).
 
 
 
