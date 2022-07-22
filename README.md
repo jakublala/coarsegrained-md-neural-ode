@@ -19,26 +19,28 @@ some intro
 ## How to Use <a name="howto"></a>
 To run the code, one has to first get comfortable with the `Trainer` class that forms the basis of all training, including testing and validating. It takes a `config` dictionary input that consists of the following elements:
 
-* folder = 'dataset/single_temp_overfit', 
-* load_folder=None,
-* device = torch.device('cpu'), 
-* dtype=torch.float32,
+* `folder`: relative path to the folder with the datasets 
+* `load_folder`: relative path to a pre-trained `model.pt` file 
+* `device`: device to train on 
+* `dtype`: datatype for all tensors
 
-* epochs = 100,
-* start_epoch = 0,
-* nn_depth=2,
-* nn_width=1000,
-* batch_length=20,
-* eval_batch_length=1000,
-* batch_size=600,
-* shuffle=True,
-* num_workers=0,
-* learning_rate=0.0003,
+* `epochs`: number of training epochs
+* `start_epoch`: number of the starting epoch (useful when re-training a model)
+* `nn_depth`: depth of the neural net
+* `nn_width`: width of the neural net
+* `batch_length`: trajectory length used for training
+* `eval_batch_length`: trajectory length used for model performance evaluation
+* `batch_size`: number of trajectories in a single batch
+* `shuffle`: if set to `True`, the dataloader shuffles the trajectory order in the dataset during training
+* `num_workers`: number of workers used by dataloader
+* `optimizer` = name of the optimizer (e.g. `Adam`)
+* `learning_rate`: initial learning rate
 
-* scheduler='LambdaLR',
-* scheduling_factor=0.95,
-* optimizer = 'Adam',
-* loss_func = 'all',
+* `scheduler`: name of the scheduler (e.g. `LambdaLR`)
+* `scheduling_factor`: scheduling factor determining the rate of scheduling
+* `loss_func`: type of loss function
+** `all`
+** `final`
 
 * itr_printing_freq=1,
 * printing_freq=20,
