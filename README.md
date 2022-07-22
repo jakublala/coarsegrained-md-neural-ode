@@ -39,16 +39,16 @@ To run the code, one has to first get comfortable with the `Trainer` class that 
 * `scheduler`: name of the scheduler (e.g. `LambdaLR`)
 * `scheduling_factor`: scheduling factor determining the rate of scheduling
 * `loss_func`: type of loss function
-** `all`
-** `final`
+  - `all`: absolute mean difference of the entire trajectory
+  - `final`: absolute mean difference of the final state in the trajectory
 
-* itr_printing_freq=1,
-* printing_freq=20,
-* plotting_freq=20,
-* stopping_freq=20,
-* scheduling_freq=25,
-* evaluation_freq=20,
-* checkpoint_freq=20,
+* `itr_printing_freq`: frequency of printing for iterations in an epoch
+* `printing_freq`: frequency of printing for epochs
+* `plotting_freq`: frequency of plotting for epochs
+* `stopping_freq`: frequency of early stopping for epochs (e.g. due to non-convergent loss)
+* `scheduling_freq`: frequency of scheduling the learning rate for epochs
+* `evaluation_freq`: frequency of evaluating the model on the test dataset
+* `checkpoint_freq`: frequency of saving a checkpoint of the model
 
 
 
