@@ -3,15 +3,20 @@ Jakub Lala's thesis repository on neural ordinary differential equations used fo
 some intro
 
 ## Table of Contents
-1. [Theoretical Background](#theory)
+[Theoretical Background](#theory) <br>
+[Project's Vision](#vision) <br>
+[Code Structure](#code) <br>
+[How to Use](#howto) <br>
+[Collaboration](#collab) <br>
 
 
 ## Theoretical Background <a name="theory"></a>
 
-## Project's Vision
 
-## Code Structure
+## Project's Vision <a name="vision"></a>
 
-## How to Use
+## Code Structure <a name="code"></a>
 
-## Collaboration
+## How to Use <a name="howto"></a>
+
+## Collaboration <a name="collab"></a>
