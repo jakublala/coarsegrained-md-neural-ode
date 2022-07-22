@@ -19,4 +19,6 @@ some intro
 ## How to Use <a name="howto"></a>
 
 ## Collaboration <a name="collab"></a>
-If you are eager to help out with this project, I am more than happy to get you on board. There is a lot of small fixes and optimization things that could be improved. You can contact me at <a href="mailto:jakublala@gmail.com">jakublala@gmail.com</a>  to explore our collab more. 
+If you are eager to help out with this project, I am more than happy to get you on board. There is a lot of small fixes and optimization things that could be improved. 
+
+Ideally you should create your own fork and then for each feature added make a new branch. Once you are happy for review, you can submit a pull request and we can discuss the changes/improvements. Either way, you can contact me at <a href="mailto:jakublala@gmail.com">jakublala@gmail.com</a> so that we can be in touch and figure out the details. 
