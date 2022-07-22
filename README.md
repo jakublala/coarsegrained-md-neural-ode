@@ -17,6 +17,9 @@ some intro
 ## Code Structure <a name="code"></a>
 
 ## How to Use <a name="howto"></a>
+To run the code, one has to first get comfortable with the `Trainer` class that forms the basis of all training, including testing and validating.
+
+
 
 ## Collaboration <a name="collab"></a>
 If you are eager to help out with this project, I am more than happy to get you on board. There is a lot of small fixes and optimization things that could be improved. 
