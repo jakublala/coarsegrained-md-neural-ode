@@ -17,7 +17,39 @@ some intro
 ## Code Structure <a name="code"></a>
 
 ## How to Use <a name="howto"></a>
-To run the code, one has to first get comfortable with the `Trainer` class that forms the basis of all training, including testing and validating.
+To run the code, one has to first get comfortable with the `Trainer` class that forms the basis of all training, including testing and validating. It takes a `config` dictionary input that consists of the following elements:
+
+* folder = 'dataset/single_temp_overfit', 
+* load_folder=None,
+* device = torch.device('cpu'), 
+* dtype=torch.float32,
+
+* epochs = 100,
+* start_epoch = 0,
+* nn_depth=2,
+* nn_width=1000,
+* batch_length=20,
+* eval_batch_length=1000,
+* batch_size=600,
+* shuffle=True,
+* num_workers=0,
+* learning_rate=0.0003,
+
+* scheduler='LambdaLR',
+* scheduling_factor=0.95,
+* optimizer = 'Adam',
+* loss_func = 'all',
+
+* itr_printing_freq=1,
+* printing_freq=20,
+* plotting_freq=20,
+* stopping_freq=20,
+* scheduling_freq=25,
+* evaluation_freq=20,
+* checkpoint_freq=20,
+
+
+
 
 
 
