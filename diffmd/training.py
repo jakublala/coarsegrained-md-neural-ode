@@ -21,6 +21,7 @@ class Trainer():
         self.folder = config['folder']
         self.day, self.time = get_run_ID()
         self.device = config['device']
+        self.sigopt = config['sigopt']
         
         # TODO: log everything similarly to device into print file
         self.epochs = config['epochs']
@@ -108,7 +109,7 @@ class Trainer():
                 itr_start_time = time.perf_counter()
 
                 # forward pass
-                pred_y = self.forward_pass(batch_input, batch_y).cpu()
+                pred_y = self.forward_pass(batch_input, batch_y)
 
                 # TODO: train only on specifics and not all of the data
                 loss = self.loss_func(pred_y, batch_y)
@@ -136,12 +137,15 @@ class Trainer():
                 
                 if (self.itr+1) % self.itr_printing_freq == 0:
                     self.print_iteration(itr_start_time)
-                    
-            self.after_epoch()
+                     
+            if self.after_epoch():
+                # if True, then early stopping
+                return self.func, self.loss_meter
         
         return self.func, self.loss_meter
 
     def after_epoch(self):
+
         if self.epoch % self.scheduling_freq == 0 and self.scheduler_name != None:
                 self.scheduler.step()
 
@@ -161,32 +165,26 @@ class Trainer():
         if self.epoch % self.stopping_freq == 0:
 
             self.loss_meter.checkpoint()
+            print(self.loss_meter.checkpoints)
             # divergent / non-convergent
-            if len(self.loss_meter.checkpoints) > 1:
+            if len(self.loss_meter.checkpoints) > 2:
                 if self.loss_meter.checkpoints[-2] < self.loss_meter.checkpoints[-1]:
                     print('early stopping as non-convergent')
-                    return self.func, self.loss_meter
-            
+                    # TODO: make this compliant with multiple GPUs
+                    return True
             # TODO: add proper stale convergence and test it out
             # stale convergence
             # if np.sd(self.loss_meter.losses[-self.stopping_freq:]) > 0.001:
             #     print('early stopping as stale convergence')
             #     return self.func, self.loss_meter
+        
 
     def print_loss(self, itr, start_time):
         print(f'Epoch: {itr}, Running avg elbo: {self.loss_meter.avg}')
         print(f'Current loss: {self.loss_meter.val}')
         print('Last epoch took:     ', time.perf_counter() - start_time, flush=True)
         print(f'Learning rate: {self.loss_meter.lrs[-1]}')
-        t = torch.cuda.get_device_properties(0).total_memory
-        r = torch.cuda.memory_reserved(0)
-        a = torch.cuda.memory_allocated(0)
-        f = r-a  # free inside reserved
-        # print(f'Total memory: {t}')
-        # print(f'Reserved memory: {r}')
-        # print(f'Allocated memory: {a}')
-        # print(f'Free memory: {f}')
-
+        
     def print_iteration(self, start_time):
         print(f'Epoch: {self.epoch}, Iteration: {self.itr+1}, Loss: {self.loss_meter.val}')
         print(f'Last iteration took:', time.perf_counter() - start_time, flush=True)
@@ -333,6 +331,7 @@ class Trainer():
 
         
     def get_dataloader(self, config, dataset, no_batch=False):
+        # TODO: make this cleaner
         if no_batch:
             params = {'batch_size': 1, 'shuffle':config['shuffle'], 'num_workers':config['num_workers']}
         else:
@@ -406,6 +405,14 @@ class Trainer():
         self.log_loss(subfolder)
         self.log_eval(subfolder)
         self.log_lr(subfolder)
+        if self.sigopt:
+            self.report_sigopt(subfolder)
+        return
+
+    def report_sigopt(self, subfolder):
+        sigopt.log_image(f'{subfolder}/loss.png', 'training loss evolution')
+        sigopt.log_image(f'{subfolder}/eval_loss.png', 'test loss evolution')
+        sigopt.log_image(f'{subfolder}/lr.png', 'learning rate evolution')
         return
 
     def checkpoint(self):
@@ -481,7 +488,6 @@ class RunningAverageMeter(object):
         self.val = val
         self.log(val, lr)
         
-    
     def log(self, val, lr):
         self.losses.append(val)
         self.lrs.append(lr)

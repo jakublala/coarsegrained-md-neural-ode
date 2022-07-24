@@ -125,7 +125,7 @@ class Dataset(torch.utils.data.Dataset):
     def get_data(self):
         data = [torch.cat(t.traj, dim=-1) for t in self.trajs]
         data = torch.cat(data, dim=0)
-        return data    
+        return data.to(self.device)
 
 
     def get_init_IDS(self):
