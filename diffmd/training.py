@@ -360,7 +360,7 @@ class Trainer():
             eval_loss = []
             for batch_input, batch_y in dataloader:
                     # forward pass
-                    pred_y = self.forward_pass(batch_input, batch_y, batch_length=self.eval_batch_length).cpu()
+                    pred_y = self.forward_pass(batch_input, batch_y, batch_length=self.eval_batch_length)
 
                     # loss across entire trajectory
                     loss = torch.mean(torch.abs(pred_y - batch_y))
