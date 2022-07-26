@@ -1,11 +1,13 @@
 from diffmd.solver_base import FixedGridODESolver
 from diffmd.solver_base import _check_inputs, _flatten, _flatten_convert_none_to_zeros, _assert_increasing
-from diffmd.utils import vecquat, quatvec, body_to_lab_frame, normalize_quat, quat_rotation
-from pytorch3d.transforms import quaternion_apply, quaternion_invert
+from diffmd.utils import normalize_quat
+from pytorch3d.transforms import quaternion_apply, quaternion_invert, quaternion_raw_multiply
 
 import torch
 from torch import nn
 torch.set_default_dtype(torch.float32)
+
+import time
 
 '''
     Adapted from https://github.com/torchmd/mdgrad
@@ -42,10 +44,10 @@ class VelVerlet_NVE(FixedGridODESolver):
             -
         """
         NUM_VAR = 4 # angvels, vels, coords and rotations for NVE
+        zeros = torch.zeros(state[0].shape[:-1]).to(state[0].device).to(state[0].dtype).unsqueeze(-1)
  
         if len(state) == NUM_VAR: # integrator in the forward call 
             dvdt_0, dwdt_0, dxdt_0, dqdt_0 = diffeq(state)
-            # print(dvdt_0.type())
             
             # translational motion
             v_step_half = 1/2 * dvdt_0 * dt 
@@ -58,11 +60,14 @@ class VelVerlet_NVE(FixedGridODESolver):
             l_half_system = quaternion_apply(state[3], l_half_body) # 2)
 
             # full Richardson update
-            q_full = state[3] + 0.5 * quatvec(state[3], w_half_body) * dt # 3)
+            q_full = state[3] + 0.5 * quaternion_raw_multiply(state[3], torch.cat((zeros, w_half_body), dim=2)) * dt        
+            # q_full = state[3] + 0.5 * quatvec(state[3], w_half_body) * dt # 3)
             q_full = normalize_quat(q_full)
+
             
             # half Richardson update
-            q_half = state[3] + 0.5 * 0.5 * quatvec(state[3], w_half_body) * dt # 4)
+            q_half = state[3] + 0.5 * 0.5 * quaternion_raw_multiply(state[3], torch.cat((zeros, w_half_body), dim=2)) * dt # 4)
+            # q_half = state[3] + 0.5 * 0.5 * quatvec(state[3], w_half_body) * dt # 4)
             q_half = normalize_quat(q_half)
 
             # re-compute angular velocity at new rotation            
@@ -71,7 +76,8 @@ class VelVerlet_NVE(FixedGridODESolver):
             w_half_body = l_half_body / self.inertia
             
             # 2nd`half Richardson update
-            q_half = q_half + 0.5 * 0.5 * quatvec(q_half, w_half_body) * dt # 6)
+            # q_half = q_half + 0.5 * 0.5 * quatvec(q_half, w_half_body) * dt # 6)
+            q_half = q_half + 0.5 * 0.5 * quaternion_raw_multiply(q_half, torch.cat((zeros, w_half_body), dim=2)) * dt # 6)
             q_half = normalize_quat(q_half)
             
             # corrected Richardson update
@@ -108,11 +114,13 @@ class VelVerlet_NVE(FixedGridODESolver):
             l_half_system = quaternion_apply(state[3], l_half_body) # 2)
 
             # full Richardson update
-            q_full = state[3] + 0.5 * quatvec(state[3], w_half_body) * dt # 3)
+            # q_full = state[3] + 0.5 * quatvec(state[3], w_half_body) * dt # 3)
+            q_full = state[3] + 0.5 * 0.5 * quaternion_raw_multiply(state[3], torch.cat((zeros, w_half_body), dim=2)) * dt # 3)
             q_full = normalize_quat(q_full)
             
             # half Richardson update
-            q_half = state[3] + 0.5 * 0.5 * quatvec(state[3], w_half_body) * dt # 4)
+            # q_half = state[3] + 0.5 * 0.5 * quatvec(state[3], w_half_body) * dt # 4)
+            q_half = state[3] + 0.5 * 0.5 * quaternion_raw_multiply(state[3], torch.cat((zeros, w_half_body), dim=2)) * dt # 4)
             q_half = normalize_quat(q_half)
             
             q_half_invert = quaternion_invert(q_half)
@@ -120,7 +128,8 @@ class VelVerlet_NVE(FixedGridODESolver):
             w_half_body = l_half_body / self.inertia
             
             # 2nd`half Richardson update
-            q_half = q_half + 0.5 * 0.5 * quatvec(q_half, w_half_body) * dt # 6)
+            # q_half = q_half + 0.5 * 0.5 * quatvec(q_half, w_half_body) * dt # 6)
+            q_half = q_half + 0.5 * 0.5 * quaternion_raw_multiply(q_half, torch.cat((zeros, w_half_body), dim=2)) * dt # 6)
             q_half = normalize_quat(q_half)
             
             # corrected Richardson update
@@ -396,3 +405,13 @@ class OdeintAdjointMethod(torch.autograd.Function):
             time_vjps.append(adj_time)     
             time_vjps = torch.cat(time_vjps[::-1])
             return (*adj_state, None, time_vjps, adj_params, None, None, None, None, None)
+
+
+def quatvec(a, b):
+    # TODO: add documentation
+    c = torch.zeros(a.shape).to(a.device).type(a.type())
+    c[:, :, 0] = -a[:, :, 1] * b[:, :, 0] - a[:, :, 2] * b[:, :, 1] - a[:, :, 3] * b[:, :, 2]
+    c[:, :, 1] = a[:, :, 0] * b[:, :, 0] + a[:, :, 2] * b[:, :, 2] - a[:, :, 3] * b[:, :, 1]
+    c[:, :, 2] = a[:, :, 0] * b[:, :, 1] + a[:, :, 3] * b[:, :, 0] - a[:, :, 1] * b[:, :, 2]
+    c[:, :, 3] = a[:, :, 0] * b[:, :, 2] + a[:, :, 1] * b[:, :, 1] - a[:, :, 2] * b[:, :, 0]
+    return c

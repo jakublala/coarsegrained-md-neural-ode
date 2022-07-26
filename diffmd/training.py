@@ -78,20 +78,20 @@ class Trainer():
         print(f'batch size = {self.batch_size}, traj length = {self.batch_length}')
 
     def forward_pass(self, batch_input, batch_y, batch_length=None):
-        batch_y = batch_y.to(self.device).type(self.dtype)
+        batch_y = batch_y.to(self.device, non_blocking=True).type(self.dtype)
         
         batch_y0, dt, k, r0, inertia =  batch_input
-        batch_y0 = tuple(i.to(self.device).type(self.dtype) for i in torch.split(batch_y0, [3, 3, 3, 4], dim=-1))
+        batch_y0 = tuple(i.to(self.device, non_blocking=True).type(self.dtype) for i in torch.split(batch_y0, [3, 3, 3, 4], dim=-1))
 
         # get timesteps
         # TODO: this is always the same and so we can make it simpler
         batch_t = self.get_batch_t(dt, batch_length)
         
         # set constants
-        self.func.k = k.to(self.device).type(self.dtype)
-        self.func.r0 = r0.to(self.device).type(self.dtype)
-        self.func.inertia = inertia.to(self.device).type(self.dtype)
-        options = dict(inertia=inertia.to(self.device).type(self.dtype))
+        self.func.k = k.to(self.device, non_blocking=True).type(self.dtype)
+        self.func.r0 = r0.to(self.device, non_blocking=True).type(self.dtype)
+        self.func.inertia = inertia.to(self.device, non_blocking=True).type(self.dtype)
+        options = dict(inertia=inertia.to(self.device, non_blocking=True).type(self.dtype))
         
         # TODO: add assertion to check right dimensions
         pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE', options=options)
@@ -120,15 +120,12 @@ class Trainer():
                 loss.backward() 
                 self.optimizer.step()
 
-                # for p in self.func.parameters():
-                #     print(p.grad)
-            
                 self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
                 
                 if (self.itr+1) % self.itr_printing_freq == 0:
                     self.print_iteration()
                     self.time_meter.update(self.epoch, self.itr, time.perf_counter() - self.itr_start_time)
-                     
+                    
             if self.after_epoch():
                 # if True, then early stopping
                 return self.func, self.loss_meter
@@ -138,7 +135,7 @@ class Trainer():
     def after_epoch(self):
 
         if self.epoch % self.scheduling_freq == 0 and self.scheduler_name != None:
-                self.scheduler.step()
+            self.scheduler.step()
 
         if self.epoch % self.printing_freq == 0:
             self.print_loss(self.epoch, self.start_time)
@@ -342,8 +339,9 @@ class Trainer():
 
     def set_scheduler(self, scheduler, alpha):
         if scheduler == 'LambdaLR':
-            # lambda1 = lambda epoch: alpha ** epoch
             return torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda_lr)
+        elif scheduler == 'ExponentialLR':
+            return torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=alpha)
         elif scheduler == None:
             return
         else:
@@ -399,7 +397,11 @@ class Trainer():
         if self.sigopt:
             self.report_sigopt(subfolder)
 
-        print(self.time_meter.get_array())
+        self.log_time(subfolder)
+        return
+
+    def log_time(self, subfolder):
+        np.save(f'{subfolder}/time.npy', self.time_meter.get_array())
         return
 
     def report_sigopt(self, subfolder):
@@ -453,9 +455,9 @@ class Trainer():
             batch_length = self.batch_length
 
         if type(dt) == torch.Tensor:
-            return torch.linspace(0.0,dt[0]*(batch_length-1),batch_length).to(self.device).type(self.dtype)
+            return torch.linspace(0.0,dt[0]*(batch_length-1),batch_length).to(self.device, non_blocking=True).type(self.dtype)
         else:
-            return torch.linspace(0.0,dt*(batch_length-1),batch_length).to(self.device).type(self.dtype)
+            return torch.linspace(0.0,dt*(batch_length-1),batch_length).to(self.device, non_blocking=True).type(self.dtype)
 
 
 class TimeMeter(object):
