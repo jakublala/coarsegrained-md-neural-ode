@@ -103,12 +103,12 @@ class Trainer():
         for self.epoch in range(self.start_epoch + 1, (self.start_epoch + self.epochs) + 1):
             self.start_time = time.perf_counter()
             
-            # zero out gradients with less memory operations
-            for param in self.func.parameters():
-                param.grad = None
-
             for self.itr, (batch_input, batch_y) in enumerate(self.training_dataloader):
                 self.itr_start_time = time.perf_counter()
+
+                # zero out gradients with less memory operations
+                for param in self.func.parameters():
+                    param.grad = None
 
                 # forward pass
                 pred_y = self.forward_pass(batch_input, batch_y)

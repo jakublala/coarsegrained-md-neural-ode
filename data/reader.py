@@ -11,6 +11,8 @@ class Reader():
         self.timestep, self.runsteps, self.log_frequency = self.get_metadata()
         self.n_logged_timesteps = int(self.runsteps/self.log_frequency + 1)
         self.logged_timesteps = np.arange(0, self.runsteps+1, self.log_frequency)
+        
+        print(f"Found timestep: {self.timestep}, n of run steps: {self.runsteps}, and dump log freq: {self.log_frequency}, n of logged timesteps: {self.n_logged_timesteps}")
        
     def read_original_traj(self, save=True):
         subfix = '-traj.dump'
@@ -119,8 +121,6 @@ class Reader():
                     elif counter == 4:
                         timestep = float(line.split()[3])
                         break
-
-        print(f"Found timestep: {timestep}, n of run steps: {runsteps}, and dump log freq: {log_frequency}")
         return timestep, runsteps, log_frequency
 
     def body_id(self, atom_id):

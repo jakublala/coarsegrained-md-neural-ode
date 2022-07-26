@@ -55,7 +55,7 @@ class Trajectory():
         # train_split = 0.9
         # test_split = 1 - train_split
         # TODO: add option to train on just a part of trajectory and implement it with get_init_IDS
-        end_index = self.reader.n_logged_timesteps // 100
+        end_index = self.reader.n_logged_timesteps
         df = pd.read_csv(self.file_path+'-reduced_traj.csv')
         # HACK: do this based on the column names, not explicitly
         com = ['c_com_1[1]', 'c_com_1[2]', 'c_com_1[3]', 'c_com_2[1]', 'c_com_2[2]', 'c_com_2[3]']
@@ -132,7 +132,7 @@ class Trajectory():
         ang_vel_1 = quaternion.as_vector_part(ang_vel_1)
         ang_vel_2 = quaternion.as_vector_part(ang_vel_2)
         ang_vel = torch.from_numpy(np.hstack((ang_vel_1, ang_vel_2))).to('cpu').view(ntraj, -1, nparticles, angvel_dim)    
-        return (vel, ang_vel, coms, quats)
+        return (vel.to(self.device), ang_vel.to(self.device), coms.to(self.device), quats.to(self.device))
 
         
     def get_dt(self, reader):
