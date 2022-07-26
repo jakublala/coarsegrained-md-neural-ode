@@ -30,7 +30,7 @@ class Trajectory():
             k = float(file_path[2][file_path[2].find('k') + (2+1):])
             r0 = float(file_path[3][file_path[3].find('r0') + (2+1):])
             seed = int(file_path[4][file_path[4].find('s') + (1+1):])
-        return torch.Tensor([temp]), torch.Tensor([k]), torch.Tensor([r0]), torch.Tensor([seed])
+        return [torch.Tensor([i]).to(self.device) for i in [temp, k, r0, seed]]
         
     def get_traj(self, reader):
         # TODO: add options to train on just a part of trajectory

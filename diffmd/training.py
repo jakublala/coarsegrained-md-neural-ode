@@ -49,6 +49,7 @@ class Trainer():
         self.validation_dataloader = self.get_dataloader(config, self.validation_dataset)
         
         self.loss_meter = RunningAverageMeter()
+        self.time_meter = TimeMeter()
         
         self.nparticles = 2
         self.dim = 1 + (2*4)
@@ -83,6 +84,7 @@ class Trainer():
         batch_y0 = tuple(i.to(self.device).type(self.dtype) for i in torch.split(batch_y0, [3, 3, 3, 4], dim=-1))
 
         # get timesteps
+        # TODO: this is always the same and so we can make it simpler
         batch_t = self.get_batch_t(dt, batch_length)
         
         # set constants
@@ -106,25 +108,13 @@ class Trainer():
                 param.grad = None
 
             for self.itr, (batch_input, batch_y) in enumerate(self.training_dataloader):
-                itr_start_time = time.perf_counter()
+                self.itr_start_time = time.perf_counter()
 
                 # forward pass
                 pred_y = self.forward_pass(batch_input, batch_y)
 
                 # TODO: train only on specifics and not all of the data
                 loss = self.loss_func(pred_y, batch_y)
-
-                # print('----itr----')
-                # print(self.itr)
-
-                # print('------pred_y------')
-                # print(pred_y.shape)
-                # print(pred_y)
-
-                # print('------batch_y------')
-                # print(batch_y.shape)
-                # print(batch_y)
-
 
                 # backward pass                    
                 loss.backward() 
@@ -136,7 +126,8 @@ class Trainer():
                 self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
                 
                 if (self.itr+1) % self.itr_printing_freq == 0:
-                    self.print_iteration(itr_start_time)
+                    self.print_iteration()
+                    self.time_meter.update(self.epoch, self.itr, time.perf_counter() - self.itr_start_time)
                      
             if self.after_epoch():
                 # if True, then early stopping
@@ -165,7 +156,7 @@ class Trainer():
         if self.epoch % self.stopping_freq == 0:
 
             self.loss_meter.checkpoint()
-            print(self.loss_meter.checkpoints)
+            
             # divergent / non-convergent
             if len(self.loss_meter.checkpoints) > 2:
                 if self.loss_meter.checkpoints[-2] < self.loss_meter.checkpoints[-1]:
@@ -185,9 +176,9 @@ class Trainer():
         print('Last epoch took:     ', time.perf_counter() - start_time, flush=True)
         print(f'Learning rate: {self.loss_meter.lrs[-1]}')
         
-    def print_iteration(self, start_time):
+    def print_iteration(self):
         print(f'Epoch: {self.epoch}, Iteration: {self.itr+1}, Loss: {self.loss_meter.val}')
-        print(f'Last iteration took:', time.perf_counter() - start_time, flush=True)
+        print(f'Last iteration took:', time.perf_counter() - self.itr_start_time, flush=True)
 
     def plot_traj(self, itr, subfolder='temp'):
         if itr == self.plotting_freq:
@@ -407,6 +398,8 @@ class Trainer():
         self.log_lr(subfolder)
         if self.sigopt:
             self.report_sigopt(subfolder)
+
+        print(self.time_meter.get_array())
         return
 
     def report_sigopt(self, subfolder):
@@ -463,6 +456,19 @@ class Trainer():
             return torch.linspace(0.0,dt[0]*(batch_length-1),batch_length).to(self.device).type(self.dtype)
         else:
             return torch.linspace(0.0,dt*(batch_length-1),batch_length).to(self.device).type(self.dtype)
+
+
+class TimeMeter(object):
+
+    def __init__(self):
+        self.times = []
+
+    def update(self, epoch, itr, time):
+        self.times.append([epoch, itr, time])
+
+    def get_array(self):
+        return np.array(self.times)
+
 
 class RunningAverageMeter(object):
     """Computes and stores the average and current value"""
