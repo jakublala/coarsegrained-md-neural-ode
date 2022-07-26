@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
-from diffmd.utils import normalize_quat, compute_grad, quatvec
-from pytorch3d.transforms import quaternion_apply
-from pytorch3d.transforms import quaternion_invert
+from diffmd.utils import normalize_quat, compute_grad
+from pytorch3d.transforms import quaternion_raw_multiply
 
 class ODEFunc(nn.Module):
     def __init__(self, nparticles, dim, width, depth, dtype):
@@ -66,15 +65,15 @@ class ODEFunc(nn.Module):
             # get force and update translational motion
             # TODO: do this without assigning variables to speed up computation
             # TODO: check that signs in force are correct
-            fA = grad_r # [force, number of trajectories]
-            fB = - grad_r 
-            f = torch.stack((fA, fB), dim=1)
+            f = torch.stack((grad_r, -grad_r), dim=1)
             # HACK: same mass for all bodies
             dvdt = f / self.mass
             dxdt = v
             
             # get torque and update rotational motion
-            dqdt = 0.5 * quatvec(q, w)
+            dqdt = 0.5 * quaternion_raw_multiply(q, torch.cat((torch.zeros(w.shape[:-1]).to(w.device).to(w.dtype).unsqueeze(-1), w), dim=2))
+            # dqdt_1 = 0.5 * quatvec(q, w)
+
             # TODO: test out all matrix multiplications are correct
             # TODO: try assigning G to speed up computation as we re-use it once
             # TODO: if too slow to assign, do it in a single line
@@ -104,3 +103,12 @@ class ODEFunc(nn.Module):
     def Omega(self, q, dqdt):
         # TODO: move this somewhere
         return 2 * torch.matmul(self.G(q), torch.transpose(self.G(dqdt), 2, 3))
+
+def quatvec(a, b):
+    # TODO: add documentation
+    c = torch.zeros(a.shape).to(a.device).type(a.type())
+    c[:, :, 0] = -a[:, :, 1] * b[:, :, 0] - a[:, :, 2] * b[:, :, 1] - a[:, :, 3] * b[:, :, 2]
+    c[:, :, 1] = a[:, :, 0] * b[:, :, 0] + a[:, :, 2] * b[:, :, 2] - a[:, :, 3] * b[:, :, 1]
+    c[:, :, 2] = a[:, :, 0] * b[:, :, 1] + a[:, :, 3] * b[:, :, 0] - a[:, :, 1] * b[:, :, 2]
+    c[:, :, 3] = a[:, :, 0] * b[:, :, 2] + a[:, :, 1] * b[:, :, 1] - a[:, :, 2] * b[:, :, 0]
+    return c
