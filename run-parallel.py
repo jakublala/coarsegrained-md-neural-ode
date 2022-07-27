@@ -2,6 +2,7 @@ import torch
 import torch.multiprocessing as mp
 import sys
 import os
+import time
 
 torch.cuda.empty_cache()
 from diffmd.parallel import ParallelTrainer
@@ -34,10 +35,11 @@ config = dict(
     evaluation_freq=1,
     checkpoint_freq=1,
     loss_func = 'all',
+    sigopt=False,
     )
 
 if __name__ == '__main__':
-
+    start_time = time.perf_counter()
     trainer = ParallelTrainer(config)
     
     world_size = torch.cuda.device_count()
@@ -48,6 +50,8 @@ if __name__ == '__main__':
         nprocs=world_size,
         join=True
     )
+
+    print('Training time: {}'.format(time.perf_counter() - start_time))
 
 
 

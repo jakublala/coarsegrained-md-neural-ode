@@ -134,7 +134,9 @@ class Trainer():
 
     def after_epoch(self):
 
-        if self.epoch % self.scheduling_freq == 0 and self.scheduler_name != None:
+        if self.scheduler_name == 'CyclicLR':
+            self.scheduler.step()
+        elif self.epoch % self.scheduling_freq == 0 and self.scheduler_name != None:
             self.scheduler.step()
 
         if self.epoch % self.printing_freq == 0:
@@ -342,6 +344,8 @@ class Trainer():
             return torch.optim.lr_scheduler.LambdaLR(self.optimizer, lr_lambda=lambda_lr)
         elif scheduler == 'ExponentialLR':
             return torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=alpha)
+        elif scheduler == 'CyclicLR':
+            return torch.optim.lr_scheduler.CyclicLR(self.optimizer, base_lr=alpha * self.learning_rate, max_lr=self.learning_rate, step_size_up=self.scheduling_freq, cycle_momentum=False)
         elif scheduler == None:
             return
         else:
