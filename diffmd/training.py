@@ -51,7 +51,7 @@ class Trainer():
         self.time_meter = TimeMeter()
         
         self.nparticles = 2
-        self.dim = 1 + (2*4)
+        self.dim = 3 + (2*4)
         self.printing_freq = config['printing_freq']
         self.itr_printing_freq = config['itr_printing_freq']
         self.plotting_freq = config['plotting_freq']

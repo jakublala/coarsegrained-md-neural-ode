@@ -47,19 +47,47 @@ class ODEFunc(nn.Module):
             q = normalize_quat(q)
             
             # get vector separation between bodies (pointing from the first atom to the second)
-            r_norm = torch.norm(x[:, 0, :] - x[:, 1, :], dim=1).view(-1, 1)
+            r = x[:, 1, :] - x[:, 0, :]
             
             # combine NN inputs
-            rq = torch.cat((r_norm, q.reshape(-1, 8)), dim=1).reshape(-1, self.dim)
+            rq = torch.cat((r, q.reshape(-1, 8)), dim=1).reshape(-1, self.dim)
             
             # assert torch.all(torch.flatten(q[:, 0, :]) == torch.swapaxes(q, 0, 1).reshape(-1, 8)[0, :]), 'incorrect resize'
 
             # get energy and gradients
             # TODO: check that harmonic restraint is calculated correctly
-            u = self.net(rq) + self.harmonic_restraint(rq) # [number of trajectories, potential energy]
+            u = self.net(rq) + self.harmonic_restraint(r) # [number of trajectories, potential energy]
             
             f = -compute_grad(inputs=x, output=u)
-            grad_q = compute_grad(inputs=rq, output=u)[:, 1:].view(-1, self.nparticles, 4)
+            grad_q = compute_grad(inputs=q, output=u)
+
+            # grad = compute_grad(inputs=rq, output=u) # [force _ torque, number of trajectories]
+
+            # grad_r, grad_q = torch.split(grad, [3, self.dim-3], dim=1)
+            # grad_q = grad_q.view(-1, self.nparticles, 4)
+
+            # get force and update translational motion
+            # TODO: do this without assigning variables to speed up computation
+            # TODO: check that signs in force are correct
+            # fA = torch.sign(r_vector) * grad_r # [force, number of trajectories]
+            # fB = torch.sign(-r_vector) * grad_r 
+            
+            # f = torch.stack((fA, fB), dim=1)
+            # print('=signs of r_vector==')
+
+            # print(torch.sign(r_vector)[0, :])
+            # print(torch.sign(-r_vector)[0, :])
+
+            # print('==through x==')
+
+            # print(f_[0, 0, :])
+            # print(f_[0, 1, :])
+            
+            # print('==through r_vector=')
+            
+            # print(f[0, 0, :])
+            # print(f[0, 1, :])
+            # assert torch.all(torch.flatten(f) == torch.flatten(f_)), 'incorrect force calculation'
             
             # get force and update translational motion
             # TODO: do this without assigning variables to speed up computation
@@ -86,9 +114,10 @@ class ODEFunc(nn.Module):
 
         return (dvdt, dwdt, dxdt, dqdt)
     
-    def harmonic_restraint(self, rq):
+    def harmonic_restraint(self, r):
         # TODO: train different ks separately, or do a batch of k spring constants, that you update with each get_batch?
-        return 0.5 * self.k * torch.square(rq[:, 0]).view(-1, 1)
+        # return 0.5 * self.k * torch.square(torch.norm(rq[:, 0:3], dim=1)).view(-1, 1)
+        return 0.5 * self.k * torch.square(torch.norm(r, dim=1)).view(-1, 1)
 
     def G(self, q):
         # TODO: move this somewhere; make sure it's fast; maybe torch.stack is not ideal
