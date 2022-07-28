@@ -47,25 +47,24 @@ class ODEFunc(nn.Module):
             q = normalize_quat(q)
             
             # get vector separation between bodies (pointing from the first atom to the second)
-            r_vector = x[:, 1, :] - x[:, 0, :]
-            r_norm = torch.norm(r_vector, dim=1).view(-1, 1)
+            r_norm = torch.norm(x[:, 0, :] - x[:, 1, :], dim=1).view(-1, 1)
             
             # combine NN inputs
             rq = torch.cat((r_norm, q.reshape(-1, 8)), dim=1).reshape(-1, self.dim)
+            
             # assert torch.all(torch.flatten(q[:, 0, :]) == torch.swapaxes(q, 0, 1).reshape(-1, 8)[0, :]), 'incorrect resize'
 
             # get energy and gradients
             # TODO: check that harmonic restraint is calculated correctly
             u = self.net(rq) + self.harmonic_restraint(rq) # [number of trajectories, potential energy]
             
-            # [force _ torque, number of trajectories]
-            grad_r = compute_grad(inputs=r_vector, output=u)
+            f = -compute_grad(inputs=x, output=u)
             grad_q = compute_grad(inputs=rq, output=u)[:, 1:].view(-1, self.nparticles, 4)
             
             # get force and update translational motion
             # TODO: do this without assigning variables to speed up computation
             # TODO: check that signs in force are correct
-            f = torch.stack((grad_r, -grad_r), dim=1)
+
             # HACK: same mass for all bodies
             dvdt = f / self.mass
             dxdt = v
@@ -103,12 +102,3 @@ class ODEFunc(nn.Module):
     def Omega(self, q, dqdt):
         # TODO: move this somewhere
         return 2 * torch.matmul(self.G(q), torch.transpose(self.G(dqdt), 2, 3))
-
-def quatvec(a, b):
-    # TODO: add documentation
-    c = torch.zeros(a.shape).to(a.device).type(a.type())
-    c[:, :, 0] = -a[:, :, 1] * b[:, :, 0] - a[:, :, 2] * b[:, :, 1] - a[:, :, 3] * b[:, :, 2]
-    c[:, :, 1] = a[:, :, 0] * b[:, :, 0] + a[:, :, 2] * b[:, :, 2] - a[:, :, 3] * b[:, :, 1]
-    c[:, :, 2] = a[:, :, 0] * b[:, :, 1] + a[:, :, 3] * b[:, :, 0] - a[:, :, 1] * b[:, :, 2]
-    c[:, :, 3] = a[:, :, 0] * b[:, :, 2] + a[:, :, 1] * b[:, :, 1] - a[:, :, 2] * b[:, :, 0]
-    return c
