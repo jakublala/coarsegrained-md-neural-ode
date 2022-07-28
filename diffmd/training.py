@@ -1,5 +1,4 @@
 from distutils.command.config import config
-from this import d
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
@@ -77,8 +76,7 @@ class Trainer():
         print(f'scheduler = {self.scheduler_name}, scheduling factor = {self.scheduling_factor}, scheduling freq = {self.scheduling_freq}')
         print(f'batch size = {self.batch_size}, traj length = {self.batch_length}')
 
-    def forward_pass(self, batch_input, batch_y, batch_length=None):
-        batch_y = batch_y.to(self.device, non_blocking=True).type(self.dtype)
+    def forward_pass(self, batch_input, batch_length=None):
         
         batch_y0, dt, k, r0, inertia =  batch_input
         batch_y0 = tuple(i.to(self.device, non_blocking=True).type(self.dtype) for i in torch.split(batch_y0, [3, 3, 3, 4], dim=-1))
@@ -111,7 +109,7 @@ class Trainer():
                     param.grad = None
 
                 # forward pass
-                pred_y = self.forward_pass(batch_input, batch_y)
+                pred_y = self.forward_pass(batch_input)
 
                 # TODO: train only on specifics and not all of the data
                 loss = self.loss_func(pred_y, batch_y)
@@ -200,7 +198,7 @@ class Trainer():
             batch_input[0] = batch_input[0].unsqueeze(0)
             batch_input = tuple(batch_input)
             
-            pred_y = self.forward_pass(batch_input, batch_y, batch_length=batch_length).squeeze().cpu().numpy()
+            pred_y = self.forward_pass(batch_input, batch_length=batch_length).squeeze().cpu().numpy()
             batch_y = batch_y.cpu().numpy()
             batch_t = self.get_batch_t(batch_input[1], batch_length=batch_length).cpu().numpy()
 
@@ -362,7 +360,7 @@ class Trainer():
             eval_loss = []
             for batch_input, batch_y in dataloader:
                     # forward pass
-                    pred_y = self.forward_pass(batch_input, batch_y, batch_length=self.eval_batch_length)
+                    pred_y = self.forward_pass(batch_input, batch_length=self.eval_batch_length)
 
                     # loss across entire trajectory
                     loss = torch.mean(torch.abs(pred_y - batch_y))

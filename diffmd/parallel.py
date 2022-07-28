@@ -30,9 +30,6 @@ class ParallelTrainer(Trainer):
 
         self.train()
 
-        if is_main_process():
-            self.save()
-        
         # add early stopping?
         cleanup()
 
@@ -47,10 +44,11 @@ class ParallelTrainer(Trainer):
                 param.grad = None
 
             for self.itr, (batch_input, batch_y) in enumerate(self.training_dataloader):
-                itr_start_time = time.perf_counter()
+                self.itr_start_time = time.perf_counter()
+                batch_y = batch_y.to(self.device, non_blocking=True).type(self.dtype)
 
                 # forward pass
-                pred_y = self.forward_pass(batch_input, batch_y).cpu()
+                pred_y = self.forward_pass(batch_input)
 
                 loss = self.loss_func(pred_y, batch_y)
 
@@ -62,27 +60,25 @@ class ParallelTrainer(Trainer):
                     self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
 
                     if (self.itr+1) % self.itr_printing_freq == 0:
-                        self.print_iteration(itr_start_time)
+                        self.print_iteration()
 
-        if is_main_process():                
-                self.after_epoch()
+            if is_main_process():                
+                    self.after_epoch()
 
         return self.func, self.loss_meter
 
-    def forward_pass(self, batch_input, batch_y, batch_length=None):
-        batch_y = batch_y.to(self.device).type(self.dtype)
-        
+    def forward_pass(self, batch_input, batch_length=None):
         batch_y0, dt, k, r0, inertia =  batch_input
-        batch_y0 = tuple(i.to(self.device).type(self.dtype) for i in torch.split(batch_y0, [3, 3, 3, 4], dim=-1))
+        batch_y0 = tuple(i.to(self.device, non_blocking=True).type(self.dtype) for i in torch.split(batch_y0, [3, 3, 3, 4], dim=-1))
 
         # get timesteps
         batch_t = self.get_batch_t(dt, batch_length)
         
         # set constants
-        self.func.module.k = k.to(self.device).type(self.dtype)
-        self.func.module.r0 = r0.to(self.device).type(self.dtype)
-        self.func.module.inertia = inertia.to(self.device).type(self.dtype)
-        options = dict(inertia=inertia.to(self.device).type(self.dtype))
+        self.func.module.k = k.to(self.device, non_blocking=True).type(self.dtype)
+        self.func.module.r0 = r0.to(self.device, non_blocking=True).type(self.dtype)
+        self.func.module.inertia = inertia.to(self.device, non_blocking=True).type(self.dtype)
+        options = dict(inertia=inertia.to(self.device, non_blocking=True).type(self.dtype))
         
         # TODO: add assertion to check right dimensions
         pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE', options=options)
