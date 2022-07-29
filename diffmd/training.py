@@ -103,22 +103,20 @@ class Trainer():
             
             for self.itr, (batch_input, batch_y) in enumerate(self.training_dataloader):
                 self.itr_start_time = time.perf_counter()
-
+                
                 # zero out gradients with less memory operations
                 for param in self.func.parameters():
                     param.grad = None
 
                 # forward pass
                 pred_y = self.forward_pass(batch_input)
-
-                # TODO: train only on specifics and not all of the data
                 loss = self.loss_func(pred_y, batch_y)
 
                 # backward pass                    
                 loss.backward() 
-                self.optimizer.step()
-
                 self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
+        
+                self.optimizer.step()
                 
                 if (self.itr+1) % self.itr_printing_freq == 0:
                     self.print_iteration()
@@ -328,10 +326,28 @@ class Trainer():
         return torch.utils.data.DataLoader(dataset, **params)
 
     def set_optimizer(self, optimizer):
-        if optimizer == 'Adam':
+        if optimizer == 'Adadelta':
+            return torch.optim.Adadelta(self.parameters(), lr=self.learning_rate)
+        elif optimizer == 'Adagrad':
+            return torch.optim.Adagrad(self.parameters(), lr=self.learning_rate)
+        elif optimizer == 'Adam':
             return torch.optim.Adam(self.func.parameters(), lr=self.learning_rate)
         elif optimizer == 'AdamW':
             return torch.optim.AdamW(self.func.parameters(), lr=self.learning_rate)
+        elif optimizer == 'NAdam':
+            return torch.optim.Nadam(self.func.parameters(), lr=self.learning_rate)
+        elif optimizer == 'RAdam':
+            return torch.optim.RAdam(self.func.parameters(), lr=self.learning_rate)
+        elif optimizer == 'Adamax':
+            return torch.optim.Adamax(self.func.parameters(), lr=self.learning_rate, betas=(0.9, 0.999))
+        elif optimizer == 'SGD':
+            return torch.optim.SGD(self.func.parameters(), lr=self.learning_rate)
+        elif optimizer == 'ASGD':
+            return torch.optim.ASGD(self.func.parameters(), lr=self.learning_rate)
+        elif optimizer == 'RMSProp':
+            return torch.optim.RMSprop(self.func.parameters(), lr=self.learning_rate)
+        elif optimizer == 'Rprop':
+            return torch.optim.Rprop(self.func.parameters(), lr=self.learning_rate)
         elif optimizer == 'LBFGS':
             return torch.optim.LBFGS(self.func.parameters(), lr=self.learning_rate)
         else:
