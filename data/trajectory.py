@@ -8,9 +8,10 @@ import os
 
 class Trajectory():
 
-    def __init__(self, file_path, device):
+    def __init__(self, file_path, device, dtype):
         self.file_path = file_path
         self.device = device
+        self.dtype = dtype
         self.temp, self.k, self.r0, self.seed = self.get_metadata_from_file_path(self.file_path)
         self.reader = Reader(self.file_path)
         self.timesteps = self.reader.logged_timesteps
@@ -30,7 +31,7 @@ class Trajectory():
             k = float(file_path[2][file_path[2].find('k') + (2+1):])
             r0 = float(file_path[3][file_path[3].find('r0') + (2+1):])
             seed = int(file_path[4][file_path[4].find('s') + (1+1):])
-        return [torch.Tensor([i]).to(self.device) for i in [temp, k, r0, seed]]
+        return [torch.Tensor([i]).to(self.device).to(self.dtype) for i in [temp, k, r0, seed]]
         
     def get_traj(self, reader):
         # TODO: add options to train on just a part of trajectory

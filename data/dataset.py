@@ -47,7 +47,7 @@ class Dataset(torch.utils.data.Dataset):
         return filenames
 
     def get_trajectories(self):
-        return [Trajectory(self.folder+filename, self.device) for filename in self.filenames]
+        return [Trajectory(self.folder+filename, self.device, self.dtype) for filename in self.filenames]
 
     def get_batch(self, batch_size, batch_length):
         # OBSOLUTE

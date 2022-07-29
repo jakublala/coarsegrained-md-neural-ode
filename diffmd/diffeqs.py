@@ -10,8 +10,6 @@ class ODEFunc(nn.Module):
         self.nparticles = nparticles
         self.dtype = dtype
         self.mass = 7.0 # HACK
-        self.inertia = torch.Tensor().type(self.dtype)
-        self.k = torch.Tensor().type(self.dtype)
         
         # define neural net
         layers = []
@@ -56,11 +54,16 @@ class ODEFunc(nn.Module):
 
             # get energy and gradients
             # TODO: check that harmonic restraint is calculated correctly
-            u = self.net(rq) + self.harmonic_restraint(r) # [number of trajectories, potential energy]
+            u = self.net(rq) + self.harmonic_restraint(rq) # [number of trajectories, potential energy]
             
             f = -compute_grad(inputs=x, output=u)
             grad_q = compute_grad(inputs=q, output=u)
 
+            
+            # print(- self.k[0] * (torch.norm(r[0]) - self.r0[0]))
+            # print(f[0])
+
+            # assert 0 == 1
             # grad = compute_grad(inputs=rq, output=u) # [force _ torque, number of trajectories]
 
             # grad_r, grad_q = torch.split(grad, [3, self.dim-3], dim=1)
@@ -114,10 +117,11 @@ class ODEFunc(nn.Module):
 
         return (dvdt, dwdt, dxdt, dqdt)
     
-    def harmonic_restraint(self, r):
+    def harmonic_restraint(self, rq):
         # TODO: train different ks separately, or do a batch of k spring constants, that you update with each get_batch?
-        # return 0.5 * self.k * torch.square(torch.norm(rq[:, 0:3], dim=1)).view(-1, 1)
-        return 0.5 * self.k * torch.square(torch.norm(r, dim=1)).view(-1, 1)
+        
+        return 0.5 * self.k * torch.square(torch.norm(rq[:, 0:3], dim=1) - self.r0.squeeze()).view(-1, 1)
+        # return 0.5 * self.k * torch.square(torch.norm(r, dim=1)).view(-1, 1)
 
     def G(self, q):
         # TODO: move this somewhere; make sure it's fast; maybe torch.stack is not ideal

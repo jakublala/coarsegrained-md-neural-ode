@@ -204,18 +204,19 @@ class Trainer():
             ind_ang = [3, 4, 5]
             ind_pos = [6, 7, 8]
             ind_quat = [9, 10, 11, 12]
-            
-            for i in ind_vel:
+            colours = ['r-', 'b-', 'g-']
+
+            for c, i in enumerate(ind_vel):
                 plt.title('velocities 1')
                 plt.plot(batch_t, batch_y[:,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t, pred_y[:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
+                plt.plot(batch_t, pred_y[:,0,i], colours[c], alpha=0.5, label=f'pred {i}')
             plt.savefig(f'{subfolder}/{itr}_vel1.png')
             plt.close()
             
-            for i in ind_vel:
+            for c, i in enumerate(ind_vel):
                 plt.title('velocities 2')
                 plt.plot(batch_t, batch_y[:,1,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t, pred_y[:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
+                plt.plot(batch_t, pred_y[:,1,i], colours[c], alpha=0.5, label=f'pred {i}')
             plt.savefig(f'{subfolder}/{itr}_vel2.png')
             plt.close()
             
