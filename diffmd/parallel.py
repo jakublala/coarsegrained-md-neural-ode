@@ -27,7 +27,11 @@ class ParallelTrainer(Trainer):
         
         self.func = ODEFunc(self.nparticles, self.dim, self.nn_width, self.nn_depth, self.dtype).to(self.device).to(rank)
         self.func = DDP(self.func, device_ids=[rank], output_device=rank, find_unused_parameters=False, static_graph=False)
-
+        
+        self.loss_func = self.set_loss_func()
+        self.optimizer = self.set_optimizer(self.optimizer_name)
+        self.scheduler = self.set_scheduler(self.scheduler_name, self.scheduling_factor)
+        
         self.train()
 
         # add early stopping?
@@ -38,13 +42,13 @@ class ParallelTrainer(Trainer):
             self.training_dataloader.sampler.set_epoch(self.epoch)       
             self.start_time = time.perf_counter()
         
-            
-            # zero out gradients with less memory operations
-            for param in self.func.parameters():
-                param.grad = None
-
             for self.itr, (batch_input, batch_y) in enumerate(self.training_dataloader):
                 self.itr_start_time = time.perf_counter()
+
+                # zero out gradients with less memory operations
+                for param in self.func.parameters():
+                    param.grad = None
+
                 batch_y = batch_y.to(self.device, non_blocking=True).type(self.dtype)
 
                 # forward pass
@@ -56,7 +60,7 @@ class ParallelTrainer(Trainer):
                 loss.backward() 
                 self.optimizer.step()
             
-                if is_main_process():                
+                if is_main_process():  
                     self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
 
                     if (self.itr+1) % self.itr_printing_freq == 0:
@@ -65,7 +69,8 @@ class ParallelTrainer(Trainer):
             # logging and waiting for all processes to finish epoch
             if is_main_process():                
                 self.after_epoch()
-            torch.distributed.barrier()
+
+            # torch.distributed.barrier()
         
         return self.func, self.loss_meter
 
