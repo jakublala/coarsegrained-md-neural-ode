@@ -7,6 +7,9 @@ import os
 import shutil
 import numpy as np
 import sigopt
+import re
+from collections import OrderedDict
+
 
 from data.reader import Reader
 from data.dataset import Dataset
@@ -69,7 +72,19 @@ class Trainer():
         self.scheduler = self.set_scheduler(self.scheduler_name, self.scheduling_factor)
         
         if self.load_folder != None:
-            self.func.load_state_dict(torch.load(f'{self.load_folder}/model.pt'))
+            # in case we load a DDP model checkpoint to a non-DDP model
+            state_dict = torch.load(f'{self.load_folder}/model.pt')
+            model_dict = OrderedDict()
+            pattern = re.compile('module.')
+
+            for k,v in state_dict.items():
+                if re.search("module", k):
+                    model_dict[re.sub(pattern, '', k)] = v
+                else:
+                    model_dict = state_dict
+            
+            self.func.load_state_dict(model_dict)
+
         print(f'device = {self.device}')
         print(f'depth = {self.nn_depth}, width = {self.nn_width}')
         print(f'number of parameters = {self.nparameters}')
@@ -160,7 +175,7 @@ class Trainer():
             self.loss_meter.checkpoint()
             
             # divergent / non-convergent
-            if len(self.loss_meter.checkpoints) > 2:
+            if len(self.loss_meter.checkpoints) > 2 + self.stopping_look_back:
                 if self.loss_meter.checkpoints[-1-self.stopping_look_back] < self.loss_meter.checkpoints[-1]:
                     print('early stopping as non-convergent')
                     # TODO: make this compliant with multiple GPUs
