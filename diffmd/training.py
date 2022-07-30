@@ -56,6 +56,7 @@ class Trainer():
         self.itr_printing_freq = config['itr_printing_freq']
         self.plotting_freq = config['plotting_freq']
         self.stopping_freq = config['stopping_freq']
+        self.stopping_look_back = config['stopping_look_back']
         self.scheduling_freq = config['scheduling_freq']
         self.evaluation_freq = config['evaluation_freq']
         self.checkpoint_freq = config['checkpoint_freq']
@@ -76,7 +77,7 @@ class Trainer():
         print(f'scheduler = {self.scheduler_name}, scheduling factor = {self.scheduling_factor}, scheduling freq = {self.scheduling_freq}')
         print(f'batch size = {self.batch_size}, traj length = {self.batch_length}')
 
-    def forward_pass(self, batch_input, batch_length=None):
+    def forward_pass(self, batch_input, batch_length=None, parallel=False):
         
         batch_y0, dt, k, r0, inertia =  batch_input
         batch_y0 = tuple(i.to(self.device, non_blocking=True).type(self.dtype) for i in torch.split(batch_y0, [3, 3, 3, 4], dim=-1))
@@ -86,9 +87,15 @@ class Trainer():
         batch_t = self.get_batch_t(dt, batch_length)
         
         # set constants
-        self.func.k = k.to(self.device, non_blocking=True).type(self.dtype)
-        self.func.r0 = r0.to(self.device, non_blocking=True).type(self.dtype)
-        self.func.inertia = inertia.to(self.device, non_blocking=True).type(self.dtype)
+        if parallel:
+            self.func.module.k = k.to(self.device, non_blocking=True).type(self.dtype)
+            self.func.module.r0 = r0.to(self.device, non_blocking=True).type(self.dtype)
+            self.func.module.inertia = inertia.to(self.device, non_blocking=True).type(self.dtype)
+        else:
+            self.func.k = k.to(self.device, non_blocking=True).type(self.dtype)
+            self.func.r0 = r0.to(self.device, non_blocking=True).type(self.dtype)
+            self.func.inertia = inertia.to(self.device, non_blocking=True).type(self.dtype)
+        
         options = dict(inertia=inertia.to(self.device, non_blocking=True).type(self.dtype))
         
         # TODO: add assertion to check right dimensions
@@ -154,7 +161,7 @@ class Trainer():
             
             # divergent / non-convergent
             if len(self.loss_meter.checkpoints) > 2:
-                if self.loss_meter.checkpoints[-2] < self.loss_meter.checkpoints[-1]:
+                if self.loss_meter.checkpoints[-1-self.stopping_look_back] < self.loss_meter.checkpoints[-1]:
                     print('early stopping as non-convergent')
                     # TODO: make this compliant with multiple GPUs
                     return True

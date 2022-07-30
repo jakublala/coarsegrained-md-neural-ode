@@ -14,29 +14,31 @@ config = dict(
     epochs = 2,
     start_epoch = 0,
     optimizer = 'Adam',
-    batch_length=20,
+    batch_length=2,
     batch_size=10000,
     shuffle=True,
     num_workers=0,
-    learning_rate=0.005658363332498796,
+    learning_rate=0.05,
     nn_depth=2,
-    nn_width=1000,
+    nn_width=100,
     activation_function=None,
     eval_batch_length=100,
     load_folder=None,
     dtype=torch.float32,
     itr_printing_freq=1,
-    printing_freq=10,
-    plotting_freq=10,
+    printing_freq=1,
+    plotting_freq=100,
     stopping_freq=5,
+    stopping_look_back=3,
     scheduler=None,
-    scheduling_factor=0.95,
-    scheduling_freq=10,
-    evaluation_freq=10,
-    checkpoint_freq=1,
-    loss_func = 'all',
+    scheduling_factor=0.10,
+    scheduling_freq=3,
+    evaluation_freq=20,
+    checkpoint_freq=5,
+    loss_func = 'final',
     sigopt=False,
     )
+    # TODO: plotting and scheduling DOES NOT WORK
 
 if __name__ == '__main__':
     start_time = time.perf_counter()
@@ -53,9 +55,10 @@ if __name__ == '__main__':
         join=True
     )
 
-    # trainer.save()
-
     print('Training time: {}'.format(time.perf_counter() - start_time))
+
+    trainer.save()
+
 
 
 

@@ -48,7 +48,7 @@ class ParallelTrainer(Trainer):
                 batch_y = batch_y.to(self.device, non_blocking=True).type(self.dtype)
 
                 # forward pass
-                pred_y = self.forward_pass(batch_input)
+                pred_y = self.forward_pass(batch_input, parallel=True)
 
                 loss = self.loss_func(pred_y, batch_y)
 
@@ -62,29 +62,12 @@ class ParallelTrainer(Trainer):
                     if (self.itr+1) % self.itr_printing_freq == 0:
                         self.print_iteration()
 
+            # logging and waiting for all processes to finish epoch
             if is_main_process():                
-                    self.after_epoch()
-
+                self.after_epoch()
+            torch.distributed.barrier()
+        
         return self.func, self.loss_meter
-
-    def forward_pass(self, batch_input, batch_length=None):
-        batch_y0, dt, k, r0, inertia =  batch_input
-        batch_y0 = tuple(i.to(self.device, non_blocking=True).type(self.dtype) for i in torch.split(batch_y0, [3, 3, 3, 4], dim=-1))
-
-        # get timesteps
-        batch_t = self.get_batch_t(dt, batch_length)
-        
-        # set constants
-        self.func.module.k = k.to(self.device, non_blocking=True).type(self.dtype)
-        self.func.module.r0 = r0.to(self.device, non_blocking=True).type(self.dtype)
-        self.func.module.inertia = inertia.to(self.device, non_blocking=True).type(self.dtype)
-        options = dict(inertia=inertia.to(self.device, non_blocking=True).type(self.dtype))
-        
-        # TODO: add assertion to check right dimensions
-        pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE', options=options)
-        pred_y = torch.swapaxes(torch.cat(pred_y, dim=-1), 0, 1)
-        
-        return pred_y
 
     def setup_process(self, rank, world_size): # setup the process group
         # rank is the gpu id of the process
