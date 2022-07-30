@@ -28,7 +28,7 @@ class ParallelTrainer(Trainer):
         self.func = ODEFunc(self.nparticles, self.dim, self.nn_width, self.nn_depth, self.dtype).to(self.device).to(rank)
         self.func = DDP(self.func, device_ids=[rank], output_device=rank, find_unused_parameters=False, static_graph=False)
         
-        self.loss_func = self.set_loss_func()
+        self.loss_func = self.set_loss_func(self.loss_func_name)
         self.optimizer = self.set_optimizer(self.optimizer_name)
         self.scheduler = self.set_scheduler(self.scheduler_name, self.scheduling_factor)
         
