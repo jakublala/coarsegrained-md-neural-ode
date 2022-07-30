@@ -72,18 +72,7 @@ class Trainer():
         self.scheduler = self.set_scheduler(self.scheduler_name, self.scheduling_factor)
         
         if self.load_folder != None:
-            # in case we load a DDP model checkpoint to a non-DDP model
-            state_dict = torch.load(f'{self.load_folder}/model.pt')
-            model_dict = OrderedDict()
-            pattern = re.compile('module.')
-
-            for k,v in state_dict.items():
-                if re.search("module", k):
-                    model_dict[re.sub(pattern, '', k)] = v
-                else:
-                    model_dict = state_dict
-            
-            self.func.load_state_dict(model_dict)
+            self.load_func()
 
         print(f'device = {self.device}')
         print(f'depth = {self.nn_depth}, width = {self.nn_width}')
@@ -186,6 +175,20 @@ class Trainer():
             #     print('early stopping as stale convergence')
             #     return self.func, self.loss_meter
         
+    def load_func(self):
+        # in case we load a DDP model checkpoint to a non-DDP model
+        state_dict = torch.load(f'{self.load_folder}/model.pt')
+        model_dict = OrderedDict()
+        pattern = re.compile('module.')
+
+        for k,v in state_dict.items():
+            if re.search("module", k):
+                model_dict[re.sub(pattern, '', k)] = v
+            else:
+                model_dict = state_dict
+        
+        self.func.load_state_dict(model_dict)
+
 
     def print_loss(self, itr, start_time):
         print(f'Epoch: {itr}, Running avg elbo: {self.loss_meter.avg}')
@@ -358,7 +361,7 @@ class Trainer():
         elif optimizer == 'AdamW':
             return torch.optim.AdamW(self.func.parameters(), lr=self.learning_rate)
         elif optimizer == 'NAdam':
-            return torch.optim.Nadam(self.func.parameters(), lr=self.learning_rate)
+            return torch.optim.NAdam(self.func.parameters(), lr=self.learning_rate)
         elif optimizer == 'RAdam':
             return torch.optim.RAdam(self.func.parameters(), lr=self.learning_rate)
         elif optimizer == 'Adamax':
