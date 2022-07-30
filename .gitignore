@@ -141,6 +141,7 @@ CG*
 run.sh
 run.py
 sigopt-model.py
+sigopt*
 experiment.yml
 run-gpu.py
 

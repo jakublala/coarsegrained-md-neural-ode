@@ -328,9 +328,9 @@ class Trainer():
 
     def set_optimizer(self, optimizer):
         if optimizer == 'Adadelta':
-            return torch.optim.Adadelta(self.parameters(), lr=self.learning_rate)
+            return torch.optim.Adadelta(self.func.parameters(), lr=self.learning_rate)
         elif optimizer == 'Adagrad':
-            return torch.optim.Adagrad(self.parameters(), lr=self.learning_rate)
+            return torch.optim.Adagrad(self.func.parameters(), lr=self.learning_rate)
         elif optimizer == 'Adam':
             return torch.optim.Adam(self.func.parameters(), lr=self.learning_rate)
         elif optimizer == 'AdamW':
