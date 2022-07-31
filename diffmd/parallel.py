@@ -34,6 +34,10 @@ class ParallelTrainer(Trainer):
         
         self.train()
 
+        # TODO: Add final save
+        # if is_main_process():
+        #     self.save()
+
         # add early stopping?
         cleanup()
 

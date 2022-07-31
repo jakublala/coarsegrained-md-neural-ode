@@ -11,10 +11,10 @@ from diffmd.parallel import ParallelTrainer
 config = dict(
     folder = 'dataset/single_temp_overfit', 
     device = torch.device('cpu'), 
-    epochs = 1000,
-    start_epoch = 0,
+    epochs = 5000,
+    start_epoch = 1000,
     optimizer = 'Adam',
-    batch_length=20,
+    batch_length=60,
     batch_size=10000,
     shuffle=True,
     num_workers=0,
@@ -23,7 +23,7 @@ config = dict(
     nn_width=100,
     activation_function=None,
     eval_batch_length=100,
-    load_folder=None,
+    load_folder='results/2022-07-30/11-29-22/1000',
     dtype=torch.float32,
     itr_printing_freq=1,
     printing_freq=1,
@@ -33,7 +33,7 @@ config = dict(
     scheduler=None,
     scheduling_factor=0.10,
     scheduling_freq=3,
-    evaluation_freq=5000,
+    evaluation_freq=6000,
     checkpoint_freq=50,
     loss_func = 'all',
     sigopt=False,
@@ -56,8 +56,6 @@ if __name__ == '__main__':
     )
 
     print('Training time: {}'.format(time.perf_counter() - start_time))
-
-    trainer.save()
 
 
 
