@@ -111,7 +111,7 @@ class ODEFunc(nn.Module):
             l = w * self.inertia
             # TODO: can I help out somehow the neural net with torque calculation by knowing the physical aspect - the torques must be opposite and equal? similarly to force 
             # TODO: is dl_system / dt only the second term which swaps around the values as with dqdt?
-            
+            # TODO: G assignment is slow, speed it up
             dldt = - torch.matmul(self.Omega(q, dqdt), l.unsqueeze(-1)).squeeze(-1) - 0.5 * torch.matmul(self.G(q), grad_q.unsqueeze(-1)).squeeze(-1)
             dwdt = dldt / self.inertia
 

@@ -7,8 +7,6 @@ import torch
 from torch import nn
 torch.set_default_dtype(torch.float32)
 
-import time
-
 '''
     Adapted from https://github.com/torchmd/mdgrad
 
@@ -27,7 +25,7 @@ class VelVerlet_NVE(FixedGridODESolver):
             raise ValueError("inertia must be provided")
         else:
             self.inertia = inertia
-
+    
     def step_func(self, diffeq, dt, state):
         """
         Propagates state vectors and ajoints one step in time
