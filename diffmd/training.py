@@ -163,7 +163,7 @@ class Trainer():
             self.loss_meter.checkpoint()
             
             # divergent / non-convergent
-            if len(self.loss_meter.checkpoints) > 2 + self.stopping_look_back:
+            if len(self.loss_meter.checkpoints) > 1 + self.stopping_look_back:
                 if self.loss_meter.checkpoints[-1-self.stopping_look_back] < self.loss_meter.checkpoints[-1]:
                     print('early stopping as non-convergent')
                     # TODO: make this compliant with multiple GPUs
