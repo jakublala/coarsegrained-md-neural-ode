@@ -114,52 +114,24 @@ class Trainer():
             for self.itr, (batch_input, batch_y) in enumerate(self.training_dataloader):
                 self.itr_start_time = time.perf_counter()
 
-                batch_time = time.perf_counter() - self.start_time
-                print('time to load batch: ', batch_time)
-
-                start_time = time.perf_counter()
                 # zero out gradients with less memory operations
                 for param in self.func.parameters():
                     param.grad = None
 
-                param_time = time.perf_counter() - start_time
-                print('time to zero out gradients', param_time)
-
-                # forward pass
-                
-                start_time = time.perf_counter()
+                # forward pass                
                 pred_y = self.forward_pass(batch_input)
-
-                pass_time = time.perf_counter() - start_time
-                print('forward pass time: ', pass_time)
-
-                start_time = time.perf_counter()
                 loss = self.loss_func(pred_y, batch_y)
 
-                
-                loss_time = time.perf_counter() - start_time
-                print('loss time: ', loss_time)
-
                 # backward pass      
-                start_time = time.perf_counter()              
                 loss.backward() 
-                
-                backward_time = time.perf_counter() - start_time
-                print('backward time', backward_time)
-
                 self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
         
-                start_time = time.perf_counter()
                 self.optimizer.step()
                 
-                optimizer_time = time.perf_counter() - start_time
-                print('optimizer time', optimizer_time)
-
                 if (self.itr+1) % self.itr_printing_freq == 0:
                     self.print_iteration()
                     self.time_meter.update(self.epoch, self.itr, time.perf_counter() - self.itr_start_time)
                     
-                assert 0 == 1
             if self.after_epoch():
                 # if True, then early stopping
                 return self.func, self.loss_meter
