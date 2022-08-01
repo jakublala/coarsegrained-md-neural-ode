@@ -18,21 +18,28 @@ def assignVariables(file_path, variables, values):
     if not os.path.exists(file_path):
         os.makedirs(file_path)
 
-    with open(f'{file_path}/hexagon.in', 'w') as f:
+    with open(f'{file_path}/hexagon-{seed}.in', 'w') as f:
         f.write(filedata)
 
     # Copy body file
     shutil.copyfile('templates/hex.conf', f'{file_path}/hex.conf')
 
-    # Copy run file
-    shutil.copyfile('templates/run.sh', f'{file_path}/run.sh')
-
-    
+    # Copy the SLURM script
+    with open('templates/run.sh', 'r') as f:
+        filedata = f.read()
+    filedata = filedata.replace('$SEED', str(seed))
+    with open(f'{file_path}/run-{seed}.sh', 'w') as f:
+        f.write(filedata)
 
 
 
 # run main
 if __name__ == '__main__':
+
+    folder_name = 'single_temp'
+
+    if not os.path.exists(f'../dataset/{folder_name}'):
+        os.makedirs(f'../dataset/{folder_name}')
 
     variables = ['$CUT', '$TEMP', '$R0', '$K', '$SEED', '$LOG_FREQ', '$RUNSTEPS', '$TIMESTEP' ]
     
@@ -46,22 +53,39 @@ if __name__ == '__main__':
     runsteps = 10000000
     timestep = 0.00001
 
+    # Create script to run all
+    run_script = []
+
+    # with open('templates/run.sh', 'w') as slurm_file:
+    #     slurm_file = slurm_file.readlines()
+    #     slurm_file.append('\n')
 
     # train
     for seed in [1, 2, 3, 4, 5]:
         values = [cut, temp, r0, k, seed, log_freq, runsteps, timestep]
-        assignVariables(f'../dataset/single_T/train/{seed}', variables, values)
+        assignVariables(f'../dataset/{folder_name}/train', variables, values)
+        run_script += [f'cd train/ \n', f'sbatch run-{seed}.sh \n', 'cd .. \n']
+        
         
     # test
     for seed in [6, 7]:
         values = [cut, temp, r0, k, seed, log_freq, runsteps, timestep]
-        assignVariables(f'../dataset/single_T/test/{seed}', variables, values)
-
+        assignVariables(f'../dataset/{folder_name}/test', variables, values)
+        run_script += [f'cd test/ \n', f'sbatch run-{seed}.sh \n', 'cd .. \n']
+        
 
     # validate
     for seed in [8, 9]:
         values = [cut, temp, r0, k, seed, log_freq, runsteps, timestep]
-        assignVariables(f'../dataset/single_T/validation/{seed}', variables, values)
+        assignVariables(f'../dataset/{folder_name}/validation', variables, values)
+        run_script += [f'cd validation/ \n', f'sbatch run-{seed}.sh \n', 'cd .. \n']
         
-    
+    with open(f'../dataset/{folder_name}/run.sh', 'w') as f:
+        f.writelines(run_script)
+            
+    # run slurm script
+    os.chdir(f'../dataset/{folder_name}/')
+    subprocess.call(['sh', 'run.sh'])
 
+    # TODO: make it so that the produced datasets are in the correct folders in dataset/
+    # TODO: run LAMMPS from python
