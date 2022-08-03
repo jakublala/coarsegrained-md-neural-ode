@@ -31,8 +31,7 @@ class Trainer():
         self.batch_length = config['batch_length']
         self.eval_batch_length = config['eval_batch_length']
         self.batch_size = config['batch_size']
-        self.nn_width = config['nn_width']
-        self.nn_depth = config['nn_depth']
+        self.nn_widths = config['nn_widths']
         self.load_folder = config['load_folder']
         self.loss_func_name = config['loss_func']
         self.optimizer_name = config['optimizer']
@@ -63,7 +62,7 @@ class Trainer():
         self.evaluation_freq = config['evaluation_freq']
         self.checkpoint_freq = config['checkpoint_freq']
 
-        self.func = ODEFunc(self.nparticles, self.dim, self.nn_width, self.nn_depth, self.dtype).to(self.device)
+        self.func = ODEFunc(self.nparticles, self.dim, self.nn_widths, self.dtype).to(self.device)
         self.nparameters = count_parameters(self.func)
 
         self.loss_func = self.set_loss_func(self.loss_func_name)

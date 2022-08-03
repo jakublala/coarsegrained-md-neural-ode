@@ -4,7 +4,7 @@ from diffmd.utils import normalize_quat, compute_grad
 from pytorch3d.transforms import quaternion_raw_multiply
 
 class ODEFunc(nn.Module):
-    def __init__(self, nparticles, dim, width, depth, dtype):
+    def __init__(self, nparticles, dim, widths, dtype):
         super(ODEFunc, self).__init__()
         self.dim = dim
         self.nparticles = nparticles
@@ -12,8 +12,9 @@ class ODEFunc(nn.Module):
         self.mass = 7.0 # HACK
         
         # define neural net
+        depth = len(widths) 
         layers = []
-        for i in range(depth):
+        for i, width in enumerate(widths):
             if i == 0:
                 # first layer takes in all configurational variables (xyz and quaternions)
                 layers += [nn.Linear(self.dim, width), nn.Sigmoid()]
