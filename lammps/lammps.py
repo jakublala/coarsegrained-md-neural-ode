@@ -45,8 +45,8 @@ if __name__ == '__main__':
     
     cut = 1.12246
     temp = 0.5
-    r0 = 0
-    k = 10*temp/cut/cut
+    r0 = 2
+    k = 6*temp/cut/cut
     
     # takes about 50 seconds
     log_freq = 100
