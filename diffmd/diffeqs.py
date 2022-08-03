@@ -14,15 +14,14 @@ class ODEFunc(nn.Module):
         # define neural net
         depth = len(widths) 
         layers = []
+        # first layer takes in all configurational variables (xyz and quaternions)
+        layers += [nn.Linear(self.dim, widths[0]), nn.Sigmoid()]
         for i, width in enumerate(widths):
-            if i == 0:
-                # first layer takes in all configurational variables (xyz and quaternions)
-                layers += [nn.Linear(self.dim, width), nn.Sigmoid()]
             if i == (depth-1):  
                 # last layer outputs a single potential energy value
                 layers += [nn.Linear(width, 1)]
             else:
-                layers += [nn.Linear(width, width), nn.Sigmoid()]
+                layers += [nn.Linear(widths[i], widths[i+1]), nn.Sigmoid()]
         self.net = nn.Sequential(*layers).type(self.dtype)
 
         # initialise NN parameters
