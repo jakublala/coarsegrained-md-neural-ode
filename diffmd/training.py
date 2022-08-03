@@ -106,13 +106,22 @@ class Trainer():
         pred_y = torch.swapaxes(torch.cat(pred_y, dim=-1), 0, 1)
         
         return pred_y
-    
+        
     def train(self):
         for self.epoch in range(self.start_epoch + 1, (self.start_epoch + self.epochs) + 1):
             self.start_time = time.perf_counter()
             
             for self.itr, (batch_input, batch_y) in enumerate(self.training_dataloader):
                 self.itr_start_time = time.perf_counter()
+
+                def closure():
+                    for param in self.func.parameters():
+                        param.grad = None  
+                    # forward pass                
+                    pred_y = self.forward_pass(batch_input)
+                    loss = self.loss_func(pred_y, batch_y)
+                    loss.backward()
+                    return loss
 
                 # zero out gradients with less memory operations
                 for param in self.func.parameters():
@@ -126,7 +135,11 @@ class Trainer():
                 loss.backward() 
                 self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
         
-                self.optimizer.step()
+                if self.optimizer_name == 'LBFGS':
+                    self.optimizer.step(closure)
+                else:
+                    self.optimizer.step()
+                    
                 
                 if (self.itr+1) % self.itr_printing_freq == 0:
                     self.print_iteration()
