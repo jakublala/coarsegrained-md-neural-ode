@@ -73,7 +73,7 @@ class Trainer():
             self.load_func()
 
         print(f'device = {self.device}')
-        print(f'depth = {self.nn_depth}, width = {self.nn_width}')
+        print(f'NN architecture = 11 - {self.nn_widths} - 1')
         print(f'number of parameters = {self.nparameters}')
         print(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name}')
         print(f'scheduler = {self.scheduler_name}, scheduling factor = {self.scheduling_factor}, scheduling freq = {self.scheduling_freq}')
@@ -336,7 +336,7 @@ class Trainer():
         with open(f'{subfolder}/hyperparameters.txt', 'w') as f:
             f.write(f'device = {self.device} \n')
             f.write(f'training datasets = {self.training_dataset.filenames} in {self.folder} \n')
-            f.write(f'depth = {self.nn_depth}, width = {self.nn_width} \n')
+            f.write(f'NN architecture = 11 - {self.nn_widths} - 1 \n')    
             f.write(f'number of parameters = {self.nparameters} \n')
             f.write(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name} \n')
             f.write(f'scheduler = {self.scheduler_name}, scheduling factor = {self.scheduling_factor}, scheduling freq = {self.scheduling_freq} \n')
