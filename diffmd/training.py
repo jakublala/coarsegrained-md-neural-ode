@@ -15,6 +15,7 @@ from data.dataset import Dataset
 from diffmd.diffeqs import ODEFunc
 from diffmd.solvers import odeint_adjoint
 from diffmd.utils import get_run_ID, count_parameters
+from diffmd.losses import *
 
 class Trainer():
 
@@ -349,6 +350,10 @@ class Trainer():
             return all_loss_func
         elif loss_func == 'final':
             return final_loss_func
+        elif loss_func == 'all-pos':
+            return all_pos_loss_func
+        elif loss_func == 'final-pos':
+            return final_pos_loss_func
         else:
             raise ValueError(f'loss function {loss_func} not recognised')
 
@@ -557,13 +562,6 @@ class RunningAverageMeter(object):
 
     def checkpoint(self):
         self.checkpoints.append(self.avg)
-
-# Types of loss functions
-def all_loss_func(pred_y, true_y):
-    return torch.mean(torch.abs(pred_y - true_y))
-
-def final_loss_func(pred_y, true_y):
-    return torch.mean(torch.abs(pred_y[:, -1, :, :] - true_y[:, -1, :, :]))
 
 def lambda_lr(epoch):
     return 0.95 ** epoch
