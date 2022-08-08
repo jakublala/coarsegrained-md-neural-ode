@@ -4,30 +4,37 @@ from diffmd.utils import normalize_quat, compute_grad
 from pytorch3d.transforms import quaternion_raw_multiply
 
 class ODEFunc(nn.Module):
-    def __init__(self, nparticles, dim, widths, dtype):
+    def __init__(self, nparticles, dim, widths, function, dtype):
         super(ODEFunc, self).__init__()
         self.dim = dim
         self.nparticles = nparticles
         self.dtype = dtype
         self.mass = 7.0 # HACK
         
+        if function == 'sigmoid':
+            self.func = nn.Sigmoid()
+        elif function == 'tanh':
+            self.func = nn.Tanh()
+        else:
+            raise ValueError('activation function must be sigmoid or tanh')
+        
         # define neural net
         depth = len(widths) 
         layers = []
         # first layer takes in all configurational variables (xyz and quaternions)
-        layers += [nn.Linear(self.dim, widths[0]), nn.Sigmoid()]
+        layers += [nn.Linear(self.dim, widths[0]), self.func]
         for i, width in enumerate(widths):
             if i == (depth-1):  
                 # last layer outputs a single potential energy value
                 layers += [nn.Linear(width, 1)]
             else:
-                layers += [nn.Linear(widths[i], widths[i+1]), nn.Sigmoid()]
+                layers += [nn.Linear(widths[i], widths[i+1]), self.func]
         self.net = nn.Sequential(*layers).type(self.dtype)
 
         # initialise NN parameters
         for m in self.net.modules():
             if isinstance(m,nn.Linear):
-                nn.init.normal_(m.weight,mean=0,std=0.01)
+                nn.init.xavier_normal_(m.weight)
                 nn.init.constant_(m.bias,val=0)
 
     def forward(self, state):
@@ -118,8 +125,6 @@ class ODEFunc(nn.Module):
         return (dvdt, dwdt, dxdt, dqdt)
     
     def harmonic_restraint(self, rq):
-        # TODO: train different ks separately, or do a batch of k spring constants, that you update with each get_batch?
-        
         return 0.5 * self.k * torch.square(torch.norm(rq[:, 0:3], dim=1) - self.r0.squeeze()).view(-1, 1)
         # return 0.5 * self.k * torch.square(torch.norm(r, dim=1)).view(-1, 1)
 

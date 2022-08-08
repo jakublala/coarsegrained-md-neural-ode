@@ -33,6 +33,7 @@ class Trainer():
         self.eval_batch_length = config['eval_batch_length']
         self.batch_size = config['batch_size']
         self.nn_widths = config['nn_widths']
+        self.activation_function = config['activation_function']
         self.load_folder = config['load_folder']
         self.loss_func_name = config['loss_func']
         self.optimizer_name = config['optimizer']
@@ -63,7 +64,7 @@ class Trainer():
         self.evaluation_freq = config['evaluation_freq']
         self.checkpoint_freq = config['checkpoint_freq']
 
-        self.func = ODEFunc(self.nparticles, self.dim, self.nn_widths, self.dtype).to(self.device)
+        self.func = ODEFunc(self.nparticles, self.dim, self.nn_widths, self.activation_function, self.dtype).to(self.device)
         self.nparameters = count_parameters(self.func)
 
         self.loss_func = self.set_loss_func(self.loss_func_name)
@@ -354,6 +355,14 @@ class Trainer():
             return all_pos_loss_func
         elif loss_func == 'final-pos':
             return final_pos_loss_func
+        elif loss_func == 'all-2':
+            return all_loss_func_2
+        elif loss_func == 'final-2':
+            return final_loss_func_2
+        elif loss_func == 'all-pos-2':
+            return all_pos_loss_func_2
+        elif loss_func == 'final-pos-2':
+            return final_pos_loss_func_2
         else:
             raise ValueError(f'loss function {loss_func} not recognised')
 
