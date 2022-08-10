@@ -20,6 +20,7 @@ from diffmd.losses import *
 class Trainer():
 
     def __init__(self, config):
+        self.config = config
         self.folder = config['folder']
         self.day, self.time = get_run_ID()
         self.device = config['device']
@@ -30,7 +31,11 @@ class Trainer():
         self.start_epoch = config['start_epoch']
         self.learning_rate = config['learning_rate']
         self.batch_length = config['batch_length']
+        self.batch_length_step = config['batch_length_step']
+        self.batch_length_freq = config['batch_length_freq']
         self.eval_batch_length = config['eval_batch_length']
+        self.shuffle = config['shuffle']
+        self.num_workers = config['num_workers']
         self.batch_size = config['batch_size']
         self.nn_widths = config['nn_widths']
         self.activation_function = config['activation_function']
@@ -46,9 +51,9 @@ class Trainer():
         self.training_dataset = Dataset(config, dataset_type='train', batch_length=self.batch_length)
         self.test_dataset = Dataset(config, dataset_type='test', batch_length=self.eval_batch_length)
         self.validation_dataset = Dataset(config, dataset_type='validation', batch_length=self.eval_batch_length)
-        self.training_dataloader = self.get_dataloader(config, self.training_dataset) 
-        self.test_dataloader = self.get_dataloader(config, self.test_dataset) 
-        self.validation_dataloader = self.get_dataloader(config, self.validation_dataset)
+        self.training_dataloader = self.get_dataloader(self.training_dataset) 
+        self.test_dataloader = self.get_dataloader(self.test_dataset) 
+        self.validation_dataloader = self.get_dataloader(self.validation_dataset)
         
         self.loss_meter = RunningAverageMeter()
         self.time_meter = TimeMeter()
@@ -132,6 +137,8 @@ class Trainer():
                 pred_y = self.forward_pass(batch_input)
                 loss = self.loss_func(pred_y, batch_y)
 
+                print(pred_y.shape)
+
                 # backward pass      
                 loss.backward() 
                 self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
@@ -171,6 +178,9 @@ class Trainer():
         if self.epoch % self.checkpoint_freq == 0:
             self.checkpoint()
 
+        if self.epoch % self.batch_length_freq == 0:
+            self.increase_batch_length()
+
         # early stopping
         if self.epoch % self.stopping_freq == 0:
 
@@ -188,6 +198,14 @@ class Trainer():
             #     print('early stopping as stale convergence')
             #     return self.func, self.loss_meter
         
+    def increase_batch_length(self):
+        del self.training_dataset, self.training_dataloader
+
+        self.batch_length += self.batch_length_step
+        # HACK: self config
+        self.training_dataset = Dataset(self.config, dataset_type='train', batch_length=self.batch_length) 
+        self.training_dataloader = self.get_dataloader(self.training_dataset)
+
     def load_func(self):
         # in case we load a DDP model checkpoint to a non-DDP model
         state_dict = torch.load(f'{self.load_folder}/model.pt')
@@ -208,6 +226,8 @@ class Trainer():
         print(f'Current loss: {self.loss_meter.val}')
         print('Last epoch took:     ', time.perf_counter() - start_time, flush=True)
         print(f'Learning rate: {self.loss_meter.lrs[-1]}')
+        print(f'Current learning rate: {self.optimizer.param_groups[0]["lr"]}')
+        print(f'Current batch length: {self.batch_length}')
         
     def print_iteration(self):
         print(f'Epoch: {self.epoch}, Iteration: {self.itr+1}, Loss: {self.loss_meter.val}')
@@ -367,12 +387,12 @@ class Trainer():
             raise ValueError(f'loss function {loss_func} not recognised')
 
         
-    def get_dataloader(self, config, dataset, no_batch=False):
+    def get_dataloader(self, dataset, no_batch=False):
         # TODO: make this cleaner
         if no_batch:
-            params = {'batch_size': 1, 'shuffle':config['shuffle'], 'num_workers':config['num_workers']}
+            params = {'batch_size': 1, 'shuffle': self.shuffle, 'num_workers': self.num_workers}
         else:
-            params = {'batch_size': config['batch_size'], 'shuffle':config['shuffle'], 'num_workers':config['num_workers']}
+            params = {'batch_size': self.batch_size, 'shuffle': self.shuffle, 'num_workers': self.num_workers}
         
         return torch.utils.data.DataLoader(dataset, **params)
 
