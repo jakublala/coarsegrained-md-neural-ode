@@ -10,6 +10,7 @@ import torch.multiprocessing as mp
 from diffmd.training import Trainer
 from diffmd.diffeqs import ODEFunc
 from diffmd.solvers import odeint_adjoint
+from data.dataset import Dataset
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 
@@ -17,7 +18,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 class ParallelTrainer(Trainer):
     def __init__(self, config):
         super().__init__(config)
-
+        
     def process(self, rank, world_size):
         self.setup_process(rank, world_size)
         
@@ -25,7 +26,7 @@ class ParallelTrainer(Trainer):
         self.test_dataloader = self.get_parallel_dataloader(self.test_dataset, rank, world_size, self.batch_size)
         self.validation_dataloader = self.get_parallel_dataloader(self.validation_dataset, rank, world_size, self.batch_size)
         
-        self.func = ODEFunc(self.nparticles, self.dim, self.nn_widths, self.dtype).to(self.device).to(rank)
+        self.func = ODEFunc(self.nparticles, self.dim, self.nn_widths, self.activation_function, self.dtype).to(self.device).to(rank)
         self.func = DDP(self.func, device_ids=[rank], output_device=rank, find_unused_parameters=False, static_graph=False)
         
         self.loss_func = self.set_loss_func(self.loss_func_name)
@@ -93,6 +94,15 @@ class ParallelTrainer(Trainer):
         sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True, drop_last=False)
         dataloader = DataLoader(dataset, batch_size=batch_size, pin_memory=pin_memory, num_workers=num_workers, drop_last=True, shuffle=False, sampler=sampler)
         return dataloader
+
+    def increase_batch_length(self):
+        del self.training_dataset, self.training_dataloader
+
+        self.batch_length += self.batch_length_step
+        # HACK: self config
+        self.training_dataset = Dataset(self.config, dataset_type='train', batch_length=self.batch_length) 
+        self.training_dataloader = self.get_parallel_dataloader(self.training_dataset, dist.get_rank(), self.world_size, self.batch_size)
+        
 
 
 def is_dist_avail_and_initialized():
