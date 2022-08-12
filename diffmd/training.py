@@ -11,6 +11,7 @@ import re
 from collections import OrderedDict
 
 from data.reader import Reader
+from data.logger import Logger
 from data.dataset import Dataset
 from diffmd.diffeqs import ODEFunc
 from diffmd.solvers import odeint_adjoint
@@ -55,8 +56,9 @@ class Trainer():
         self.test_dataloader = self.get_dataloader(self.test_dataset) 
         self.validation_dataloader = self.get_dataloader(self.validation_dataset)
         
+        self.log_metadata(config)
+        self.logger = Logger()
         self.loss_meter = RunningAverageMeter()
-        self.time_meter = TimeMeter()
         
         self.nparticles = 2
         self.dim = 3 + (2*4)
@@ -144,12 +146,13 @@ class Trainer():
                 if self.optimizer_name == 'LBFGS':
                     self.optimizer.step(closure)
                 else:
-                    self.optimizer.step()
-                    
+                    self.optimizer.step()    
                 
                 if (self.itr+1) % self.itr_printing_freq == 0:
                     self.print_iteration()
-                    self.time_meter.update(self.epoch, self.itr, time.perf_counter() - self.itr_start_time)
+                
+                # log everything
+                self.logger.update([self.epoch, self.itr, self.optimizer.param_groups[0]["lr"], self.batch_length, loss.item(), None, time.perf_counter() - self.itr_start_time])
                     
             if self.after_epoch():
                 # if True, then early stopping
@@ -171,7 +174,7 @@ class Trainer():
             self.plot_traj(self.epoch)
 
         if self.epoch % self.evaluation_freq == 0:
-            self.evaluate(validate=False)
+            self.logger.log[-1][-2] = self.evaluate(validate=False)
 
         if self.epoch % self.checkpoint_freq == 0:
             self.checkpoint()
@@ -352,17 +355,13 @@ class Trainer():
         plt.close()
         return
 
-    def log_hyperparameters(self, subfolder):
-        with open(f'{subfolder}/hyperparameters.txt', 'w') as f:
-            f.write(f'device = {self.device} \n')
-            f.write(f'training datasets = {self.training_dataset.filenames} in {self.folder} \n')
-            f.write(f'NN architecture = 11 - {self.nn_widths} - 1 \n')    
-            f.write(f'number of parameters = {self.nparameters} \n')
-            f.write(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name} \n')
-            f.write(f'scheduler = {self.scheduler_name}, scheduling factor = {self.scheduling_factor}, scheduling freq = {self.scheduling_freq} \n')
-            f.write(f'number of batches = {self.batch_size}, traj length = {self.batch_length} \n')
-            f.write(f'loss function = {self.loss_func_name} \n')
-        return
+    def log_metadata(self, config):
+        subfolder = f'results/{self.day}/{self.time}/'
+        if not os.path.exists(f'{subfolder}'):
+            os.makedirs(f'{subfolder}')
+        with open(f'{subfolder}/metadata.csv', 'w') as f:
+            for key, value in config.items():
+                f.write(f'{str(key)},{str(value)} \n')        
 
     def set_loss_func(self, loss_func):
         if loss_func == 'all':
@@ -477,18 +476,9 @@ class Trainer():
         self.plot_loss(subfolder)
         self.plot_lr(subfolder)
         self.plot_evaluation(subfolder)
-        self.log_hyperparameters(subfolder)
-        self.log_loss(subfolder)
-        self.log_eval(subfolder)
-        self.log_lr(subfolder)
+        self.logger.save_csv(subfolder)
         if self.sigopt:
             self.report_sigopt(subfolder)
-
-        self.log_time(subfolder)
-        return
-
-    def log_time(self, subfolder):
-        np.save(f'{subfolder}/time.npy', self.time_meter.get_array())
         return
 
     def report_sigopt(self, subfolder):
@@ -505,6 +495,7 @@ class Trainer():
         self.plot_loss(subfolder)
         self.plot_lr(subfolder)
         self.plot_evaluation(subfolder)
+        self.logger.save_csv(subfolder)
         return None
 
     def print_cuda_memory(self):
@@ -518,25 +509,7 @@ class Trainer():
         print(f'Free memory: {f}')
         print('====================================================')
         return None
-
-    def log_loss(self, subfolder):
-        with open(f'{subfolder}/loss.txt', 'w') as f:
-            for loss in self.loss_meter.losses:
-                f.write(f'{loss}\n')
-        return
-
-    def log_eval(self, subfolder):
-        with open(f'{subfolder}/eval.txt', 'w') as f:
-            for eval in self.loss_meter.evals:
-                f.write(f'{eval}\n')
-        return
-
-    def log_lr(self, subfolder):
-        with open(f'{subfolder}/lr.txt', 'w') as f:
-            for lr in self.loss_meter.lrs:
-                f.write(f'{lr}\n')
-        return
-
+    
     def get_batch_t(self, dt, batch_length=None):
         if batch_length == None:
             batch_length = self.batch_length
@@ -545,19 +518,6 @@ class Trainer():
             return torch.linspace(0.0,dt[0]*(batch_length-1),batch_length).to(self.device, non_blocking=True).type(self.dtype)
         else:
             return torch.linspace(0.0,dt*(batch_length-1),batch_length).to(self.device, non_blocking=True).type(self.dtype)
-
-
-class TimeMeter(object):
-
-    def __init__(self):
-        self.times = []
-
-    def update(self, epoch, itr, time):
-        self.times.append([epoch, itr, time])
-
-    def get_array(self):
-        return np.array(self.times)
-
 
 class RunningAverageMeter(object):
     """Computes and stores the average and current value"""
