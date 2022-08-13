@@ -20,6 +20,8 @@ class Dataset(torch.utils.data.Dataset):
         self.data = self.get_data()
         self.init_IDS = self.get_init_IDS()
 
+        self.max_p, self.max_l, self.max_x = self.find_max()
+
         # add logging in trajectory names of the used trajectories
         
     def __len__(self):
@@ -135,3 +137,14 @@ class Dataset(torch.utils.data.Dataset):
             ids = [f'{traj_id}-{i}' for i in ids]
             init_IDS += ids[:-self.batch_length]
         return init_IDS
+
+    def find_max(self):
+        p, l, x, _ = torch.split(self.data, [3, 3, 3, 4], dim=-1)
+        p_max = torch.max(torch.norm(p[:, :, 1, :] - p[:, :, 0, :], dim=-1))
+        l_max = torch.max(torch.norm(l[:, :, 1, :] - l[:, :, 0, :], dim=-1))
+        x_max = torch.max(torch.norm(x[:, :, 1, :] - x[:, :, 0, :], dim=-1))
+
+        return p_max, l_max, x_max
+
+    def get_max(self):
+        return self.max_p, self.max_l, self.max_x

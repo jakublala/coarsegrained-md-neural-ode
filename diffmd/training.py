@@ -55,7 +55,8 @@ class Trainer():
         self.training_dataloader = self.get_dataloader(self.training_dataset) 
         self.test_dataloader = self.get_dataloader(self.test_dataset) 
         self.validation_dataloader = self.get_dataloader(self.validation_dataset)
-        
+        self.train_max_p, self.train_max_l, self.train_max_x = self.training_dataset.get_max()
+
         self.log_metadata(config)
         self.logger = Logger()
         self.loss_meter = RunningAverageMeter()
@@ -364,22 +365,22 @@ class Trainer():
                 f.write(f'{str(key)},{str(value)} \n')        
 
     def set_loss_func(self, loss_func):
-        if loss_func == 'all':
-            return all_loss_func
-        elif loss_func == 'final':
-            return final_loss_func
-        elif loss_func == 'all-pos':
-            return all_pos_loss_func
-        elif loss_func == 'final-pos':
-            return final_pos_loss_func
-        elif loss_func == 'all-2':
+        # if loss_func == 'all':
+        #     return all_loss_func
+        # elif loss_func == 'final':
+        #     return final_loss_func
+        # elif loss_func == 'all-pos':
+        #     return all_pos_loss_func
+        # elif loss_func == 'final-pos':
+        #     return final_pos_loss_func
+        if loss_func == 'all-2':
             return all_loss_func_2
         elif loss_func == 'final-2':
             return final_loss_func_2
-        elif loss_func == 'all-pos-2':
-            return all_pos_loss_func_2
-        elif loss_func == 'final-pos-2':
-            return final_pos_loss_func_2
+        # elif loss_func == 'all-pos-2':
+        #     return all_pos_loss_func_2
+        # elif loss_func == 'final-pos-2':
+        #     return final_pos_loss_func_2
         else:
             raise ValueError(f'loss function {loss_func} not recognised')
 
@@ -438,16 +439,18 @@ class Trainer():
             # TODO: maybe move this elsewhere and make it more robust? maybe have an Evaluation class
             if validate:
                 dataloader = self.validation_dataloader
+                max_p, max_l, max_x = self.validation_dataset.get_max()
             else:
                 dataloader = self.test_dataloader
-
+                max_p, max_l, max_x = self.test_dataset.get_max()
+            
             eval_loss = []
             for batch_input, batch_y in dataloader:
                     # forward pass
                     pred_y = self.forward_pass(batch_input, batch_length=self.eval_batch_length)
 
                     # loss across entire trajectory
-                    loss = torch.mean(torch.abs(pred_y - batch_y))
+                    loss = all_pos_loss_func_2(pred_y, batch_y, max_p, max_l, max_x)
 
                     eval_loss.append(loss.cpu().item())
             
