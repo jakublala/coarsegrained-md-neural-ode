@@ -53,7 +53,6 @@ def all_pos_loss_func_2(pred_y, true_y, max_p, max_l, max_x):
     # quaternions
     diff_q = (pred_q - true_q)
     loss_q = torch.mean(diff_q**2)
-
     return loss_r + loss_q
 
 def final_pos_loss_func_2(pred_y, true_y, max_p, max_l, max_x):

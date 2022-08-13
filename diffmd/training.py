@@ -128,7 +128,7 @@ class Trainer():
                         param.grad = None  
                     # forward pass                
                     pred_y = self.forward_pass(batch_input)
-                    loss = self.loss_func(pred_y, batch_y)
+                    loss = self.loss_func(pred_y, batch_y, self.train_max_p, self.train_max_l, self.train_max_x)
                     loss.backward()
                     return loss
 
@@ -138,8 +138,8 @@ class Trainer():
 
                 # forward pass                
                 pred_y = self.forward_pass(batch_input)
-                loss = self.loss_func(pred_y, batch_y)
-
+                loss = self.loss_func(pred_y, batch_y, self.train_max_p, self.train_max_l, self.train_max_x)
+                    
                 # backward pass      
                 loss.backward() 
                 self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
@@ -377,10 +377,10 @@ class Trainer():
             return all_loss_func_2
         elif loss_func == 'final-2':
             return final_loss_func_2
-        # elif loss_func == 'all-pos-2':
-        #     return all_pos_loss_func_2
-        # elif loss_func == 'final-pos-2':
-        #     return final_pos_loss_func_2
+        elif loss_func == 'all-pos-2':
+            return all_pos_loss_func_2
+        elif loss_func == 'final-pos-2':
+            return final_pos_loss_func_2
         else:
             raise ValueError(f'loss function {loss_func} not recognised')
 
