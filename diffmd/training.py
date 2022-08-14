@@ -381,6 +381,8 @@ class Trainer():
             return all_pos_loss_func_2
         elif loss_func == 'final-pos-2':
             return final_pos_loss_func_2
+        elif loss_func == 'final-pos-perc-2':
+            return final_pos_percentage_loss_func_2
         else:
             raise ValueError(f'loss function {loss_func} not recognised')
 
