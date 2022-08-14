@@ -374,13 +374,15 @@ class Trainer():
         # elif loss_func == 'final-pos':
         #     return final_pos_loss_func
         if loss_func == 'all-2':
-            return all_loss_func_2
+              return all_loss_func_2
         elif loss_func == 'final-2':
             return final_loss_func_2
-        elif loss_func == 'all-pos-2':
-            return all_pos_loss_func_2
-        elif loss_func == 'final-pos-2':
-            return final_pos_loss_func_2
+        # elif loss_func == 'all-pos-2':
+        #     return all_pos_loss_func_2
+        # elif loss_func == 'final-pos-2':
+        #     return final_pos_loss_func_2
+        # elif loss_func == 'final-pos-perc-2':
+        #     return final_pos_percentage_loss_func_2
         else:
             raise ValueError(f'loss function {loss_func} not recognised')
 
@@ -450,7 +452,7 @@ class Trainer():
                     pred_y = self.forward_pass(batch_input, batch_length=self.eval_batch_length)
 
                     # loss across entire trajectory
-                    loss = all_pos_loss_func_2(pred_y, batch_y, max_p, max_l, max_x)
+                    loss = all_loss_func_2(pred_y, batch_y)
 
                     eval_loss.append(loss.cpu().item())
             
