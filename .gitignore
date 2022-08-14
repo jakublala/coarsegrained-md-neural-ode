@@ -145,6 +145,7 @@ sigopt-model.py
 sigopt*
 experiment.yml
 run-gpu.py
+arch*
 
 # Dataset
 dataset/
