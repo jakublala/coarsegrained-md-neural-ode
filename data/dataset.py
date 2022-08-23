@@ -5,6 +5,7 @@ import os
 
 from data.trajectory import Trajectory
 import torch.utils.data
+import random
 
 
 class Dataset(torch.utils.data.Dataset):
@@ -12,13 +13,15 @@ class Dataset(torch.utils.data.Dataset):
         self.device = config['device']
         self.dtype = config['dtype']
         self.batch_length = batch_length
-
+        
         self.folder = self.set_folder(config, dataset_type)
         self.filenames = self.get_filenames()
         self.trajs = self.get_trajectories()
         
         self.data = self.get_data()
         self.init_IDS = self.get_init_IDS()
+        if dataset_type == 'train' and config['training_fraction'] != None:
+            self.init_IDS = self.get_fraction_IDS(config['training_fraction'])
 
         self.max_p, self.max_l, self.max_x = self.find_max()
 
@@ -138,6 +141,11 @@ class Dataset(torch.utils.data.Dataset):
             init_IDS += ids[:-self.batch_length]
         return init_IDS
 
+    def get_fraction_IDS(self, fraction):
+        num_inits = int(len(self.init_IDS) * fraction)
+        random.shuffle(self.init_IDS)
+        return self.init_IDS[:num_inits]
+        
     def find_max(self):
         p, l, x, _ = torch.split(self.data, [3, 3, 3, 4], dim=-1)
         p_max = torch.max(torch.norm(p[:, :, 1, :] - p[:, :, 0, :], dim=-1))

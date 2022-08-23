@@ -36,7 +36,7 @@ def assignVariables(file_path, variables, values):
 # run main
 if __name__ == '__main__':
 
-    folder_name = 'single_temp_small_many_seeds'
+    folder_name = 'single_temp_massive'
 
     if not os.path.exists(f'../dataset/{folder_name}'):
         os.makedirs(f'../dataset/{folder_name}')
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     
     # takes about 50 seconds
     log_freq = 100
-    runsteps = 10000000 // 10
+    runsteps = 10000000
     timestep = 0.00001
 
     # Create script to run all
@@ -61,21 +61,21 @@ if __name__ == '__main__':
     #     slurm_file.append('\n')
 
     # train
-    for seed in range(1, 51):
+    for seed in range(1, 81):
         values = [cut, temp, r0, k, seed, log_freq, runsteps, timestep]
         assignVariables(f'../dataset/{folder_name}/train', variables, values)
         run_script += [f'cd train/ \n', f'sbatch run-{seed}.sh \n', 'cd .. \n']
         
         
     # test
-    for seed in range(101, 111):
+    for seed in range(81, 91):
         values = [cut, temp, r0, k, seed, log_freq, runsteps, timestep]
         assignVariables(f'../dataset/{folder_name}/test', variables, values)
         run_script += [f'cd test/ \n', f'sbatch run-{seed}.sh \n', 'cd .. \n']
         
 
     # validate
-    for seed in range(201, 211):
+    for seed in range(91, 101):
         values = [cut, temp, r0, k, seed, log_freq, runsteps, timestep]
         assignVariables(f'../dataset/{folder_name}/validation', variables, values)
         run_script += [f'cd validation/ \n', f'sbatch run-{seed}.sh \n', 'cd .. \n']

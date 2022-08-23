@@ -1,7 +1,9 @@
 import torch
 import torch.nn as nn
 from diffmd.utils import normalize_quat, compute_grad
-from pytorch3d.transforms import quaternion_raw_multiply
+from pytorch3d.transforms import quaternion_raw_multiply, quaternion_apply
+
+import time
 
 class ODEFunc(nn.Module):
     def __init__(self, nparticles, dim, widths, function, dtype):
