@@ -13,7 +13,10 @@ class Dataset(torch.utils.data.Dataset):
         self.device = config['device']
         self.dtype = config['dtype']
         self.batch_length = batch_length
-        self.max_batch_length = self.batch_length + int(config['epochs'] / config['batch_length_freq']) * config['batch_length_step']
+        if dataset_type == 'train':
+            self.max_batch_length = self.batch_length + int(config['epochs'] / config['batch_length_freq']) * config['batch_length_step']
+        else:
+            self.max_batch_length = self.batch_length
         self.traj_step = config['traj_step']
         
         self.folder = self.set_folder(config, dataset_type)
