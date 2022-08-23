@@ -59,7 +59,7 @@ class ParallelTrainer(Trainer):
                 # forward pass
                 pred_y = self.forward_pass(batch_input, parallel=True)
 
-                loss = self.loss_func(pred_y, batch_y, self.train_max_p, self.train_max_l, self.train_max_x)
+                loss = self.loss_func(pred_y, batch_y)
                     
                 # backward pass                    
                 loss.backward() 
