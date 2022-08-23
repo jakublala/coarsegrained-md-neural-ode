@@ -15,9 +15,10 @@ class Dataset(torch.utils.data.Dataset):
         self.batch_length = batch_length
         if dataset_type == 'train':
             self.max_batch_length = self.batch_length + int(config['epochs'] / config['batch_length_freq']) * config['batch_length_step']
+            self.traj_step = config['traj_step']
         else:
             self.max_batch_length = self.batch_length
-        self.traj_step = config['traj_step']
+            self.traj_step = 1
         
         self.folder = self.set_folder(config, dataset_type)
         self.filenames = self.get_filenames()
