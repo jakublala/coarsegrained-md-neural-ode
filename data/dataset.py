@@ -13,6 +13,7 @@ class Dataset(torch.utils.data.Dataset):
         self.device = config['device']
         self.dtype = config['dtype']
         self.batch_length = batch_length
+        self.max_batch_length = int(config['epochs'] / config['batch_length_freq']) * config['batch_length_step']
         self.traj_step = config['traj_step']
         
         self.folder = self.set_folder(config, dataset_type)
@@ -137,7 +138,7 @@ class Dataset(torch.utils.data.Dataset):
         for traj_id, traj in enumerate(self.trajs):
             ids = list(range(traj.reader.n_logged_timesteps))
             ids = [f'{traj_id}-{i}' for i in ids]
-            init_IDS += ids[:-self.batch_length*self.traj_step]
+            init_IDS += ids[:-self.max_batch_length*self.traj_step]
         return init_IDS
 
     def get_fraction_IDS(self, fraction):
@@ -155,3 +156,6 @@ class Dataset(torch.utils.data.Dataset):
 
     def get_max(self):
         return self.max_p, self.max_l, self.max_x
+
+    def update(self, batch_length):
+        self.batch_length = batch_length

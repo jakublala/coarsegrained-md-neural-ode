@@ -21,7 +21,6 @@ from diffmd.losses import *
 class Trainer():
 
     def __init__(self, config):
-        self.config = config
         self.folder = config['folder']
         self.day, self.time = get_run_ID()
         self.device = config['device']
@@ -97,7 +96,7 @@ class Trainer():
         # get timesteps
         # TODO: this is always the same and so we can make it simpler
         batch_t = self.get_batch_t(dt, batch_length)
-        
+
         # set constants
         if parallel:
             self.func.module.k = k.to(self.device, non_blocking=True).type(self.dtype)
@@ -201,12 +200,8 @@ class Trainer():
             #     return self.func, self.loss_meter
         
     def increase_batch_length(self):
-        del self.training_dataset, self.training_dataloader
-
         self.batch_length += self.batch_length_step
-        # HACK: self config
-        self.training_dataset = Dataset(self.config, dataset_type='train', batch_length=self.batch_length) 
-        self.training_dataloader = self.get_dataloader(self.training_dataset)
+        self.training_dataset.update(self.batch_length)
 
     def load_func(self):
         # in case we load a DDP model checkpoint to a non-DDP model
