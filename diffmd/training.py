@@ -49,7 +49,7 @@ class Trainer():
         self.dtype = config['dtype']
 
         # dataset setup
-        self.training_dataset = Dataset(config, dataset_type='train', batch_length=self.batch_length)
+        self.training_dataset = Dataset(config, dataset_type='train', batch_length=self.batch_length, dataset_fraction=config['training_fraction'])
         self.test_dataset = Dataset(config, dataset_type='test', batch_length=self.eval_batch_length)
         self.validation_dataset = Dataset(config, dataset_type='validation', batch_length=self.eval_batch_length)
         self.training_dataloader = self.get_dataloader(self.training_dataset) 

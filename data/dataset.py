@@ -9,7 +9,7 @@ import random
 
 
 class Dataset(torch.utils.data.Dataset):
-    def __init__(self, config, dataset_type, batch_length):
+    def __init__(self, config, dataset_type, batch_length, dataset_fraction=None):
         self.device = config['device']
         self.dtype = config['dtype']
         self.batch_length = batch_length
@@ -20,8 +20,8 @@ class Dataset(torch.utils.data.Dataset):
         
         self.data = self.get_data()
         self.init_IDS = self.get_init_IDS()
-        if dataset_type == 'train' and config['training_fraction'] != None:
-            self.init_IDS = self.get_fraction_IDS(config['training_fraction'])
+        if dataset_fraction != None:
+            self.init_IDS = self.get_fraction_IDS(dataset_fraction)
 
         self.max_p, self.max_l, self.max_x = self.find_max()
 
