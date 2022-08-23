@@ -139,7 +139,7 @@ class Trainer():
                 # forward pass                
                 pred_y = self.forward_pass(batch_input)
                 loss = self.loss_func(pred_y, batch_y)
-                    
+
                 # backward pass      
                 loss.backward() 
                 self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])

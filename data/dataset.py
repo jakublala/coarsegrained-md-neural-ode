@@ -13,6 +13,7 @@ class Dataset(torch.utils.data.Dataset):
         self.device = config['device']
         self.dtype = config['dtype']
         self.batch_length = batch_length
+        self.traj_step = config['traj_step']
         
         self.folder = self.set_folder(config, dataset_type)
         self.filenames = self.get_filenames()
@@ -33,7 +34,7 @@ class Dataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         init_id = self.init_IDS[index]
         traj_id, timestep_id = [int(i) for i in init_id.split('-')]
-        dt = self.trajs[traj_id].dt
+        dt = self.trajs[traj_id].dt * self.traj_step
         k = self.trajs[traj_id].k
         r0 = self.trajs[traj_id].r0
         inertia = self.trajs[traj_id].inertia
@@ -42,8 +43,7 @@ class Dataset(torch.utils.data.Dataset):
         init = (self.data[traj_id, timestep_id], dt, k, r0, inertia)
         
         # get true trajectory
-        true_traj = self.data[traj_id, timestep_id:(timestep_id+self.batch_length)]
-        
+        true_traj = self.data[traj_id, timestep_id:(timestep_id+self.batch_length*self.traj_step):self.traj_step]
         return init, true_traj
 
     def get_filenames(self):
@@ -132,13 +132,12 @@ class Dataset(torch.utils.data.Dataset):
         data = torch.cat(data, dim=0)
         return data.to(self.device)
 
-
     def get_init_IDS(self):
         init_IDS = []
         for traj_id, traj in enumerate(self.trajs):
             ids = list(range(traj.reader.n_logged_timesteps))
             ids = [f'{traj_id}-{i}' for i in ids]
-            init_IDS += ids[:-self.batch_length]
+            init_IDS += ids[:-self.batch_length*self.traj_step]
         return init_IDS
 
     def get_fraction_IDS(self, fraction):
