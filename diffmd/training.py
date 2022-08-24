@@ -360,24 +360,10 @@ class Trainer():
                 f.write(f'{str(key)},{str(value)} \n')        
 
     def set_loss_func(self, loss_func):
-        # if loss_func == 'all':
-        #     return all_loss_func
-        # elif loss_func == 'final':
-        #     return final_loss_func
-        # elif loss_func == 'all-pos':
-        #     return all_pos_loss_func
-        # elif loss_func == 'final-pos':
-        #     return final_pos_loss_func
-        if loss_func == 'all-2':
-              return all_loss_func_2
-        elif loss_func == 'final-2':
-            return final_loss_func_2
-        # elif loss_func == 'all-pos-2':
-        #     return all_pos_loss_func_2
-        # elif loss_func == 'final-pos-2':
-        #     return final_pos_loss_func_2
-        # elif loss_func == 'final-pos-perc-2':
-        #     return final_pos_percentage_loss_func_2
+        if 'all-mse' == loss_func:
+            return all_mse
+        elif 'final-mse' == loss_func:
+            return final_mse
         else:
             raise ValueError(f'loss function {loss_func} not recognised')
 
