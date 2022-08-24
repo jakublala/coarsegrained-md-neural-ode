@@ -433,7 +433,7 @@ class Trainer():
                     pred_y = self.forward_pass(batch_input, batch_length=self.eval_batch_length)
 
                     # loss across entire trajectory
-                    loss = all_loss_func_2(pred_y, batch_y)
+                    loss = all_mse(pred_y, batch_y)
 
                     eval_loss.append(loss.cpu().item())
             
