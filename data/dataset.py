@@ -13,21 +13,28 @@ class Dataset(torch.utils.data.Dataset):
         self.device = config['device']
         self.dtype = config['dtype']
         self.batch_length = batch_length
+
+
         if dataset_type == 'train':
             self.max_batch_length = self.batch_length + int(config['epochs'] / config['batch_length_freq']) * config['batch_length_step']
             self.traj_step = config['traj_step']
+            self.eval_init_skip = None
+            
         else:
             self.max_batch_length = self.batch_length
             self.traj_step = 1
-        
+            self.eval_init_skip = config['eval_init_skip']
+            
         self.folder = self.set_folder(config, dataset_type)
         self.filenames = self.get_filenames()
         self.trajs = self.get_trajectories()
         
         self.data = self.get_data()
         self.init_IDS = self.get_init_IDS()
+        
         if dataset_fraction != None:
             self.init_IDS = self.get_fraction_IDS(dataset_fraction)
+
 
         self.max_p, self.max_l, self.max_x = self.find_max()
 
@@ -142,14 +149,18 @@ class Dataset(torch.utils.data.Dataset):
         for traj_id, traj in enumerate(self.trajs):
             ids = list(range(traj.reader.n_logged_timesteps))
             ids = [f'{traj_id}-{i}' for i in ids]
-            init_IDS += ids[:-self.max_batch_length*self.traj_step]
+            if self.eval_init_skip == None:
+                init_IDS += ids[:-self.max_batch_length*self.traj_step]
+            else:
+                init_IDS += ids[:-self.max_batch_length*self.traj_step:self.eval_init_skip]
+
         return init_IDS
 
     def get_fraction_IDS(self, fraction):
         num_inits = int(len(self.init_IDS) * fraction)
         random.shuffle(self.init_IDS)
         return self.init_IDS[:num_inits]
-        
+
     def find_max(self):
         p, l, x, _ = torch.split(self.data, [3, 3, 3, 4], dim=-1)
         p_max = torch.max(torch.norm(p[:, :, 1, :] - p[:, :, 0, :], dim=-1))

@@ -36,7 +36,7 @@ def assignVariables(file_path, variables, values):
 # run main
 if __name__ == '__main__':
 
-    folder_name = 'single_temp_massive'
+    folder_name = 'single_temp_medium'
 
     if not os.path.exists(f'../dataset/{folder_name}'):
         os.makedirs(f'../dataset/{folder_name}')
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     
     # takes about 50 seconds
     log_freq = 100
-    runsteps = 10000000
+    runsteps = 5000000
     timestep = 0.00001
 
     # Create script to run all
