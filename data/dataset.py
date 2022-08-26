@@ -13,7 +13,7 @@ class Dataset(torch.utils.data.Dataset):
         self.device = config['device']
         self.dtype = config['dtype']
         self.batch_length = batch_length
-
+        self.dataset_fraction = dataset_fraction
 
         if dataset_type == 'train':
             self.max_batch_length = self.batch_length + int(config['epochs'] / config['batch_length_freq']) * config['batch_length_step']
@@ -31,9 +31,8 @@ class Dataset(torch.utils.data.Dataset):
         self.data = self.get_data()
         self.init_IDS = self.get_init_IDS()
         
-        if dataset_fraction != None:
-            self.init_IDS = self.get_fraction_IDS(dataset_fraction)
-
+        if self.dataset_fraction != None:
+            self.init_IDS = self.get_fraction_IDS()
 
         self.max_p, self.max_l, self.max_x = self.find_max()
 
@@ -155,8 +154,8 @@ class Dataset(torch.utils.data.Dataset):
 
         return init_IDS
 
-    def get_fraction_IDS(self, fraction):
-        num_inits = int(len(self.init_IDS) * fraction)
+    def get_fraction_IDS(self):
+        num_inits = int(len(self.init_IDS) * self.dataset_fraction)
         random.shuffle(self.init_IDS)
         return self.init_IDS[:num_inits]
 

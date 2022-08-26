@@ -214,7 +214,6 @@ class Trainer():
                 model_dict[re.sub(pattern, '', k)] = v
             else:
                 model_dict = state_dict
-        
         self.func.load_state_dict(model_dict)
 
 
@@ -242,11 +241,12 @@ class Trainer():
         if subfolder == 'temp':
             batch_length = 1000
         else:
-            batch_length = 10000    
-        self.training_dataset.batch_length = batch_length
+            batch_length = 10000 
+        self.training_dataset.update(batch_length)
 
         with torch.no_grad():
-            batch_input, batch_y = self.training_dataset[0]
+            init_index = self.training_dataset.init_IDS.index(min(self.training_dataset.init_IDS, key=len))
+            batch_input, batch_y = self.training_dataset[init_index]
             batch_input = list(batch_input)
             batch_input[0] = batch_input[0].unsqueeze(0)
             batch_input = tuple(batch_input)
