@@ -229,6 +229,7 @@ class Trainer():
         print(f'Last iteration took:', time.perf_counter() - self.itr_start_time, flush=True)
 
     def plot_traj(self, itr, subfolder='temp'):
+        # TODO: fix this
         if itr == self.plotting_freq:
             if subfolder == 'temp' and os.path.exists(f'{subfolder}'):
                 shutil.rmtree(f'{subfolder}')
@@ -457,7 +458,7 @@ class Trainer():
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
-        self.plot_traj(self.start_epoch+self.epochs, subfolder)
+        # self.plot_traj(self.start_epoch+self.epochs, subfolder)
         self.plot_loss(subfolder)
         self.plot_lr(subfolder)
         self.plot_evaluation(subfolder)
