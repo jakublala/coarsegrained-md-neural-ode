@@ -54,7 +54,6 @@ class Trainer():
         self.training_dataloader = self.get_dataloader(self.training_dataset) 
         self.test_dataloader = self.get_dataloader(self.test_dataset) 
         self.validation_dataloader = self.get_dataloader(self.validation_dataset)
-        self.train_max_p, self.train_max_l, self.train_max_x = self.training_dataset.get_max()
 
         self.log_metadata(config)
         self.logger = Logger()
@@ -137,7 +136,7 @@ class Trainer():
 
                 # forward pass                
                 pred_y = self.forward_pass(batch_input)
-                loss = self.loss_func(pred_y, batch_y)
+                loss = self.loss_func(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means)
 
                 # backward pass      
                 loss.backward() 
@@ -422,10 +421,10 @@ class Trainer():
             # TODO: maybe move this elsewhere and make it more robust? maybe have an Evaluation class
             if validate:
                 dataloader = self.validation_dataloader
-                max_p, max_l, max_x = self.validation_dataset.get_max()
+                dataset = self.validation_dataset
             else:
                 dataloader = self.test_dataloader
-                max_p, max_l, max_x = self.test_dataset.get_max()
+                dataset = self.test_dataset
             
             eval_loss = []
             for batch_input, batch_y in dataloader:
@@ -433,7 +432,7 @@ class Trainer():
                     pred_y = self.forward_pass(batch_input, batch_length=self.eval_batch_length)
 
                     # loss across entire trajectory
-                    loss = all_mse(pred_y, batch_y)
+                    loss = all_mse(pred_y, batch_y, dataset.stds, dataset.means)
 
                     eval_loss.append(loss.cpu().item())
             

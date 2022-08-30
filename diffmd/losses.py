@@ -1,23 +1,34 @@
 import torch
 
-def all_mse(pred_y, true_y):
-    pred_p, pred_l, pred_x, pred_q = torch.split(pred_y, [3, 3, 3, 4], dim=-1)
-    true_p, true_l, true_x, true_q = torch.split(true_y, [3, 3, 3, 4], dim=-1)
+def all_mse(pred_y, true_y, stds, means):
+    pred = list(torch.split(pred_y, [3, 3, 3, 4], dim=-1))
+    true = list(torch.split(true_y, [3, 3, 3, 4], dim=-1))
     
-    # pred_r = pred_x[:, :, 1, :] - pred_x[:, :, 0, :]
-    # true_r = true_x[:, :, 1, :] - true_x[:, :, 0, :]
-
-    return torch.mean((pred_p - true_p)**2) + torch.mean((pred_l - true_l)**2) + torch.mean((pred_x - true_x)**2) + torch.mean((pred_q - true_q)**2)
+    pred[2] = pred[2][:, :, 1, :] - pred[2][:, :, 0, :]
+    true[2] = true[2][:, :, 1, :] - true[2][:, :, 0, :]
     
-def final_mse(pred_y, true_y):
-    pred_p, pred_l, pred_x, pred_q = torch.split(pred_y[:, -1, :, :], [3, 3, 3, 4], dim=-1)
-    true_p, true_l, true_x, true_q = torch.split(true_y[:, -1, :, :], [3, 3, 3, 4], dim=-1)
+    for i, mean in enumerate(means):
+        pred[i] = pred[i] - mean
+        pred[i] = pred[i] / stds[i]
+        true[i] = true[i] - mean
+        true[i] = true[i] / stds[i]
 
-    # pred_r = pred_x[:, 1, :] - pred_x[:, 0, :]
-    # true_r = true_x[:, 1, :] - true_x[:, 0, :]
+    return torch.mean((pred[0] - true[0])**2) + torch.mean((pred[1] - true[1])**2) + torch.mean((pred[2] - true[2])**2) + torch.mean((pred[3] - true[3])**2)
 
-    return torch.mean((pred_p - true_p)**2) + torch.mean((pred_l - true_l)**2) + torch.mean((pred_x - true_x)**2) + torch.mean((pred_q - true_q)**2)
+def final_mse(pred_y, true_y, stds, means):
+    pred = list(torch.split(pred_y[:, -1, :, :], [3, 3, 3, 4], dim=-1))
+    true = list(torch.split(true_y[:, -1, :, :], [3, 3, 3, 4], dim=-1))
 
+    pred[2] = pred[2][:, 1, :] - pred[2][:, 0, :]
+    true[2] = true[2][:, 1, :] - true[2][:, 0, :]
+
+    for i, mean in enumerate(means):
+        pred[i] = pred[i] - mean
+        pred[i] = pred[i] / stds[i]
+        true[i] = true[i] - mean
+        true[i] = true[i] / stds[i]
+
+    return torch.mean((pred[0] - true[0])**2) + torch.mean((pred[1] - true[1])**2) + torch.mean((pred[2] - true[2])**2) + torch.mean((pred[3] - true[3])**2)
 
 # def all_loss_func(pred_y, true_y):
 #     return torch.mean(torch.abs(pred_y - true_y))

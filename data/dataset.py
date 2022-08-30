@@ -34,7 +34,8 @@ class Dataset(torch.utils.data.Dataset):
         if self.dataset_fraction != None:
             self.init_IDS = self.get_fraction_IDS()
 
-        self.max_p, self.max_l, self.max_x = self.find_max()
+        self.stds = self.find_stds()
+        self.means = self.find_means()
 
         # add logging in trajectory names of the used trajectories
         
@@ -159,16 +160,23 @@ class Dataset(torch.utils.data.Dataset):
         random.shuffle(self.init_IDS)
         return self.init_IDS[:num_inits]
 
-    def find_max(self):
-        p, l, x, _ = torch.split(self.data, [3, 3, 3, 4], dim=-1)
-        p_max = torch.max(torch.norm(p[:, :, 1, :] - p[:, :, 0, :], dim=-1))
-        l_max = torch.max(torch.norm(l[:, :, 1, :] - l[:, :, 0, :], dim=-1))
-        x_max = torch.max(torch.norm(x[:, :, 1, :] - x[:, :, 0, :], dim=-1))
+    def find_stds(self):
+        p, l, x, q = torch.split(self.data, [3, 3, 3, 4], dim=-1)
+        r = x[:, :, 1, :] - x[:, :, 0, :]
+        p_std = torch.std(p, dim=1).mean()
+        l_std = torch.std(l, dim=1).mean()
+        r_std = torch.std(r, dim=1).mean()
+        q_std = torch.std(q, dim=1).mean()
+        return p_std, l_std, r_std, q_std
 
-        return p_max, l_max, x_max
-
-    def get_max(self):
-        return self.max_p, self.max_l, self.max_x
+    def find_means(self):
+        p, l, x, q = torch.split(self.data, [3, 3, 3, 4], dim=-1)
+        r = x[:, :, 1, :] - x[:, :, 0, :]
+        p_mean = torch.mean(p, dim=1).mean()
+        l_mean = torch.mean(l, dim=1).mean()
+        r_mean = torch.mean(r, dim=1).mean()
+        q_mean = torch.mean(q, dim=1).mean()
+        return p_mean, l_mean, r_mean, q_mean
 
     def update(self, batch_length):
         self.batch_length = batch_length
