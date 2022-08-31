@@ -51,7 +51,7 @@ class Trainer():
         self.training_dataset = Dataset(config, dataset_type='train', batch_length=self.batch_length, dataset_fraction=config['training_fraction'])
         self.test_dataset = Dataset(config, dataset_type='test', batch_length=self.eval_batch_length)
         self.validation_dataset = Dataset(config, dataset_type='validation', batch_length=self.eval_batch_length)
-        self.training_dataloader = self.get_dataloader(self.training_dataset) 
+        self.training_dataloader = self.get_dataloader(self.training_dataset, shuffle=self.shuffle) 
         self.test_dataloader = self.get_dataloader(self.test_dataset) 
         self.validation_dataloader = self.get_dataloader(self.validation_dataset)
 
@@ -368,13 +368,19 @@ class Trainer():
             raise ValueError(f'loss function {loss_func} not recognised')
 
         
-    def get_dataloader(self, dataset, no_batch=False):
+    def get_dataloader(self, dataset, no_batch=False, shuffle=False):
         # TODO: make this cleaner
+        params = {'num_workers': self.num_workers}
         if no_batch:
-            params = {'batch_size': 1, 'shuffle': self.shuffle, 'num_workers': self.num_workers}
+            params['batch_size'] = 1
         else:
-            params = {'batch_size': self.batch_size, 'shuffle': self.shuffle, 'num_workers': self.num_workers}
+            params['batch_size'] = self.batch_size
         
+        if shuffle:
+            params['shuffle'] = True
+        else:
+            params['shuffle'] = False
+
         return torch.utils.data.DataLoader(dataset, **params)
 
     def set_optimizer(self, optimizer):
@@ -429,19 +435,19 @@ class Trainer():
             
             eval_loss = []
             for batch_input, batch_y in dataloader:
-                    # forward pass
-                    pred_y = self.forward_pass(batch_input, batch_length=self.eval_batch_length)
+                # forward pass
+                pred_y = self.forward_pass(batch_input, batch_length=self.eval_batch_length)
 
-                    # loss across entire trajectory
-                    loss = all_mse(pred_y, batch_y, dataset.stds, dataset.means)
+                # loss across entire trajectory
+                loss = all_mse(pred_y, batch_y, dataset.stds, dataset.means)
 
-                    eval_loss.append(loss.cpu().item())
+                eval_loss.append(loss.cpu().item())
+
+                del pred_y, loss, batch_input, batch_y
             
             eval_loss = np.mean(eval_loss)
             self.loss_meter.evals.append(eval_loss)
             
-            # delete all variables from GPU memory
-            del batch_input, batch_y, pred_y, loss
         return eval_loss
 
     def plot_evaluation(self, subfolder):
