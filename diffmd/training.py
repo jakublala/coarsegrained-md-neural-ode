@@ -198,6 +198,7 @@ class Trainer():
     def increase_batch_length(self):
         self.batch_length += self.batch_length_step
         self.training_dataset.update(self.batch_length)
+        self.loss_meter.reset()
 
     def load_func(self):
         # in case we load a DDP model checkpoint to a non-DDP model
@@ -521,6 +522,7 @@ class RunningAverageMeter(object):
     def reset(self):
         self.val = None
         self.avg = 0
+        self.checkpoints = []
 
     def update(self, val, lr):
         if self.val is None:
