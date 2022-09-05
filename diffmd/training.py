@@ -464,7 +464,7 @@ class Trainer():
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
-        # self.plot_traj(self.start_epoch+self.epochs, subfolder)
+        self.plot_traj(self.start_epoch+self.epochs, subfolder)
         self.plot_loss(subfolder)
         self.plot_lr(subfolder)
         self.plot_evaluation(subfolder)
@@ -507,9 +507,9 @@ class Trainer():
             batch_length = self.batch_length
 
         if type(dt) == torch.Tensor:
-            return torch.linspace(0.0,dt[0]*(batch_length-1),batch_length).to(self.device, non_blocking=True).type(self.dtype)
+            return torch.linspace(0.0,dt[0]*(batch_length-1),batch_length+1).to(self.device, non_blocking=True).type(self.dtype)
         else:
-            return torch.linspace(0.0,dt*(batch_length-1),batch_length).to(self.device, non_blocking=True).type(self.dtype)
+            return torch.linspace(0.0,dt*(batch_length-1),batch_length+1).to(self.device, non_blocking=True).type(self.dtype)
 
 class RunningAverageMeter(object):
     """Computes and stores the average and current value"""
