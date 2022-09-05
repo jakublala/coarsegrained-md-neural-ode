@@ -21,7 +21,7 @@ class Dataset(torch.utils.data.Dataset):
             self.eval_init_skip = None
         else:
             self.max_batch_length = self.batch_length
-            self.traj_step = 1
+            self.traj_step = config['eval_traj_step']
             self.eval_init_skip = config['eval_init_skip']
             
         self.folder = self.set_folder(config, dataset_type)

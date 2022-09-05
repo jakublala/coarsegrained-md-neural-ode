@@ -13,6 +13,9 @@ def all_mse(pred_y, true_y, stds, means):
         true[i] = true[i] - mean
         true[i] = true[i] / stds[i]
 
+    # for i, label in enumerate(['p', 'l', 'r', 'q']):
+    #     print(f'{label} mse: {torch.mean((pred[i] - true[i])**2)}')
+
     return torch.mean((pred[0] - true[0])**2) + torch.mean((pred[1] - true[1])**2) + torch.mean((pred[2] - true[2])**2) + torch.mean((pred[3] - true[3])**2)
 
 def final_mse(pred_y, true_y, stds, means):
