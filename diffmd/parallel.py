@@ -35,9 +35,8 @@ class ParallelTrainer(Trainer):
         
         self.train()
 
-        # TODO: Add final save
-        # if is_main_process():
-        #     self.save()
+        if is_main_process():
+            self.save()
 
         # add early stopping?
         cleanup()
@@ -59,8 +58,10 @@ class ParallelTrainer(Trainer):
                 # forward pass
                 pred_y = self.forward_pass(batch_input, parallel=True)
 
-                loss = self.loss_func(pred_y, batch_y)
-                    
+                stds = tuple(i.to(self.device) for i in self.training_dataset.stds)
+                means = tuple(i.to(self.device) for i in self.training_dataset.means)
+                loss = self.loss_func(pred_y, batch_y, stds, means)
+    
                 # backward pass                    
                 loss.backward() 
                 self.optimizer.step()
@@ -71,9 +72,13 @@ class ParallelTrainer(Trainer):
                     if (self.itr+1) % self.itr_printing_freq == 0:
                         self.print_iteration()
 
+                    # log everything
+                    self.logger.update([self.epoch, self.itr, self.optimizer.param_groups[0]["lr"], self.batch_length, loss.item(), None, time.perf_counter() - self.itr_start_time])
+              
             # logging and waiting for all processes to finish epoch
-            if is_main_process():                
-                self.after_epoch()
+            if is_main_process(): 
+                if self.after_epoch():               
+                    return self.func, self.loss_meter
 
             # torch.distributed.barrier()
         
@@ -94,16 +99,7 @@ class ParallelTrainer(Trainer):
         sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True, drop_last=False)
         dataloader = DataLoader(dataset, batch_size=batch_size, pin_memory=pin_memory, num_workers=num_workers, drop_last=True, shuffle=False, sampler=sampler)
         return dataloader
-
-    def increase_batch_length(self):
-        del self.training_dataset, self.training_dataloader
-
-        self.batch_length += self.batch_length_step
-        # HACK: self config
-        self.training_dataset = Dataset(self.config, dataset_type='train', batch_length=self.batch_length) 
-        self.training_dataloader = self.get_parallel_dataloader(self.training_dataset, dist.get_rank(), self.world_size, self.batch_size)
-        
-
+    
 
 def is_dist_avail_and_initialized():
     if not dist.is_available():
@@ -122,12 +118,3 @@ def is_main_process():
 
 def cleanup():
     dist.destroy_process_group()
-
-
-# # in case we load a DDP model checkpoint to a non-DDP modelmodel_dict = OrderedDict()
-# pattern = re.compile('module.')
-# for k,v in state_dict.items():
-#     if re.search("module", k):
-#         model_dict[re.sub(pattern, '', k)] = v
-#     else:
-#         model_dict = state_dictmodel.load_state_dict(model_dict)
