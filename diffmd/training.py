@@ -73,6 +73,7 @@ class Trainer():
         self.func = ODEFunc(self.nparticles, self.dim, self.nn_widths, self.activation_function, self.dtype).to(self.device)
         self.nparameters = count_parameters(self.func)
 
+        self.weight_decay = config['weight_decay']
         self.loss_func = self.set_loss_func(self.loss_func_name)
         self.optimizer = self.set_optimizer(self.optimizer_name)
         self.scheduler = self.set_scheduler(self.scheduler_name, self.scheduling_factor)
@@ -392,7 +393,7 @@ class Trainer():
         elif optimizer == 'RAdam':
             return torch.optim.RAdam(self.func.parameters(), lr=self.learning_rate)
         elif optimizer == 'Adamax':
-            return torch.optim.Adamax(self.func.parameters(), lr=self.learning_rate, betas=(0.9, 0.999))
+            return torch.optim.Adamax(self.func.parameters(), lr=self.learning_rate, betas=(0.9, 0.999), weight_decay=self.weight_decay)
         elif optimizer == 'SGD':
             return torch.optim.SGD(self.func.parameters(), lr=self.learning_rate)
         elif optimizer == 'ASGD':
