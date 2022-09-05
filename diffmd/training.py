@@ -30,6 +30,7 @@ class Trainer():
         self.epochs = config['epochs']
         self.start_epoch = config['start_epoch']
         self.learning_rate = config['learning_rate']
+        self.traj_step = config['traj_step']
         self.batch_length = config['batch_length']
         self.batch_length_step = config['batch_length_step']
         self.batch_length_freq = config['batch_length_freq']
@@ -63,7 +64,6 @@ class Trainer():
         self.dim = 3 + (2*4)
         self.printing_freq = config['printing_freq']
         self.itr_printing_freq = config['itr_printing_freq']
-        self.plotting_freq = config['plotting_freq']
         self.stopping_freq = config['stopping_freq']
         self.stopping_look_back = config['stopping_look_back']
         self.scheduling_freq = config['scheduling_freq']
@@ -169,9 +169,6 @@ class Trainer():
         if self.epoch % self.printing_freq == 0:
             self.print_loss(self.epoch, self.start_time)
 
-        if self.epoch % self.plotting_freq == 0:
-            self.plot_traj(self.epoch)
-
         if self.epoch % self.evaluation_freq == 0:
             self.logger.log[-1][-2] = self.evaluate(validate=False)
 
@@ -228,23 +225,18 @@ class Trainer():
         print(f'Epoch: {self.epoch}, Iteration: {self.itr+1}, Loss: {self.loss_meter.val}')
         print(f'Last iteration took:', time.perf_counter() - self.itr_start_time, flush=True)
 
-    def plot_traj(self, itr, subfolder='temp'):
-        # TODO: fix this
-        if itr == self.plotting_freq:
-            if subfolder == 'temp' and os.path.exists(f'{subfolder}'):
-                shutil.rmtree(f'{subfolder}')
-
-            if subfolder == 'temp' and not os.path.exists(f'{subfolder}'):
-                os.makedirs(f'{subfolder}')
-
+    def plot_traj(self, checkpoint=False):
         # temporarily change batch length for plotting
-        if subfolder == 'temp':
-            batch_length = 1000
+        if checkpoint:
+            batch_length = 100
+            subfolder = f'results/{self.day}/{self.time}/{self.epoch}'
         else:
-            batch_length = 10000 
-        self.training_dataset.update(batch_length)
-
+            batch_length = 100
+            subfolder = f'results/{self.day}/{self.time}/'
+        self.training_dataset.update(batch_length, traj_step=100)
+        
         with torch.no_grad():
+            # get the earliest init conditions to ensure trajectories are long enough
             init_index = self.training_dataset.init_IDS.index(min(self.training_dataset.init_IDS, key=len))
             batch_input, batch_y = self.training_dataset[init_index]
             batch_input = list(batch_input)
@@ -254,6 +246,8 @@ class Trainer():
             pred_y = self.forward_pass(batch_input, batch_length=batch_length).squeeze().cpu().numpy()
             batch_y = batch_y.cpu().numpy()
             batch_t = self.get_batch_t(batch_input[1], batch_length=batch_length).cpu().numpy()
+
+            assert batch_y.shape == pred_y.shape, 'batch_y and pred_y have different shapes'
 
             ind_vel = [0, 1, 2]
             ind_ang = [3, 4, 5]
@@ -265,28 +259,28 @@ class Trainer():
                 plt.title('velocities 1')
                 plt.plot(batch_t, batch_y[:,0,i], 'k--', alpha=0.3, label=f'true {i}')
                 plt.plot(batch_t, pred_y[:,0,i], colours[c], alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'{subfolder}/{itr}_vel1.png')
+            plt.savefig(f'{subfolder}/vel1.png')
             plt.close()
             
             for c, i in enumerate(ind_vel):
                 plt.title('velocities 2')
                 plt.plot(batch_t, batch_y[:,1,i], 'k--', alpha=0.3, label=f'true {i}')
                 plt.plot(batch_t, pred_y[:,1,i], colours[c], alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'{subfolder}/{itr}_vel2.png')
+            plt.savefig(f'{subfolder}/vel2.png')
             plt.close()
             
             for i in ind_ang:
                 plt.title('angular velocities 1')
                 plt.plot(batch_t, batch_y[:,0,i], 'k--', alpha=0.3, label=f'true {i}')
                 plt.plot(batch_t, pred_y[:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'{subfolder}/{itr}_angvel1.png')
+            plt.savefig(f'{subfolder}/angvel1.png')
             plt.close()
             
             for i in ind_ang:
                 plt.title('angular velocities 2')
                 plt.plot(batch_t, batch_y[:,1,i], 'k--', alpha=0.3, label=f'true {i}')
                 plt.plot(batch_t, pred_y[:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'{subfolder}/{itr}_angvel2.png')
+            plt.savefig(f'{subfolder}/angvel2.png')
             plt.close()
             
             # centre of mass positions (set initial position of first COM to zero)
@@ -297,14 +291,14 @@ class Trainer():
                 plt.title('positions 1')
                 plt.plot(batch_t, batch_y[:,0,i], 'k--', alpha=0.3, label=f'true {i}')
                 plt.plot(batch_t, pred_y[:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'{subfolder}/{itr}_pos1.png')
+            plt.savefig(f'{subfolder}/pos1.png')
             plt.close()
             
             for i in ind_pos:
                 plt.title('positions 2')
                 plt.plot(batch_t, batch_y[:,1,i], 'k--', alpha=0.3, label=f'true {i}')
                 plt.plot(batch_t, pred_y[:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'{subfolder}/{itr}_pos2.png')
+            plt.savefig(f'{subfolder}/pos2.png')
             plt.close()
 
             # centre of mass separation
@@ -314,7 +308,7 @@ class Trainer():
             plt.title('separation')
             plt.plot(batch_t, batch_y_sep, 'k--', alpha=0.3, label=f'true')
             plt.plot(batch_t, pred_y_sep, 'r-', alpha=0.5, label=f'pred')
-            plt.savefig(f'{subfolder}/{itr}_sep.png')
+            plt.savefig(f'{subfolder}/sep.png')
             plt.close()
 
             # quaternions
@@ -322,18 +316,18 @@ class Trainer():
                 plt.title('quaternions 1')
                 plt.plot(batch_t, batch_y[:,0,i], 'k--', alpha=0.3, label=f'true {i}')
                 plt.plot(batch_t, pred_y[:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'{subfolder}/{itr}_quat1.png')
+            plt.savefig(f'{subfolder}/quat1.png')
             plt.close() 
             
             for i in ind_quat:
                 plt.title('quaternions 2')
                 plt.plot(batch_t, batch_y[:,1,i], 'k--', alpha=0.3, label=f'true {i}')
                 plt.plot(batch_t, pred_y[:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'{subfolder}/{itr}_quat2.png')
+            plt.savefig(f'{subfolder}/quat2.png')
             plt.close() 
     
-        # set back training batch length
-        self.training_dataset.batch_length = self.batch_length
+        # revert training dataset changes
+        self.training_dataset.update(self.batch_length, self.traj_step)
 
     def plot_loss(self, subfolder):
         # TODO: add return figure to be plotted into SigOpt
@@ -464,7 +458,7 @@ class Trainer():
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
-        self.plot_traj(self.start_epoch+self.epochs, subfolder)
+        self.plot_traj(False)
         self.plot_loss(subfolder)
         self.plot_lr(subfolder)
         self.plot_evaluation(subfolder)
@@ -484,6 +478,7 @@ class Trainer():
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
         torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
+        self.plot_traj(True)
         self.plot_loss(subfolder)
         self.plot_lr(subfolder)
         self.plot_evaluation(subfolder)

@@ -54,7 +54,7 @@ class Dataset(torch.utils.data.Dataset):
         init = (self.data[traj_id, timestep_id], dt, k, r0, inertia)
         
         # get true trajectory
-        true_traj = self.data[traj_id, timestep_id:(timestep_id+self.batch_length*self.traj_step):self.traj_step]
+        true_traj = self.data[traj_id, timestep_id:(timestep_id+(self.batch_length+1)*self.traj_step):self.traj_step]
         return init, true_traj
 
     def get_filenames(self):
@@ -178,5 +178,11 @@ class Dataset(torch.utils.data.Dataset):
         q_mean = torch.mean(q, dim=1).mean()
         return p_mean, l_mean, r_mean, q_mean
 
-    def update(self, batch_length):
-        self.batch_length = batch_length
+    def update(self, batch_length=None, traj_step=None):
+        if batch_length != None:
+            self.batch_length = batch_length
+        if traj_step != None:
+            self.traj_step = traj_step
+
+        assert (self.batch_length+1) * self.traj_step < self.data.shape[1], 'batch_length * traj_step must be less than the number of timesteps in the data'
+        
