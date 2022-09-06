@@ -18,6 +18,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 class ParallelTrainer(Trainer):
     def __init__(self, config):
         super().__init__(config)
+        self.parallel = True
         
     def process(self, rank, world_size):
         self.setup_process(rank, world_size)
@@ -56,7 +57,7 @@ class ParallelTrainer(Trainer):
                 batch_y = batch_y.to(self.device, non_blocking=True).type(self.dtype)
 
                 # forward pass
-                pred_y = self.forward_pass(batch_input, parallel=True)
+                pred_y = self.forward_pass(batch_input)
 
                 stds = tuple(i.to(self.device) for i in self.training_dataset.stds)
                 means = tuple(i.to(self.device) for i in self.training_dataset.means)
