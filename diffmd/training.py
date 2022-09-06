@@ -172,6 +172,7 @@ class Trainer():
             self.print_loss(self.epoch, self.start_time)
 
         if self.epoch % self.evaluation_freq == 0:
+            print('hello')
             self.logger.log[-1][-2] = self.evaluate(validate=False)
 
         if self.epoch % self.checkpoint_freq == 0:
@@ -442,6 +443,7 @@ class Trainer():
 
                 del pred_y, loss, batch_input, batch_y
             
+            print(eval_loss)
             eval_loss = np.mean(eval_loss)
             self.loss_meter.evals.append(eval_loss)
             
