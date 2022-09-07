@@ -21,8 +21,17 @@ from diffmd.losses import *
 class Trainer():
 
     def __init__(self, config):
-        self.folder = config['folder']
         self.day, self.time = get_run_ID()
+        subfolder = f'results/{self.day}/{self.time}/'
+        if os.path.exists(f'{subfolder}'):
+            index = 2
+            subfolder = f'results/{self.day}/{self.time}_{index}/'
+            while os.path.exists(f'{subfolder}'):
+                index += 1
+                subfolder = f'results/{self.day}/{self.time}_{index}/'
+        
+
+        self.folder = config['folder']
         self.device = config['device']
         self.sigopt = config['sigopt']
         self.parallel = False
