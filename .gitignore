@@ -19,6 +19,8 @@ sigopt*
 experiment.yml
 run-gpu.py
 arch*
+4gpus*
+core*
 
 # Folders
 dataset/

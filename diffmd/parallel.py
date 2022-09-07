@@ -94,7 +94,7 @@ class ParallelTrainer(Trainer):
         os.environ['TORCH_DISTRIBUTED_DEBUG'] = 'DETAIL'
         os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
         dist.init_process_group("nccl", init_method='env://', rank=rank, world_size=world_size)
-        self.device = f'cuda:{rank}'
+        self.device = f'cuda:{gpu_ids[rank]}'
 
     def get_parallel_dataloader(self, dataset, rank, world_size, batch_size=32, pin_memory=False, num_workers=0): # split the dataloader
         # TODO: documentation
