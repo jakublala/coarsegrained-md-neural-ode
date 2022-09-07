@@ -172,7 +172,6 @@ class Trainer():
             self.print_loss(self.epoch, self.start_time)
 
         if self.epoch % self.evaluation_freq == 0:
-            print('hello')
             self.logger.log[-1][-2] = self.evaluate(validate=False)
 
         if self.epoch % self.checkpoint_freq == 0:
@@ -237,7 +236,7 @@ class Trainer():
         else:
             batch_length = 100
             subfolder = f'results/{self.day}/{self.time}/'
-        self.training_dataset.update(batch_length, traj_step=100)
+        self.training_dataset.update(batch_length, traj_step=1)
         
         with torch.no_grad():
             # get the earliest init conditions to ensure trajectories are long enough
@@ -443,7 +442,6 @@ class Trainer():
 
                 del pred_y, loss, batch_input, batch_y
             
-            print(eval_loss)
             eval_loss = np.mean(eval_loss)
             self.loss_meter.evals.append(eval_loss)
             
@@ -507,9 +505,9 @@ class Trainer():
             batch_length = self.batch_length
 
         if type(dt) == torch.Tensor:
-            return torch.linspace(0.0,dt[0]*(batch_length-1),batch_length+1).to(self.device, non_blocking=True).type(self.dtype)
+            return torch.linspace(0.0,dt[0]*(batch_length),batch_length+1).to(self.device, non_blocking=True).type(self.dtype)
         else:
-            return torch.linspace(0.0,dt*(batch_length-1),batch_length+1).to(self.device, non_blocking=True).type(self.dtype)
+            return torch.linspace(0.0,dt*(batch_length),batch_length+1).to(self.device, non_blocking=True).type(self.dtype)
 
 class RunningAverageMeter(object):
     """Computes and stores the average and current value"""
