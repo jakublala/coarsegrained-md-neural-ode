@@ -25,6 +25,7 @@ class Trainer():
         self.day, self.time = get_run_ID()
         self.device = config['device']
         self.sigopt = config['sigopt']
+        self.parallel = False
         
         # TODO: log everything similarly to device into print file
         self.epochs = config['epochs']
@@ -88,7 +89,7 @@ class Trainer():
         print(f'scheduler = {self.scheduler_name}, scheduling factor = {self.scheduling_factor}, scheduling freq = {self.scheduling_freq}')
         print(f'batch size = {self.batch_size}, traj length = {self.batch_length}')
 
-    def forward_pass(self, batch_input, batch_length=None, parallel=False):
+    def forward_pass(self, batch_input, batch_length=None):
         
         batch_y0, dt, k, r0, inertia =  batch_input
         batch_y0 = tuple(i.to(self.device, non_blocking=True).type(self.dtype) for i in torch.split(batch_y0, [3, 3, 3, 4], dim=-1))
@@ -98,7 +99,7 @@ class Trainer():
         batch_t = self.get_batch_t(dt, batch_length)
 
         # set constants
-        if parallel:
+        if self.parallel:
             self.func.module.k = k.to(self.device, non_blocking=True).type(self.dtype)
             self.func.module.r0 = r0.to(self.device, non_blocking=True).type(self.dtype)
             self.func.module.inertia = inertia.to(self.device, non_blocking=True).type(self.dtype)
@@ -235,7 +236,7 @@ class Trainer():
         else:
             batch_length = 100
             subfolder = f'results/{self.day}/{self.time}/'
-        self.training_dataset.update(batch_length, traj_step=100)
+        self.training_dataset.update(batch_length, traj_step=1)
         
         with torch.no_grad():
             # get the earliest init conditions to ensure trajectories are long enough
@@ -244,7 +245,7 @@ class Trainer():
             batch_input = list(batch_input)
             batch_input[0] = batch_input[0].unsqueeze(0)
             batch_input = tuple(batch_input)
-            
+
             pred_y = self.forward_pass(batch_input, batch_length=batch_length).squeeze().cpu().numpy()
             batch_y = batch_y.cpu().numpy()
             batch_t = self.get_batch_t(batch_input[1], batch_length=batch_length).cpu().numpy()
@@ -504,9 +505,9 @@ class Trainer():
             batch_length = self.batch_length
 
         if type(dt) == torch.Tensor:
-            return torch.linspace(0.0,dt[0]*(batch_length-1),batch_length+1).to(self.device, non_blocking=True).type(self.dtype)
+            return torch.linspace(0.0,dt[0]*(batch_length),batch_length+1).to(self.device, non_blocking=True).type(self.dtype)
         else:
-            return torch.linspace(0.0,dt*(batch_length-1),batch_length+1).to(self.device, non_blocking=True).type(self.dtype)
+            return torch.linspace(0.0,dt*(batch_length),batch_length+1).to(self.device, non_blocking=True).type(self.dtype)
 
 class RunningAverageMeter(object):
     """Computes and stores the average and current value"""

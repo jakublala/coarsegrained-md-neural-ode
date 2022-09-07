@@ -18,13 +18,16 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 class ParallelTrainer(Trainer):
     def __init__(self, config):
         super().__init__(config)
+        self.parallel = True
         
     def process(self, rank, world_size):
         self.setup_process(rank, world_size)
         
         self.training_dataloader = self.get_parallel_dataloader(self.training_dataset, rank, world_size, self.batch_size)
-        self.test_dataloader = self.get_parallel_dataloader(self.test_dataset, rank, world_size, self.batch_size)
-        self.validation_dataloader = self.get_parallel_dataloader(self.validation_dataset, rank, world_size, self.batch_size)
+        
+        # TODO: add parallel evaluate and validation ?
+        # self.test_dataloader = self.get_parallel_dataloader(self.test_dataset, rank, world_size, self.batch_size)
+        # self.validation_dataloader = self.get_parallel_dataloader(self.validation_dataset, rank, world_size, self.batch_size)
         
         self.func = ODEFunc(self.nparticles, self.dim, self.nn_widths, self.activation_function, self.dtype).to(self.device).to(rank)
         self.func = DDP(self.func, device_ids=[rank], output_device=rank, find_unused_parameters=False, static_graph=False)
@@ -56,7 +59,7 @@ class ParallelTrainer(Trainer):
                 batch_y = batch_y.to(self.device, non_blocking=True).type(self.dtype)
 
                 # forward pass
-                pred_y = self.forward_pass(batch_input, parallel=True)
+                pred_y = self.forward_pass(batch_input)
 
                 stds = tuple(i.to(self.device) for i in self.training_dataset.stds)
                 means = tuple(i.to(self.device) for i in self.training_dataset.means)
