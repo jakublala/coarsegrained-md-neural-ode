@@ -242,9 +242,11 @@ class Trainer():
             batch_length = 100
             subfolder = f'results/{self.day}/{self.time}/{self.epoch}'
         else:
-            batch_length = 100
-            subfolder = f'results/{self.day}/{self.time}/'
-        self.training_dataset.update(batch_length, traj_step=1)
+            # batch_length = 100
+            batch_length = 200
+            # subfolder = f'results/{self.day}/{self.time}'
+            subfolder = '../analysis'
+        self.training_dataset.update(batch_length, traj_step=100)
         
         with torch.no_grad():
             # get the earliest init conditions to ensure trajectories are long enough

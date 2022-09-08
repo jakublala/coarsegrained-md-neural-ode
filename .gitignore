@@ -1,3 +1,8 @@
+# Built package
+cgode.egg-info/
+dist/
+build/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

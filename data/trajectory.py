@@ -34,19 +34,7 @@ class Trajectory():
         return [torch.Tensor([i]).to(self.device).to(self.dtype) for i in [temp, k, r0, seed]]
         
     def get_traj(self, reader):
-        # TODO: add options to train on just a part of trajectory
-        # TODO: documentation
-        # TODO: fix read simulation log
-        # log_labels, log_lines = reader.read_simulation_log()
-        # TODO: ensure that this read reduced traj makes the file that is then read later (maybe separate this into two functions)
-        
-        if not os.path.exists(self.file_path+'-reduced_traj.csv'):
-            traj_labels, traj_lines = reader.read_reduced_traj(save=True)
-
-        # orig_labels, orig_lines = reader.read_original_traj(save=True)
-
         centre_of_masses, quaternions, velocities, ang_velocities, ang_momenta, inertia = self.get_data()
-
         inertia = self.process_inertia(inertia)
         trajectory = self.process_data(centre_of_masses, quaternions, velocities, ang_velocities, inertia)
         return trajectory, inertia
@@ -57,7 +45,7 @@ class Trajectory():
         # test_split = 1 - train_split
         # TODO: add option to train on just a part of trajectory and implement it with get_init_IDS
         end_index = self.reader.n_logged_timesteps
-        df = pd.read_csv(self.file_path+'-reduced_traj.csv')
+        df = pd.read_csv(self.file_path+'.csv')
         # HACK: do this based on the column names, not explicitly
         com = ['c_com_1[1]', 'c_com_1[2]', 'c_com_1[3]', 'c_com_2[1]', 'c_com_2[2]', 'c_com_2[3]']
         q = ['c_q_1[1]', 'c_q_1[2]', 'c_q_1[3]', 'c_q_1[4]', 'c_q_2[1]', 'c_q_2[2]', 'c_q_2[3]', 'c_q_2[4]']

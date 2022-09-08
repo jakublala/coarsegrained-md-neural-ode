@@ -11,10 +11,28 @@ class Reader():
         self.timestep, self.runsteps, self.log_frequency = self.get_metadata()
         self.n_logged_timesteps = int(self.runsteps/self.log_frequency + 1)
         self.logged_timesteps = np.arange(0, self.runsteps+1, self.log_frequency)
-        
         print(f"Found timestep: {self.timestep}, n of run steps: {self.runsteps}, and dump log freq: {self.log_frequency}, n of logged timesteps: {self.n_logged_timesteps}")
-       
-    def read_original_traj(self, save=True):
+        
+        # create processed csv file
+        if not os.path.exists(self.file_name+'.csv'):
+            self.create_dataframe()
+
+    def create_dataframe(self):
+        # get trajectories
+        labels, lines = self.read_reduced_traj()
+        df = pd.DataFrame(lines, columns=labels)
+        
+        # get energies
+        labels, lines = self.read_simulation_log()
+        data = np.array(lines)
+        df['potential_energy'] = data[:, labels.index('PotEng')]
+
+        # save to csv
+        df.to_csv(self.file_name+'.csv', index=False)
+        return
+
+
+    def read_original_traj(self):
         subfix = '-traj.dump'
         lines = []
         with open(self.file_name+subfix, 'r') as f:
@@ -50,17 +68,13 @@ class Reader():
                         particles_counter += 1
         
         lines = np.vstack(lines)
-        if save:
-            df = pd.DataFrame(lines, columns=labels)
-            df.to_csv(self.file_name+'-original_traj.csv', index=False)
             
         return labels, lines
 
-    def read_reduced_traj(self, save=True):
+    def read_reduced_traj(self):
         subfix = '-info.dat'
         lines = []
         log_count = 0
-
         with open(self.file_name+subfix, 'r') as f:
             for i, line in enumerate(f):
                 if i == 8:
@@ -72,17 +86,9 @@ class Reader():
                     lines.append(line)
                     log_count += 1
         lines = np.array(lines, dtype=float)
-
-        # TODO: add a column for body_id rather than have so many columns
-        if save:
-            df = pd.DataFrame(lines, columns=labels)
-            df.to_csv(self.file_name+'-reduced_traj.csv', index=False)
-        
         return labels, lines
 
     def read_simulation_log(self):
-        # TODO: is this useful for anything? make this useful
-        # TODO: it does not even work
         subfix = '-sim.log'
         with open(self.file_name+subfix, 'r') as f:
             for i, line in enumerate(f):
@@ -102,7 +108,6 @@ class Reader():
                         break
                     lines[step_no] = line
                     step_no += 1
-        
         return label, lines
 
     def get_metadata(self):
