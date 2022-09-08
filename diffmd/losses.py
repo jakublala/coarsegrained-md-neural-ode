@@ -6,7 +6,7 @@ def all_mse(pred_y, true_y, stds, means):
     
     pred[2] = pred[2][:, :, 1, :] - pred[2][:, :, 0, :]
     true[2] = true[2][:, :, 1, :] - true[2][:, :, 0, :]
-    
+
     for i, mean in enumerate(means):
         pred[i] = pred[i] - mean
         pred[i] = pred[i] / stds[i]

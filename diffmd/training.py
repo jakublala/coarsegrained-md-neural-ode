@@ -447,8 +447,8 @@ class Trainer():
                 # forward pass
                 pred_y = self.forward_pass(batch_input, batch_length=self.eval_batch_length)
 
-                # loss across entire trajectory
-                loss = all_mse(pred_y, batch_y, dataset.stds, dataset.means)
+                # loss of the projected trajectory by one dt
+                loss = final_mse(pred_y, batch_y, dataset.stds, dataset.means)
 
                 eval_loss.append(loss.cpu().item())
 
