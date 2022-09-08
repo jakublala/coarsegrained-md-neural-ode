@@ -15,7 +15,8 @@ class Trajectory():
         self.temp, self.k, self.r0, self.seed = self.get_metadata_from_file_path(self.file_path)
         self.reader = Reader(self.file_path)
         self.timesteps = self.reader.logged_timesteps
-        self.traj, self.inertia = self.get_traj(self.reader)
+        self.traj, self.inertia = self.get_traj()
+        self.energies = self.get_energies()
         self.dt = self.get_dt(self.reader)     
 
     def get_metadata_from_file_path(self, file_path):
@@ -33,18 +34,17 @@ class Trajectory():
             seed = int(file_path[4][file_path[4].find('s') + (1+1):])
         return [torch.Tensor([i]).to(self.device).to(self.dtype) for i in [temp, k, r0, seed]]
         
-    def get_traj(self, reader):
+    def get_traj(self):
         centre_of_masses, quaternions, velocities, ang_velocities, ang_momenta, inertia = self.get_data()
         inertia = self.process_inertia(inertia)
         trajectory = self.process_data(centre_of_masses, quaternions, velocities, ang_velocities, inertia)
         return trajectory, inertia
 
+    def get_energies(self):
+        df = pd.read_csv(self.file_path+'.csv')
+        return df['potential_energy'].to_numpy()
 
     def get_data(self):
-        # train_split = 0.9
-        # test_split = 1 - train_split
-        # TODO: add option to train on just a part of trajectory and implement it with get_init_IDS
-        end_index = self.reader.n_logged_timesteps
         df = pd.read_csv(self.file_path+'.csv')
         # HACK: do this based on the column names, not explicitly
         com = ['c_com_1[1]', 'c_com_1[2]', 'c_com_1[3]', 'c_com_2[1]', 'c_com_2[2]', 'c_com_2[3]']
@@ -54,21 +54,12 @@ class Trajectory():
         am = ['c_am_1[1]', 'c_am_1[2]', 'c_am_1[3]', 'c_am_2[1]', 'c_am_2[2]', 'c_am_2[3]']
         inertia = ['c_i_1[1]', 'c_i_1[2]', 'c_i_1[3]', 'c_i_2[1]', 'c_i_2[2]', 'c_i_2[3]']
         
-        centre_of_masses = df.loc[:end_index, ['timestep', *com]]
-        quaternions = df.loc[:end_index, ['timestep', *q]]
-        velocities = df.loc[:end_index, ['timestep', *vel]]
-        ang_velocities = df.loc[:end_index, ['timestep', *av]]
-        ang_momenta = df.loc[:end_index, ['timestep', *am]]
-        # inertia = df.loc[0, ['timestep', *inertia]]
-        inertia = df.loc[:end_index, ['timestep', *inertia]]
-        # TODO: use DataLoaders?
-        
-        # trajs = np.load('data/trajectories/diatomic_spring_narrow.npy')
-        # split_index = int(trajs.shape[0] * train_split)
-
-        # np.random.shuffle(trajs)
-        # training_trajs = torch.Tensor(trajs[:split_index, :, :]).to(device)
-        # testing_trajs = torch.Tensor(trajs[split_index:, :, :]).to(device)
+        centre_of_masses = df.loc[:, ['timestep', *com]]
+        quaternions = df.loc[:, ['timestep', *q]]
+        velocities = df.loc[:, ['timestep', *vel]]
+        ang_velocities = df.loc[:, ['timestep', *av]]
+        ang_momenta = df.loc[:, ['timestep', *am]]
+        inertia = df.loc[:, ['timestep', *inertia]]
         
         return centre_of_masses, quaternions, velocities, ang_velocities, ang_momenta, inertia
 

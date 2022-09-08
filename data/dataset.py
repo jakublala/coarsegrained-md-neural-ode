@@ -30,6 +30,8 @@ class Dataset(torch.utils.data.Dataset):
         self.trajs = self.get_trajectories()
         
         self.data = self.get_data()
+        self.energies = self.get_energies()
+        
         self.init_IDS = self.get_init_IDS()
         
         if self.dataset_fraction != None:
@@ -38,8 +40,6 @@ class Dataset(torch.utils.data.Dataset):
         self.stds = self.find_stds()
         self.means = self.find_means()
 
-        # add logging in trajectory names of the used trajectories
-        
     def __len__(self):
         return len(self.init_IDS)
 
@@ -65,6 +65,9 @@ class Dataset(torch.utils.data.Dataset):
 
     def get_trajectories(self):
         return [Trajectory(self.folder+filename, self.device, self.dtype) for filename in self.filenames]
+
+    def get_energies(self):
+        return torch.stack([torch.from_numpy(t.energies) for t in self.trajs])
 
     def get_batch(self, batch_size, batch_length):
         # OBSOLUTE
