@@ -66,6 +66,13 @@ def final_mse_pos(pred_y, true_y, stds, means):
 
     return torch.mean((pred[2] - true[2])**2) + torch.mean((pred[3] - true[3])**2)
 
+def energy(potential, pred_y, batch_energy):
+    _, _, x, q = torch.split(pred_y[:, -1, :, :], [3, 3, 3, 4], dim=-1)
+    r = x[:, 1, :] - x[:, 0, :]
+    rq = torch.cat((r, q.reshape(-1, 8)), dim=1).reshape(-1, 11).type(torch.float32)
+    predicted_energies = potential(rq)
+    return torch.mean((predicted_energies - batch_energy)**2)
+
 
 # def all_loss_func(pred_y, true_y):
 #     return torch.mean(torch.abs(pred_y - true_y))

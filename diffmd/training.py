@@ -128,7 +128,7 @@ class Trainer():
         for self.epoch in range(self.start_epoch + 1, (self.start_epoch + self.epochs) + 1):
             self.start_time = time.perf_counter()
             
-            for self.itr, (batch_input, batch_y) in enumerate(self.training_dataloader):
+            for self.itr, (batch_input, batch_y, batch_energy) in enumerate(self.training_dataloader):
                 self.itr_start_time = time.perf_counter()
 
                 def closure():
@@ -146,7 +146,12 @@ class Trainer():
 
                 # forward pass                
                 pred_y = self.forward_pass(batch_input)
-                loss = self.loss_func(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means)
+
+                # compute loss
+                if self.loss_func_name == 'energy':
+                    loss = self.loss_func(self.func.net, pred_y, batch_energy)
+                else:
+                    loss = self.loss_func(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means)
 
                 # backward pass      
                 loss.backward() 
@@ -249,7 +254,7 @@ class Trainer():
         with torch.no_grad():
             # get the earliest init conditions to ensure trajectories are long enough
             init_index = self.training_dataset.init_IDS.index(min(self.training_dataset.init_IDS, key=len))
-            batch_input, batch_y = self.training_dataset[init_index]
+            batch_input, batch_y, _ = self.training_dataset[init_index]
             batch_input = list(batch_input)
             batch_input[0] = batch_input[0].unsqueeze(0)
             batch_input = tuple(batch_input)
@@ -373,6 +378,8 @@ class Trainer():
             return all_mse_pos
         elif 'final-mse-pos' == loss_func:
             return final_mse_pos
+        elif 'energy' == loss_func:
+            return energy
         else:
             raise ValueError(f'loss function {loss_func} not recognised')
 
@@ -443,7 +450,7 @@ class Trainer():
                 dataset = self.test_dataset
             
             eval_loss = []
-            for batch_input, batch_y in dataloader:
+            for batch_input, batch_y, _ in dataloader:
                 # forward pass
                 pred_y = self.forward_pass(batch_input, batch_length=self.eval_batch_length)
 

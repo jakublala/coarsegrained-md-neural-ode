@@ -31,7 +31,7 @@ class Dataset(torch.utils.data.Dataset):
         
         self.data = self.get_data()
         self.energies = self.get_energies()
-        
+
         self.init_IDS = self.get_init_IDS()
         
         if self.dataset_fraction != None:
@@ -56,7 +56,8 @@ class Dataset(torch.utils.data.Dataset):
         
         # get true trajectory
         true_traj = self.data[traj_id, timestep_id:(timestep_id+(self.batch_length+1)*self.traj_step):self.traj_step]
-        return init, true_traj
+        final_energy = self.energies[traj_id, timestep_id+(self.batch_length)*self.traj_step]
+        return init, true_traj, final_energy
 
     def get_filenames(self):
         filenames = [f for f in os.listdir(self.folder) if os.path.isfile(os.path.join(self.folder, f))]
@@ -67,7 +68,7 @@ class Dataset(torch.utils.data.Dataset):
         return [Trajectory(self.folder+filename, self.device, self.dtype) for filename in self.filenames]
 
     def get_energies(self):
-        return torch.stack([torch.from_numpy(t.energies) for t in self.trajs])
+        return torch.stack([torch.from_numpy(t.energies).to(self.device).type(self.dtype) for t in self.trajs])
 
     def get_batch(self, batch_size, batch_length):
         # OBSOLUTE
