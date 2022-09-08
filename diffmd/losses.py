@@ -33,6 +33,40 @@ def final_mse(pred_y, true_y, stds, means):
 
     return torch.mean((pred[0] - true[0])**2) + torch.mean((pred[1] - true[1])**2) + torch.mean((pred[2] - true[2])**2) + torch.mean((pred[3] - true[3])**2)
 
+def all_mse_pos(pred_y, true_y, stds, means):
+    pred = list(torch.split(pred_y, [3, 3, 3, 4], dim=-1))
+    true = list(torch.split(true_y, [3, 3, 3, 4], dim=-1))
+    
+    pred[2] = pred[2][:, :, 1, :] - pred[2][:, :, 0, :]
+    true[2] = true[2][:, :, 1, :] - true[2][:, :, 0, :]
+    
+    for i, mean in enumerate(means):
+        pred[i] = pred[i] - mean
+        pred[i] = pred[i] / stds[i]
+        true[i] = true[i] - mean
+        true[i] = true[i] / stds[i]
+
+    # for i, label in enumerate(['p', 'l', 'r', 'q']):
+    #     print(f'{label} mse: {torch.mean((pred[i] - true[i])**2)}')
+
+    return torch.mean((pred[2] - true[2])**2) + torch.mean((pred[3] - true[3])**2)
+
+def final_mse_pos(pred_y, true_y, stds, means):
+    pred = list(torch.split(pred_y[:, -1, :, :], [3, 3, 3, 4], dim=-1))
+    true = list(torch.split(true_y[:, -1, :, :], [3, 3, 3, 4], dim=-1))
+
+    pred[2] = pred[2][:, 1, :] - pred[2][:, 0, :]
+    true[2] = true[2][:, 1, :] - true[2][:, 0, :]
+
+    for i, mean in enumerate(means):
+        pred[i] = pred[i] - mean
+        pred[i] = pred[i] / stds[i]
+        true[i] = true[i] - mean
+        true[i] = true[i] / stds[i]
+
+    return torch.mean((pred[2] - true[2])**2) + torch.mean((pred[3] - true[3])**2)
+
+
 # def all_loss_func(pred_y, true_y):
 #     return torch.mean(torch.abs(pred_y - true_y))
 

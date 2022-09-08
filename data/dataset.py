@@ -9,11 +9,12 @@ import random
 
 
 class Dataset(torch.utils.data.Dataset):
-    def __init__(self, config, dataset_type, batch_length, dataset_fraction=None):
+    def __init__(self, config, dataset_type, batch_length, dataset_fraction=None, random_dataset=False):
         self.device = config['device']
         self.dtype = config['dtype']
         self.batch_length = batch_length
         self.dataset_fraction = dataset_fraction
+        self.random_dataset = random_dataset
 
         if dataset_type == 'train':
             self.max_batch_length = self.batch_length + int(config['epochs'] / config['batch_length_freq']) * config['batch_length_step']
@@ -157,7 +158,8 @@ class Dataset(torch.utils.data.Dataset):
 
     def get_fraction_IDS(self):
         num_inits = int(len(self.init_IDS) * self.dataset_fraction)
-        random.shuffle(self.init_IDS)
+        if self.random_dataset:
+            random.shuffle(self.init_IDS)
         return self.init_IDS[:num_inits]
 
     def find_stds(self):

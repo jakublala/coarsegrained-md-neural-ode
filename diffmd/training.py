@@ -29,7 +29,6 @@ class Trainer():
             while os.path.exists(f'{subfolder}'):
                 index += 1
                 subfolder = f'results/{self.day}/{self.time}_{index}/'
-        
 
         self.folder = config['folder']
         self.device = config['device']
@@ -59,7 +58,7 @@ class Trainer():
         self.dtype = config['dtype']
 
         # dataset setup
-        self.training_dataset = Dataset(config, dataset_type='train', batch_length=self.batch_length, dataset_fraction=config['training_fraction'])
+        self.training_dataset = Dataset(config, dataset_type='train', batch_length=self.batch_length, dataset_fraction=config['training_fraction'], random_dataset=config['random_dataset'])
         self.test_dataset = Dataset(config, dataset_type='test', batch_length=self.eval_batch_length)
         self.validation_dataset = Dataset(config, dataset_type='validation', batch_length=self.eval_batch_length)
         self.training_dataloader = self.get_dataloader(self.training_dataset, shuffle=self.shuffle) 
@@ -370,6 +369,10 @@ class Trainer():
             return all_mse
         elif 'final-mse' == loss_func:
             return final_mse
+        elif 'all-mse-pos' == loss_func:
+            return all_mse_pos
+        elif 'final-mse-pos' == loss_func:
+            return final_mse_pos
         else:
             raise ValueError(f'loss function {loss_func} not recognised')
 
