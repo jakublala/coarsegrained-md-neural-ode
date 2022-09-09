@@ -84,6 +84,7 @@ class Trainer():
 
         self.weight_decay = config['weight_decay']
         self.loss_func = self.set_loss_func(self.loss_func_name)
+        self.normalize_loss = config['normalize_loss']
         self.optimizer = self.set_optimizer(self.optimizer_name)
         self.scheduler = self.set_scheduler(self.scheduler_name, self.scheduling_factor)
         
@@ -151,7 +152,7 @@ class Trainer():
                 if self.loss_func_name == 'energy':
                     loss = self.loss_func(self.func.net, pred_y, batch_energy)
                 else:
-                    loss = self.loss_func(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means)
+                    loss = self.loss_func(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.normalize_loss)
 
                 # backward pass      
                 loss.backward() 

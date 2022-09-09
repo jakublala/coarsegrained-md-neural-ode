@@ -26,6 +26,8 @@ class Reader():
         labels, lines = self.read_simulation_log()
         data = np.array(lines)
         df['potential_energy'] = data[:, labels.index('PotEng')]
+        df['kinetic_energy'] = data[:, labels.index('KinEng')]
+        df['total_energy'] = data[:, labels.index('TotEng')]
 
         # save to csv
         df.to_csv(self.file_name+'.csv', index=False)
