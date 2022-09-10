@@ -169,19 +169,19 @@ class Dataset(torch.utils.data.Dataset):
     def find_stds(self):
         p, l, x, q = torch.split(self.data, [3, 3, 3, 4], dim=-1)
         r = x[:, :, 1, :] - x[:, :, 0, :]
-        p_std = torch.std(p, dim=1).mean()
-        l_std = torch.std(l, dim=1).mean()
-        r_std = torch.std(r, dim=1).mean()
-        q_std = torch.std(q, dim=1).mean()
+        p_std = torch.std(p, dim=1).mean().item()
+        l_std = torch.std(l, dim=1).mean().item()
+        r_std = torch.std(r, dim=1).mean().item()
+        q_std = torch.std(q, dim=1).mean().item()
         return p_std, l_std, r_std, q_std
 
     def find_means(self):
         p, l, x, q = torch.split(self.data, [3, 3, 3, 4], dim=-1)
         r = x[:, :, 1, :] - x[:, :, 0, :]
-        p_mean = torch.mean(p, dim=1).mean()
-        l_mean = torch.mean(l, dim=1).mean()
-        r_mean = torch.mean(r, dim=1).mean()
-        q_mean = torch.mean(q, dim=1).mean()
+        p_mean = torch.mean(p, dim=1).mean().item()
+        l_mean = torch.mean(l, dim=1).mean().item()
+        r_mean = torch.mean(r, dim=1).mean().item()
+        q_mean = torch.mean(q, dim=1).mean().item()
         return p_mean, l_mean, r_mean, q_mean
 
     def update(self, batch_length=None, traj_step=None):

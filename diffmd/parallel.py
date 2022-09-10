@@ -61,15 +61,12 @@ class ParallelTrainer(Trainer):
 
                 # forward pass
                 pred_y = self.forward_pass(batch_input)
-
-                stds = tuple(i.to(self.device) for i in self.training_dataset.stds)
-                means = tuple(i.to(self.device) for i in self.training_dataset.means)
-
+                
                 # compute loss
                 if self.loss_func_name == 'energy':
                     loss = self.loss_func(self.func.net, pred_y, batch_energy)
                 else:
-                    loss = self.loss_func(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.normalize_loss)
+                    loss, loss_parts = self.loss_func(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.normalize_loss)
 
                 # backward pass                    
                 loss.backward() 
@@ -82,8 +79,8 @@ class ParallelTrainer(Trainer):
                         self.print_iteration()
 
                     # log everything
-                    self.logger.update([self.epoch, self.itr, self.optimizer.param_groups[0]["lr"], self.batch_length, loss.item(), None, time.perf_counter() - self.itr_start_time])
-              
+                    self.logger.update([self.epoch, self.itr, self.optimizer.param_groups[0]["lr"], self.batch_length] + loss_parts + [None, time.perf_counter() - self.itr_start_time])
+                
             # logging and waiting for all processes to finish epoch
             if is_main_process(): 
                 if self.after_epoch():               

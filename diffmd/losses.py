@@ -14,10 +14,11 @@ def all_mse(pred_y, true_y, stds, means, normalize=False):
             true[i] = true[i] - mean
             true[i] = true[i] / stds[i]
 
-    # for i, label in enumerate(['p', 'l', 'r', 'q']):
-    #     print(f'{label} mse: {torch.mean((pred[i] - true[i])**2)}')
-
-    return torch.mean((pred[0] - true[0])**2) + torch.mean((pred[1] - true[1])**2) + torch.mean((pred[2] - true[2])**2) + torch.mean((pred[3] - true[3])**2)
+    losses = []
+    for p, t in zip(pred, true):
+        losses.append(torch.mean((p - t)**2))
+        
+    return torch.sum(torch.stack(losses)), [l.detach().cpu().item() for l in losses]
 
 def final_mse(pred_y, true_y, stds, means, normalize=False):
     pred = list(torch.split(pred_y[:, -1, :, :], [3, 3, 3, 4], dim=-1))
@@ -33,7 +34,11 @@ def final_mse(pred_y, true_y, stds, means, normalize=False):
             true[i] = true[i] - mean
             true[i] = true[i] / stds[i]
 
-    return torch.mean((pred[0] - true[0])**2) + torch.mean((pred[1] - true[1])**2) + torch.mean((pred[2] - true[2])**2) + torch.mean((pred[3] - true[3])**2)
+    losses = []
+    for p, t in zip(pred, true):
+        losses.append(torch.mean((p - t)**2))
+
+    return torch.sum(torch.stack(losses)), [l.detach().cpu().item() for l in losses]
 
 def all_mse_pos(pred_y, true_y, stds, means, normalize=False):
     pred = list(torch.split(pred_y, [3, 3, 3, 4], dim=-1))
@@ -49,10 +54,11 @@ def all_mse_pos(pred_y, true_y, stds, means, normalize=False):
             true[i] = true[i] - mean
             true[i] = true[i] / stds[i]
 
-    # for i, label in enumerate(['p', 'l', 'r', 'q']):
-    #     print(f'{label} mse: {torch.mean((pred[i] - true[i])**2)}')
-
-    return torch.mean((pred[2] - true[2])**2) + torch.mean((pred[3] - true[3])**2)
+    losses = []
+    for p, t in zip(pred, true):
+        losses.append(torch.mean((p - t)**2))
+        
+    return torch.sum(torch.stack(losses[2:])), [0, 0] + [l.detach().cpu().item() for l in losses[2:]]
 
 def final_mse_pos(pred_y, true_y, stds, means, normalize=False):
     pred = list(torch.split(pred_y[:, -1, :, :], [3, 3, 3, 4], dim=-1))
@@ -68,7 +74,11 @@ def final_mse_pos(pred_y, true_y, stds, means, normalize=False):
             true[i] = true[i] - mean
             true[i] = true[i] / stds[i]
 
-    return torch.mean((pred[2] - true[2])**2) + torch.mean((pred[3] - true[3])**2)
+    losses = []
+    for p, t in zip(pred, true):
+        losses.append(torch.mean((p - t)**2))
+        
+    return torch.sum(torch.stack(losses[2:])), [0, 0] + [l.detach().cpu().item() for l in losses[2:]]
 
 def energy(potential, pred_y, batch_energy):
     _, _, x, q = torch.split(pred_y[:, -1, :, :], [3, 3, 3, 4], dim=-1)

@@ -113,7 +113,7 @@ class VelVerlet_NVE(FixedGridODESolver):
 
             # full Richardson update
             # q_full = state[3] + 0.5 * quatvec(state[3], w_half_body) * dt # 3)
-            q_full = state[3] + 0.5 * 0.5 * quaternion_raw_multiply(state[3], torch.cat((zeros, w_half_body), dim=2)) * dt # 3)
+            q_full = state[3] + 0.5 * quaternion_raw_multiply(state[3], torch.cat((zeros, w_half_body), dim=2)) * dt # 3)
             q_full = normalize_quat(q_full)
             
             # half Richardson update

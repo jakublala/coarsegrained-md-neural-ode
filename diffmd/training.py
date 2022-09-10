@@ -152,7 +152,7 @@ class Trainer():
                 if self.loss_func_name == 'energy':
                     loss = self.loss_func(self.func.net, pred_y, batch_energy)
                 else:
-                    loss = self.loss_func(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.normalize_loss)
+                    loss, loss_parts = self.loss_func(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.normalize_loss)
 
                 # backward pass      
                 loss.backward() 
@@ -167,7 +167,7 @@ class Trainer():
                     self.print_iteration()
                 
                 # log everything
-                self.logger.update([self.epoch, self.itr, self.optimizer.param_groups[0]["lr"], self.batch_length, loss.item(), None, time.perf_counter() - self.itr_start_time])
+                self.logger.update([self.epoch, self.itr, self.optimizer.param_groups[0]["lr"], self.batch_length] + loss_parts + [None, time.perf_counter() - self.itr_start_time])
                     
             if self.after_epoch():
                 # if True, then early stopping
@@ -456,7 +456,7 @@ class Trainer():
                 pred_y = self.forward_pass(batch_input, batch_length=self.eval_batch_length)
 
                 # loss of the projected trajectory by one dt
-                loss = final_mse(pred_y, batch_y, dataset.stds, dataset.means)
+                loss, loss_parts = final_mse(pred_y, batch_y, dataset.stds, dataset.means)
 
                 eval_loss.append(loss.cpu().item())
 
