@@ -30,7 +30,7 @@ class ODEFunc(nn.Module):
                 # last layer outputs a single potential energy value
                 layers += [nn.Linear(width, 1)]
             else:
-                layers += [nn.Linear(widths[i], widths[i+1]), self.func]
+                layers += [nn.Linear(widths[i], widths[i+1]), self.func]        
         self.net = nn.Sequential(*layers).type(self.dtype)
 
         # initialise NN parameters
@@ -64,7 +64,8 @@ class ODEFunc(nn.Module):
             # get energy and gradients
             # TODO: check that harmonic restraint is calculated correctly
             u = self.net(rq) + self.harmonic_restraint(rq) # [number of trajectories, potential energy]
-            
+            # u = self.zero_net(rq) + self.harmonic_restraint(rq) # [number of trajectories, potential energy]
+
             f = -compute_grad(inputs=x, output=u)
             grad_q = compute_grad(inputs=q, output=u)
 

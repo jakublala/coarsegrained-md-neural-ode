@@ -19,6 +19,7 @@ class ParallelTrainer(Trainer):
     def __init__(self, config):
         super().__init__(config)
         self.parallel = True
+        self.gpu_ids = config["gpu_ids"]
         
     def process(self, rank, world_size):
         self.setup_process(rank, world_size)
@@ -49,7 +50,7 @@ class ParallelTrainer(Trainer):
             self.training_dataloader.sampler.set_epoch(self.epoch)       
             self.start_time = time.perf_counter()
         
-            for self.itr, (batch_input, batch_y) in enumerate(self.training_dataloader):
+            for self.itr, (batch_input, batch_y, batch_energy) in enumerate(self.training_dataloader):
                 self.itr_start_time = time.perf_counter()
 
                 # zero out gradients with less memory operations
@@ -63,8 +64,13 @@ class ParallelTrainer(Trainer):
 
                 stds = tuple(i.to(self.device) for i in self.training_dataset.stds)
                 means = tuple(i.to(self.device) for i in self.training_dataset.means)
-                loss = self.loss_func(pred_y, batch_y, stds, means)
-    
+
+                # compute loss
+                if self.loss_func_name == 'energy':
+                    loss = self.loss_func(self.func.net, pred_y, batch_energy)
+                else:
+                    loss = self.loss_func(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.normalize_loss)
+
                 # backward pass                    
                 loss.backward() 
                 self.optimizer.step()
@@ -94,7 +100,7 @@ class ParallelTrainer(Trainer):
         os.environ['TORCH_DISTRIBUTED_DEBUG'] = 'DETAIL'
         os.environ['CUDA_LAUNCH_BLOCKING'] = '1'
         dist.init_process_group("nccl", init_method='env://', rank=rank, world_size=world_size)
-        self.device = f'cuda:{gpu_ids[rank]}'
+        self.device = f'cuda:{self.gpu_ids[rank]}'
 
     def get_parallel_dataloader(self, dataset, rank, world_size, batch_size=32, pin_memory=False, num_workers=0): # split the dataloader
         # TODO: documentation
