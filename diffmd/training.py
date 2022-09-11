@@ -48,7 +48,7 @@ class Trainer():
         self.num_workers = config['num_workers']
         self.batch_size = config['batch_size']
         self.nn_widths = config['nn_widths']
-        self.activation_function = config['activation_function']
+        self.activation_functions = self.get_activation_functions(config['activation_function'])
         self.load_folder = config['load_folder']
         self.loss_func_name = config['loss_func']
         self.optimizer_name = config['optimizer']
@@ -79,7 +79,7 @@ class Trainer():
         self.evaluation_freq = config['evaluation_freq']
         self.checkpoint_freq = config['checkpoint_freq']
 
-        self.func = ODEFunc(self.nparticles, self.dim, self.nn_widths, self.activation_function, self.dtype).to(self.device)
+        self.func = ODEFunc(self.nparticles, self.dim, self.nn_widths, self.activation_functions, self.dtype).to(self.device)
         self.nparameters = count_parameters(self.func)
 
         self.weight_decay = config['weight_decay']
@@ -157,6 +157,21 @@ class Trainer():
                 # backward pass      
                 loss.backward() 
                 self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
+
+                # print(batch_input[0][0, 0])
+                # quats = pred_y[0][:, 0, 9:]
+                # with open('quat_forward.txt', 'w') as f:
+                #     for quat in quats:
+                #         quat = list(quat.detach().cpu().numpy())
+                #         f.write(','.join([str(q) for q in quat]) + '\n')
+
+                # poss = pred_y[0][:, 0, 6:9]
+                # with open('pos_forward.txt', 'w') as f:
+                #     for pos in poss:
+                #         pos = list(pos.detach().cpu().numpy())
+                #         f.write(','.join([str(p) for p in pos]) + '\n')
+
+                # assert 0 == 1, 'after loss backward pass'
         
                 if self.optimizer_name == 'LBFGS':
                     self.optimizer.step(closure)
@@ -528,6 +543,27 @@ class Trainer():
             return torch.linspace(0.0,dt[0]*(batch_length),batch_length+1).to(self.device, non_blocking=True).type(self.dtype)
         else:
             return torch.linspace(0.0,dt*(batch_length),batch_length+1).to(self.device, non_blocking=True).type(self.dtype)
+
+    def get_activation_functions(self, function):
+        def get_function(string):
+            if string == 'relu':
+                return nn.ReLU()
+            elif string == 'leaky_relu':
+                return nn.LeakyReLU()
+            elif string == 'tanh':
+                return nn.Tanh()
+            elif string == 'sigmoid':
+                return nn.Sigmoid()
+            else:
+                raise Exception('activation function not implemented')
+
+        if type(function) == str:
+            return [get_function(function) for i in range(len(self.nn_widths))]
+        elif type(function) == list and len(function) == len(self.nn_widths):
+            return [get_function(i) for i in function]
+        else:
+            raise Exception('activation function must be a string or a list of strings of the same length as the number of layers')
+            
 
 class RunningAverageMeter(object):
     """Computes and stores the average and current value"""

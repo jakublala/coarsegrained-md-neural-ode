@@ -389,6 +389,16 @@ class OdeintAdjointMethod(torch.autograd.Function):
                 aug_traj = odeint(augmented_dynamics, aug_state,
                     torch.tensor([t[i], t[i - 1]]), method=method, options=options)
 
+                # quat = aug_traj[3][1, 0, 0, :]
+                # with open('quat_backward.txt', 'a') as f:
+                #     quat = list(quat.detach().cpu().numpy())
+                #     f.write(','.join([str(q) for q in quat]) + '\n')
+                
+                # pos = aug_traj[2][1, 0, 0, :]
+                # with open('pos_backward.txt', 'a') as f:
+                #     pos = list(pos.detach().cpu().numpy())
+                #     f.write(','.join([str(q) for q in pos]) + '\n')
+
                 # Unpack aug_traj
                 adj_state = aug_traj[n_statevecs:2 * n_statevecs]
                 adj_params = aug_traj[2 * n_statevecs]

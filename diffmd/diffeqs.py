@@ -6,32 +6,29 @@ from pytorch3d.transforms import quaternion_raw_multiply, quaternion_apply
 import time
 
 class ODEFunc(nn.Module):
-    def __init__(self, nparticles, dim, widths, function, dtype):
+    def __init__(self, nparticles, dim, widths, functions, dtype):
         super(ODEFunc, self).__init__()
         self.dim = dim
         self.nparticles = nparticles
         self.dtype = dtype
         self.mass = 7.0 # HACK
         
-        if function == 'sigmoid':
-            self.func = nn.Sigmoid()
-        elif function == 'tanh':
-            self.func = nn.Tanh()
-        else:
-            raise ValueError('activation function must be sigmoid or tanh')
-        
         # define neural net
         depth = len(widths) 
         layers = []
         # first layer takes in all configurational variables (xyz and quaternions)
-        layers += [nn.Linear(self.dim, widths[0]), self.func]
+        layers += [nn.Linear(self.dim, widths[0]), functions[0]]
         for i, width in enumerate(widths):
             if i == (depth-1):  
                 # last layer outputs a single potential energy value
                 layers += [nn.Linear(width, 1)]
             else:
-                layers += [nn.Linear(widths[i], widths[i+1]), self.func]        
+                layers += [nn.Linear(widths[i], widths[i+1]), functions[i+1]]        
         self.net = nn.Sequential(*layers).type(self.dtype)
+
+        print(self.net)
+
+        assert 0 == 1
 
         # initialise NN parameters
         for m in self.net.modules():
