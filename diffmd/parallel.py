@@ -24,6 +24,7 @@ class ParallelTrainer(Trainer):
     def process(self, rank, world_size):
         self.setup_process(rank, world_size)
         
+        # TODO: fix a bug where having a batch length smaller than len(dataset) causes an error
         self.training_dataloader = self.get_parallel_dataloader(self.training_dataset, rank, world_size, self.batch_size)
         
         # TODO: add parallel evaluate and validation ?
@@ -71,8 +72,8 @@ class ParallelTrainer(Trainer):
                 # backward pass                    
                 loss.backward() 
                 self.optimizer.step()
-            
-                if is_main_process():  
+                
+                if is_main_process(): 
                     self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
 
                     if (self.itr+1) % self.itr_printing_freq == 0:
