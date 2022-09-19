@@ -10,7 +10,7 @@ natoms = 14
 
 config = dict(
     folder = '../dataset/single_temp_large_cut_strong_spring',
-    # folder = '../dataset/archive/oscillation',
+    # folder = '../dataset/single_temp_small',
     device = torch.device('cpu'), 
     training_fraction=1.0,
     random_dataset=False,
@@ -26,12 +26,12 @@ config = dict(
     shuffle=True,
     num_workers=0,
     learning_rate=0.02,
-    nn_widths=[640, 480, 320],
+    nn_widths=[64, 48, 32],
     activation_function='tanh',
     eval_batch_length=1,
     eval_init_skip=1,
     eval_traj_step=1,
-    load_folder='../results/archive/2022-09-11/11-38-49/1920',
+    load_folder='../results/archive/2022-09-19/12-19-49',
     dtype=torch.float32,
     itr_printing_freq=1,
     printing_freq=1,
@@ -51,9 +51,12 @@ config = dict(
 if __name__ == '__main__':
     trainer = Trainer(config)
 
+    trajectory_index = 0
+    df = pd.read_csv(trainer.training_dataset.trajs[trajectory_index].file_path+'.csv')
+    data = trainer.training_dataset.trajs[trajectory_index].traj
+    data = [i.squeeze() for i in data]
+    v, w, x, q = data
     potential = trainer.func.net
-
-    df = pd.read_csv('../dataset/single_temp_large_cut_strong_spring/train/NVE-temp-2.5_K-0.25_r-2_s-1.csv')
 
     energies = df['potential_energy'].to_numpy()
     
@@ -71,10 +74,6 @@ if __name__ == '__main__':
     #     batch_y = batch_y.cpu().numpy()
     #     batch_t = trainer.get_batch_t(batch_input[1], batch_length=batch_length).cpu().numpy())
 
-
-    v, w, x, q = torch.split(trainer.training_dataset.data[0], [3, 3, 3, 4], dim=-1)
-    # v, w, x, q = torch.split(pred_y, [3, 3, 3, 4], dim=-1)
-
     r = x[:, 1, :] - x[:, 0, :]
     rq = torch.cat((r, q.reshape(-1, 8)), dim=1).reshape(-1, 11).type(torch.float32)
     
@@ -84,6 +83,7 @@ if __name__ == '__main__':
 
     import matplotlib.pyplot as plt
     plt.plot(energies[indices], predicted_energies[indices], 'o')
+    plt.plot([-1, 1], [-1, 1], 'k-')
     plt.xlabel('Actual')
     plt.ylabel('Predicted')
     plt.savefig('energy_matrix.png')
@@ -91,14 +91,25 @@ if __name__ == '__main__':
 
 
 
+    num_steps = 500
 
 
+    V_diff = np.diff(energies[:num_steps] * natoms)
+    r_diff = np.diff(torch.norm(x[:num_steps, 0, :], dim=-1).numpy())
+    actual_force = - V_diff / r_diff
 
-    num_steps = 100
+    plt.plot(actual_force, 'k', label='Actual')
+
+    plt.savefig('force_compare.png')
+    plt.close()
+
+
 
     print('before actual')
     plt.plot(energies[:num_steps] * natoms, 'k', label='Actual')
-    plt.plot(predicted_energies[:num_steps] - predicted_energies[0], 'r', label='Predicted')
+    # plt.plot(predicted_energies[:num_steps] - predicted_energies[0], 'r', label='Predicted')
+    plt.plot(predicted_energies[:num_steps], 'r', label='Predicted')
+
 
     plt.ylabel('Energy')
     plt.xlabel('Time step')
@@ -106,8 +117,8 @@ if __name__ == '__main__':
     plt.savefig('potential_compare.png')
     plt.close()
 
-    k = 2.38111026821677
-    r0 = 2
+    k = trainer.training_dataset.trajs[trajectory_index].k
+    r0 = trainer.training_dataset.trajs[trajectory_index].r0
     harmonic_energy = (0.5 * k * torch.square(torch.norm(r, dim=1) - r0)).detach().cpu().numpy()
     # plt.plot(energies[:num_steps] + harmonic_energy[:num_steps], 'k--', alpha=0.5, label='Actual + Harmonic')
 
@@ -164,11 +175,14 @@ if __name__ == '__main__':
 
 
     # ENERGIES FROM LAMMPS
+    plt.title('Logged Energies from LAMMPS')
     plt.plot(df['total_energy'].to_numpy()[:num_steps] * natoms + harmonic_energy[:num_steps], 'k', label='Total')
     plt.plot(df['potential_energy'].to_numpy()[:num_steps] * natoms, 'b', label='Potential')
     plt.plot(df['kinetic_energy'].to_numpy()[:num_steps] * natoms, 'r', label='Kinetic')
     plt.plot(harmonic_energy[:num_steps], 'g', label='Harmonic')
     plt.legend()
+    plt.xlabel('Time step')
+    plt.ylabel('Energy')
     plt.savefig('LAMMPS_energy.png')
     plt.close()
 
