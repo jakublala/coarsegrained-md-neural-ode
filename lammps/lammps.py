@@ -36,7 +36,7 @@ def assignVariables(file_path, variables, values):
 # run main
 if __name__ == '__main__':
 
-    folder_name = 'single_temp_continous'
+    folder_name = 'single_temp_large_cut_strong_spring'
 
     if not os.path.exists(f'../dataset/{folder_name}'):
         os.makedirs(f'../dataset/{folder_name}')
@@ -44,9 +44,9 @@ if __name__ == '__main__':
     variables = ['$CUT', '$TEMP', '$R0', '$K', '$SEED', '$LOG_FREQ', '$RUNSTEPS', '$TIMESTEP' ]
     
     cut = 10
-    temp = 0.5
+    temp = 2.5
     r0 = 2
-    k = 6*temp/cut/cut
+    k = 10*temp/cut/cut
     
     # takes about 50 seconds
     log_freq = 10000
@@ -61,21 +61,21 @@ if __name__ == '__main__':
     #     slurm_file.append('\n')
 
     # train
-    for seed in range(1, 9):
+    for seed in range(1, 41):
         values = [cut, temp, r0, k, seed, log_freq, runsteps, timestep]
         assignVariables(f'../dataset/{folder_name}/train', variables, values)
         run_script += [f'cd train/ \n', f'sbatch run-{seed}.sh \n', 'cd .. \n']
         
         
     # test
-    for seed in range(9, 10):
+    for seed in range(41, 46):
         values = [cut, temp, r0, k, seed, log_freq, runsteps, timestep]
         assignVariables(f'../dataset/{folder_name}/test', variables, values)
         run_script += [f'cd test/ \n', f'sbatch run-{seed}.sh \n', 'cd .. \n']
         
 
     # validate
-    for seed in range(10, 11):
+    for seed in range(46, 51):
         values = [cut, temp, r0, k, seed, log_freq, runsteps, timestep]
         assignVariables(f'../dataset/{folder_name}/validation', variables, values)
         run_script += [f'cd validation/ \n', f'sbatch run-{seed}.sh \n', 'cd .. \n']

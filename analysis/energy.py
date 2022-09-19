@@ -6,10 +6,12 @@ import numpy as np
 sys.path.insert(0, os.path.abspath('..'))
 from diffmd.training import Trainer
 
+natoms = 14
+
 config = dict(
-    # folder = 'dataset/single_temp_massive_long_dt',
-    folder = '../dataset/single_temp_small',
-    device = torch.device('cuda'), 
+    folder = '../dataset/single_temp_large_cut_strong_spring',
+    # folder = '../dataset/archive/oscillation',
+    device = torch.device('cpu'), 
     training_fraction=1.0,
     random_dataset=False,
     traj_step=1,
@@ -24,12 +26,12 @@ config = dict(
     shuffle=True,
     num_workers=0,
     learning_rate=0.02,
-    nn_widths=[64, 48, 32],
+    nn_widths=[640, 480, 320],
     activation_function='tanh',
     eval_batch_length=1,
     eval_init_skip=1,
-    eval_traj_step=100,
-    load_folder='../results/temp',
+    eval_traj_step=1,
+    load_folder='../results/archive/2022-09-11/11-38-49/1920',
     dtype=torch.float32,
     itr_printing_freq=1,
     printing_freq=1,
@@ -42,6 +44,7 @@ config = dict(
     evaluation_freq=5,
     checkpoint_freq=2,
     loss_func = 'final-mse-pos',
+    normalize_loss = False,
     sigopt=False,
     )
 
@@ -50,7 +53,7 @@ if __name__ == '__main__':
 
     potential = trainer.func.net
 
-    df = pd.read_csv('../dataset/single_temp_small/train/NVE-temp-0.5_K-2.38111026821677_r-2_s-1.csv')
+    df = pd.read_csv('../dataset/single_temp_large_cut_strong_spring/train/NVE-temp-2.5_K-0.25_r-2_s-1.csv')
 
     energies = df['potential_energy'].to_numpy()
     
@@ -66,7 +69,8 @@ if __name__ == '__main__':
 
     #     pred_y = trainer.forward_pass(batch_input, batch_length=batch_length).squeeze()
     #     batch_y = batch_y.cpu().numpy()
-    #     batch_t = trainer.get_batch_t(batch_input[1], batch_length=batch_length).cpu().numpy()
+    #     batch_t = trainer.get_batch_t(batch_input[1], batch_length=batch_length).cpu().numpy())
+
 
     v, w, x, q = torch.split(trainer.training_dataset.data[0], [3, 3, 3, 4], dim=-1)
     # v, w, x, q = torch.split(pred_y, [3, 3, 3, 4], dim=-1)
@@ -76,7 +80,7 @@ if __name__ == '__main__':
     
     predicted_energies = potential(rq).detach().cpu().numpy()
     
-    indices = np.random.randint(5, size=rq.shape[0])
+    indices = np.random.randint(1000, size=rq.shape[0])
 
     import matplotlib.pyplot as plt
     plt.plot(energies[indices], predicted_energies[indices], 'o')
@@ -85,10 +89,22 @@ if __name__ == '__main__':
     plt.savefig('energy_matrix.png')
     plt.close()
 
-    num_steps = 10000
+
+
+
+
+
+    num_steps = 100
 
     print('before actual')
-    # plt.plot(energies[:num_steps], 'k--', label='Actual')
+    plt.plot(energies[:num_steps] * natoms, 'k', label='Actual')
+    plt.plot(predicted_energies[:num_steps] - predicted_energies[0], 'r', label='Predicted')
+
+    plt.ylabel('Energy')
+    plt.xlabel('Time step')
+    plt.legend()
+    plt.savefig('potential_compare.png')
+    plt.close()
 
     k = 2.38111026821677
     r0 = 2
@@ -101,10 +117,12 @@ if __name__ == '__main__':
     plt.plot(harmonic_energy[:num_steps], 'r--', alpha=0.5, label='Harmonic')
 
     M = 7.0
+
     kinetic_energy_trans = torch.sum(torch.sum(0.5 * M * v**2, dim=-1), dim=-1)
     
     batch_input, _, _ = trainer.training_dataset[0]
     inertia = batch_input[-1]
+
     kinetic_energy_rot = torch.sum(torch.sum(0.5 * inertia * w**2, dim=-1), dim=-1)
     
     kinetic_energy = (kinetic_energy_trans + kinetic_energy_rot).detach().cpu().numpy()
@@ -120,20 +138,22 @@ if __name__ == '__main__':
     plt.savefig('energy.png')
     plt.close()
 
+
+
+
     
-    actual_kinetic_energies = df['kinetic_energy'].to_numpy()
-    plt.plot(actual_kinetic_energies[:num_steps], 'k--', alpha=0.8, label='Actual Kinetic Energy')
+    # actual_kinetic_energies = df['kinetic_energy'].to_numpy() * natoms
+    # plt.plot(actual_kinetic_energies[:num_steps], 'r--', alpha=0.5, label='Actual Kinetic Energy')
 
-    predicted_kinetic_energies = kinetic_energy
-    plt.plot(predicted_kinetic_energies[:num_steps], 'r', alpha=0.5, label='Predicted Kinetic Energy')
-    plt.plot(kinetic_energy_trans.detach().cpu().numpy()[:num_steps], 'b--', alpha=0.5, label='Predicted Trans Kinetic')
-    plt.plot(kinetic_energy_rot.detach().cpu().numpy()[:num_steps], 'g-.', alpha=0.5, label='Predicted Rot Kinetic')
+    # predicted_kinetic_energies = kinetic_energy
+    # plt.plot(predicted_kinetic_energies[:num_steps], 'r', alpha=1.0, label='Predicted Kinetic Energy')
+    # plt.plot(kinetic_energy_trans.detach().cpu().numpy()[:num_steps], 'b', alpha=0.5, label='Predicted Trans Kinetic')
+    # plt.plot(kinetic_energy_rot.detach().cpu().numpy()[:num_steps], 'g', alpha=0.5, label='Predicted Rot Kinetic')
 
+    actual_potential_energies = df['potential_energy'].to_numpy() * natoms
+    plt.plot(actual_potential_energies[:num_steps], 'b', label='Actual Potential Energy')
 
-    # actual_potential_energies = df['potential_energy'].to_numpy()
-    # plt.plot(actual_potential_energies[:num_steps], 'b', label='Actual Potential Energy')
-
-    # actual_total_energies = df['total_energy'].to_numpy()
+    # actual_total_energies = df['total_energy'].to_numpy() * natoms
     # plt.plot(actual_total_energies[:num_steps], 'k--', label='Actual Total Energy')
 
     plt.legend()
@@ -141,10 +161,12 @@ if __name__ == '__main__':
     plt.close()
 
 
+
+
     # ENERGIES FROM LAMMPS
-    plt.plot(df['total_energy'].to_numpy()[:num_steps], 'k', label='Total')
-    plt.plot(df['potential_energy'].to_numpy()[:num_steps], 'b', label='Potential')
-    plt.plot(df['kinetic_energy'].to_numpy()[:num_steps], 'r', label='Kinetic')
+    plt.plot(df['total_energy'].to_numpy()[:num_steps] * natoms + harmonic_energy[:num_steps], 'k', label='Total')
+    plt.plot(df['potential_energy'].to_numpy()[:num_steps] * natoms, 'b', label='Potential')
+    plt.plot(df['kinetic_energy'].to_numpy()[:num_steps] * natoms, 'r', label='Kinetic')
     plt.plot(harmonic_energy[:num_steps], 'g', label='Harmonic')
     plt.legend()
     plt.savefig('LAMMPS_energy.png')
