@@ -302,6 +302,7 @@ class Trainer():
                 ax.plot(batch_t, pred_y[:,0,i], colours[c], alpha=0.5, label=f'pred {i}')
             ax.add_artist(get_anchored_text())
             fig.savefig(f'{subfolder}/vel1.png')
+            plt.close(fig)
             
             fig, ax = plt.subplots()
             for c, i in enumerate(ind_vel):
@@ -310,6 +311,7 @@ class Trainer():
                 ax.plot(batch_t, pred_y[:,1,i], colours[c], alpha=0.5, label=f'pred {i}')
             ax.add_artist(get_anchored_text())
             fig.savefig(f'{subfolder}/vel2.png')
+            plt.close(fig)
             
             fig, ax = plt.subplots()
             for c, i in enumerate(ind_ang):
@@ -318,6 +320,7 @@ class Trainer():
                 ax.plot(batch_t, pred_y[:,0,i], colours[c], alpha=0.5, label=f'pred {i}')
             ax.add_artist(get_anchored_text())
             fig.savefig(f'{subfolder}/angvel1.png')
+            plt.close(fig)
             
             fig, ax = plt.subplots()
             for c, i in enumerate(ind_ang):
@@ -326,6 +329,7 @@ class Trainer():
                 ax.plot(batch_t, pred_y[:,1,i], colours[c], alpha=0.5, label=f'pred {i}')
             ax.add_artist(get_anchored_text())
             fig.savefig(f'{subfolder}/angvel2.png')
+            plt.close(fig)
             
             # centre of mass positions (set initial position of first COM to zero)
             batch_y[:,:,6:9] = batch_y[:,:,6:9] - batch_y[:,[0],6:9]
@@ -339,8 +343,10 @@ class Trainer():
             ax.set_title('separation')
             ax.plot(batch_t, batch_y_sep, 'k--', alpha=0.3, label=f'true')
             ax.plot(batch_t, pred_y_sep, 'r-', alpha=0.5, label=f'pred')
+            ax.add_artist(get_anchored_text())
             fig.savefig(f'{subfolder}/sep.png')
-
+            plt.close(fig)
+            
             # quaternions
             fig, ax = plt.subplots()
             for c, i in enumerate(ind_quat):
@@ -349,7 +355,8 @@ class Trainer():
                 ax.plot(batch_t, pred_y[:,0,i], colours[c], alpha=0.5, label=f'pred {i}')
             ax.add_artist(get_anchored_text())
             fig.savefig(f'{subfolder}/quat1.png')
-
+            plt.close(fig)
+            
             fig, ax = plt.subplots()
             for c, i in enumerate(ind_quat):
                 ax.set_title('quaternions 2')
@@ -357,7 +364,8 @@ class Trainer():
                 ax.plot(batch_t, pred_y[:,1,i], colours[c], alpha=0.5, label=f'pred {i}')
             ax.add_artist(get_anchored_text())
             fig.savefig(f'{subfolder}/quat2.png')
-    
+            plt.close(fig)
+            
         # revert training dataset changes
         self.training_dataset.update(self.batch_length, self.traj_step)
 
