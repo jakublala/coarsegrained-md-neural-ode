@@ -31,7 +31,7 @@ config = dict(
     eval_batch_length=1,
     eval_init_skip=1,
     eval_traj_step=1,
-    load_folder='../results/archive/2022-09-19/12-19-49',
+    load_folder='../results/2022-09-19/19-17-43',
     dtype=torch.float32,
     itr_printing_freq=1,
     printing_freq=1,
@@ -82,13 +82,17 @@ if __name__ == '__main__':
     indices = np.random.randint(1000, size=rq.shape[0])
 
     import matplotlib.pyplot as plt
-    plt.plot(energies[indices], predicted_energies[indices], 'o')
-    plt.plot([-1, 1], [-1, 1], 'k-')
-    plt.xlabel('Actual')
-    plt.ylabel('Predicted')
-    plt.savefig('energy_matrix.png')
-    plt.close()
-
+    fig, ax = plt.subplots()
+    ax.plot(energies[indices], predicted_energies[indices], 'bo')
+    ax.plot([-4, 4], [-4, 4], 'k-')
+    ax.set_xlabel('Actual')
+    ax.set_ylabel('Predicted')
+    # set equal aspect ratio
+    ax.set_aspect('equal')
+    ax.set_xlim([-4, 4])
+    ax.set_ylim([-4, 4])
+    fig.savefig('energy_matrix.png')
+    plt.close(fig)
 
 
     num_steps = 500
