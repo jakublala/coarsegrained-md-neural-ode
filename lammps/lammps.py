@@ -36,7 +36,7 @@ def assignVariables(file_path, variables, values):
 # run main
 if __name__ == '__main__':
 
-    folder_name = 'test'
+    folder_name = 'single_temp_small'
 
     if not os.path.exists(f'../dataset/{folder_name}'):
         os.makedirs(f'../dataset/{folder_name}')
@@ -44,26 +44,22 @@ if __name__ == '__main__':
     variables = ['$R_IN', '$R_CUT', '$TEMP', '$R0', '$K', '$SEED', '$LOG_FREQ', '$RUNSTEPS', '$TIMESTEP' ]
     
     R_cut = 2 ** (1/6)
-    R_in = R_cut + R_cut * 0.01
+    R_in = R_cut - R_cut * 0.05
     temp = 2.5
     r0 = 2
     k = 10*temp/R_in/R_in
     
     # takes about 50 seconds
-    # log_freq = 10000
-    # runsteps = 10000000
-    # timestep = 0.00001
-    
-    log_freq = 10000
-    runsteps = 100000
+    log_freq = 100000
+    runsteps = 100000000
     timestep = 0.00001
-
+    
     train_split = 0.8
     test_split = 0.1
     validate_split = 0.1
     assert train_split + test_split + validate_split == 1
 
-    num_of_sims = 10
+    num_of_sims = 20
     train_n = int(num_of_sims * train_split)
     test_n = int(num_of_sims * test_split)
     validate_n = int(num_of_sims * validate_split)

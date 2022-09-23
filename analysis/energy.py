@@ -9,7 +9,7 @@ from diffmd.training import Trainer
 natoms = 14
 
 config = dict(
-    folder = '../dataset/single_temp_large_cut_strong_spring',
+    folder = '../dataset/test',
     # folder = '../dataset/single_temp_small',
     device = torch.device('cpu'), 
     training_fraction=1.0,
@@ -79,7 +79,7 @@ if __name__ == '__main__':
     
     predicted_energies = potential(rq).detach().cpu().numpy()
     
-    indices = np.random.randint(1000, size=rq.shape[0])
+    indices = np.random.randint(50, size=rq.shape[0])
 
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots()
