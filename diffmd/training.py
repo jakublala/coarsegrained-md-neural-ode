@@ -258,6 +258,14 @@ class Trainer():
         print(f'Last iteration took:', time.perf_counter() - self.itr_start_time, flush=True)
 
     def plot_traj(self, checkpoint=False):
+        from matplotlib.offsetbox import AnchoredText
+
+        def get_anchored_text():
+            at = AnchoredText(f'epoch: {self.epoch}', prop=dict(size=10), frameon=True, loc='upper left')
+            at.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
+            return at
+            
+
         # temporarily change batch length for plotting
         if checkpoint:
             batch_length = 100
@@ -285,96 +293,96 @@ class Trainer():
             ind_ang = [3, 4, 5]
             ind_pos = [6, 7, 8]
             ind_quat = [9, 10, 11, 12]
-            colours = ['r-', 'b-', 'g-']
+            colours = ['r-', 'b-', 'g-', 'm-']
 
+            fig, ax = plt.subplots()
             for c, i in enumerate(ind_vel):
-                plt.title('velocities 1')
-                plt.plot(batch_t, batch_y[:,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t, pred_y[:,0,i], colours[c], alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'{subfolder}/vel1.png')
-            plt.close()
+                ax.set_title('velocities 1')
+                ax.plot(batch_t, batch_y[:,0,i], 'k--', alpha=0.3, label=f'true {i}')
+                ax.plot(batch_t, pred_y[:,0,i], colours[c], alpha=0.5, label=f'pred {i}')
+            ax.add_artist(get_anchored_text())
+            fig.savefig(f'{subfolder}/vel1.png')
+            plt.close(fig)
             
+            fig, ax = plt.subplots()
             for c, i in enumerate(ind_vel):
-                plt.title('velocities 2')
-                plt.plot(batch_t, batch_y[:,1,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t, pred_y[:,1,i], colours[c], alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'{subfolder}/vel2.png')
-            plt.close()
+                ax.set_title('velocities 2')
+                ax.plot(batch_t, batch_y[:,1,i], 'k--', alpha=0.3, label=f'true {i}')
+                ax.plot(batch_t, pred_y[:,1,i], colours[c], alpha=0.5, label=f'pred {i}')
+            ax.add_artist(get_anchored_text())
+            fig.savefig(f'{subfolder}/vel2.png')
+            plt.close(fig)
             
-            for i in ind_ang:
-                plt.title('angular velocities 1')
-                plt.plot(batch_t, batch_y[:,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t, pred_y[:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'{subfolder}/angvel1.png')
-            plt.close()
+            fig, ax = plt.subplots()
+            for c, i in enumerate(ind_ang):
+                ax.set_title('angular velocities 1')
+                ax.plot(batch_t, batch_y[:,0,i], 'k--', alpha=0.3, label=f'true {i}')
+                ax.plot(batch_t, pred_y[:,0,i], colours[c], alpha=0.5, label=f'pred {i}')
+            ax.add_artist(get_anchored_text())
+            fig.savefig(f'{subfolder}/angvel1.png')
+            plt.close(fig)
             
-            for i in ind_ang:
-                plt.title('angular velocities 2')
-                plt.plot(batch_t, batch_y[:,1,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t, pred_y[:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'{subfolder}/angvel2.png')
-            plt.close()
+            fig, ax = plt.subplots()
+            for c, i in enumerate(ind_ang):
+                ax.set_title('angular velocities 2')
+                ax.plot(batch_t, batch_y[:,1,i], 'k--', alpha=0.3, label=f'true {i}')
+                ax.plot(batch_t, pred_y[:,1,i], colours[c], alpha=0.5, label=f'pred {i}')
+            ax.add_artist(get_anchored_text())
+            fig.savefig(f'{subfolder}/angvel2.png')
+            plt.close(fig)
             
             # centre of mass positions (set initial position of first COM to zero)
             batch_y[:,:,6:9] = batch_y[:,:,6:9] - batch_y[:,[0],6:9]
             pred_y[:,:,6:9] = pred_y[:,:,6:9] - pred_y[:,[0],6:9]
             
-            for i in ind_pos:
-                plt.title('positions 1')
-                plt.plot(batch_t, batch_y[:,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t, pred_y[:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'{subfolder}/pos1.png')
-            plt.close()
-            
-            for i in ind_pos:
-                plt.title('positions 2')
-                plt.plot(batch_t, batch_y[:,1,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t, pred_y[:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'{subfolder}/pos2.png')
-            plt.close()
-
             # centre of mass separation
             batch_y_sep = np.linalg.norm(batch_y[:,1,6:9] - batch_y[:,0,6:9], axis=-1)
             pred_y_sep = np.linalg.norm(pred_y[:,1,6:9] - pred_y[:,0,6:9], axis=-1)
 
-            plt.title('separation')
-            plt.plot(batch_t, batch_y_sep, 'k--', alpha=0.3, label=f'true')
-            plt.plot(batch_t, pred_y_sep, 'r-', alpha=0.5, label=f'pred')
-            plt.savefig(f'{subfolder}/sep.png')
-            plt.close()
-
-            # quaternions
-            for i in ind_quat:
-                plt.title('quaternions 1')
-                plt.plot(batch_t, batch_y[:,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t, pred_y[:,0,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'{subfolder}/quat1.png')
-            plt.close() 
+            fig, ax = plt.subplots()
+            ax.set_title('separation')
+            ax.plot(batch_t, batch_y_sep, 'k--', alpha=0.3, label=f'true')
+            ax.plot(batch_t, pred_y_sep, 'r-', alpha=0.5, label=f'pred')
+            ax.add_artist(get_anchored_text())
+            fig.savefig(f'{subfolder}/sep.png')
+            plt.close(fig)
             
-            for i in ind_quat:
-                plt.title('quaternions 2')
-                plt.plot(batch_t, batch_y[:,1,i], 'k--', alpha=0.3, label=f'true {i}')
-                plt.plot(batch_t, pred_y[:,1,i], 'r-', alpha=0.5, label=f'pred {i}')
-            plt.savefig(f'{subfolder}/quat2.png')
-            plt.close() 
-    
+            # quaternions
+            fig, ax = plt.subplots()
+            for c, i in enumerate(ind_quat):
+                ax.set_title('quaternions 1')
+                ax.plot(batch_t, batch_y[:,0,i], 'k--', alpha=0.3, label=f'true {i}')
+                ax.plot(batch_t, pred_y[:,0,i], colours[c], alpha=0.5, label=f'pred {i}')
+            ax.add_artist(get_anchored_text())
+            fig.savefig(f'{subfolder}/quat1.png')
+            plt.close(fig)
+            
+            fig, ax = plt.subplots()
+            for c, i in enumerate(ind_quat):
+                ax.set_title('quaternions 2')
+                ax.plot(batch_t, batch_y[:,1,i], 'k--', alpha=0.3, label=f'true {i}')
+                ax.plot(batch_t, pred_y[:,1,i], colours[c], alpha=0.5, label=f'pred {i}')
+            ax.add_artist(get_anchored_text())
+            fig.savefig(f'{subfolder}/quat2.png')
+            plt.close(fig)
+            
         # revert training dataset changes
         self.training_dataset.update(self.batch_length, self.traj_step)
 
     def plot_loss(self, subfolder):
         # TODO: add return figure to be plotted into SigOpt
-        plt.title('loss function evolution')
-        plt.plot(self.loss_meter.losses)
-        plt.xlabel('Number of Iterations')
-        plt.savefig(f'{subfolder}/loss.png')
-        plt.close()
+        fig, ax = plt.subplots()
+        ax.set_title('loss function evolution')
+        ax.plot(self.loss_meter.losses)
+        ax.set_xlabel('Number of Iterations')
+        fig.savefig(f'{subfolder}/loss.png')
         return
 
     def plot_lr(self, subfolder):
-        plt.title('learning rate evolution')
-        plt.plot(self.loss_meter.lrs)
-        plt.savefig(f'{subfolder}/lr.png')
-        plt.close()
+        fig, ax = plt.subplots()
+        ax.set_title('learning rate evolution')
+        ax.plot(self.loss_meter.lrs)
+        fig.savefig(f'{subfolder}/lr.png')
         return
 
     def log_metadata(self, config):
@@ -483,12 +491,12 @@ class Trainer():
         return eval_loss
 
     def plot_evaluation(self, subfolder):
-        plt.title('evaluation function evolution')
+        fig, ax = plt.subplots()
+        ax.set_title('evaluation function evolution')
         eval_itr = np.arange(len(self.loss_meter.evals)) * self.evaluation_freq
-        plt.plot(eval_itr, self.loss_meter.evals)
-        plt.xlabel('Number of epochs')
-        plt.savefig(f'{subfolder}/eval_loss.png')
-        plt.close()
+        ax.plot(eval_itr, self.loss_meter.evals)
+        ax.set_xlabel('Number of epochs')
+        fig.savefig(f'{subfolder}/eval_loss.png')
         return
 
     def save(self):

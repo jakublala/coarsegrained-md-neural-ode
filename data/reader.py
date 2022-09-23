@@ -5,8 +5,8 @@ import os
 
 class Reader():
 
-    def __init__(self, file_name):
-        self.file_name = file_name
+    def __init__(self, file_path):
+        self.file_path = file_path
         self.nparticles = 14
         self.timestep, self.runsteps, self.log_frequency = self.get_metadata()
         self.n_logged_timesteps = int(self.runsteps/self.log_frequency + 1)
@@ -14,7 +14,7 @@ class Reader():
         print(f"Found timestep: {self.timestep}, n of run steps: {self.runsteps}, and dump log freq: {self.log_frequency}, n of logged timesteps: {self.n_logged_timesteps}")
         
         # create processed csv file
-        if not os.path.exists(self.file_name+'.csv'):
+        if not os.path.exists(self.file_path+'.csv'):
             self.create_dataframe()
 
     def create_dataframe(self):
@@ -30,14 +30,14 @@ class Reader():
         df['total_energy'] = data[:, labels.index('TotEng')]
 
         # save to csv
-        df.to_csv(self.file_name+'.csv', index=False)
+        df.to_csv(self.file_path+'.csv', index=False)
         return
 
 
     def read_original_traj(self):
         subfix = '-traj.dump'
         lines = []
-        with open(self.file_name+subfix, 'r') as f:
+        with open(self.file_path+subfix, 'r') as f:
             particles_counter = 0
             particles_temp = []
             log_count = 0
@@ -77,7 +77,7 @@ class Reader():
         subfix = '-info.dat'
         lines = []
         log_count = 0
-        with open(self.file_name+subfix, 'r') as f:
+        with open(self.file_path+subfix, 'r') as f:
             for i, line in enumerate(f):
                 if i == 8:
                     line = line.lstrip('ITEM: ENTRIES ')
@@ -92,7 +92,7 @@ class Reader():
 
     def read_simulation_log(self):
         subfix = '-sim.log'
-        with open(self.file_name+subfix, 'r') as f:
+        with open(self.file_path+subfix, 'r') as f:
             for i, line in enumerate(f):
                 if i < 6:
                     continue
@@ -114,7 +114,7 @@ class Reader():
 
     def get_metadata(self):
         subfix = '-input.log'
-        with open(self.file_name+subfix, 'r') as f:
+        with open(self.file_path+subfix, 'r') as f:
             counter = 0
             for i, line in enumerate(f):
                 if line == '\n':

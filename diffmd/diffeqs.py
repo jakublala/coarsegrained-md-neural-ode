@@ -26,10 +26,6 @@ class ODEFunc(nn.Module):
                 layers += [nn.Linear(widths[i], widths[i+1]), functions[i+1]]        
         self.net = nn.Sequential(*layers).type(self.dtype)
 
-        print(self.net)
-
-        assert 0 == 1
-
         # initialise NN parameters
         for m in self.net.modules():
             if isinstance(m,nn.Linear):

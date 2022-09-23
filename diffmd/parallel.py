@@ -24,14 +24,14 @@ class ParallelTrainer(Trainer):
     def process(self, rank, world_size):
         self.setup_process(rank, world_size)
         
+        # TODO: fix a bug where having a batch length smaller than len(dataset) causes an error
         self.training_dataloader = self.get_parallel_dataloader(self.training_dataset, rank, world_size, self.batch_size)
         
         # TODO: add parallel evaluate and validation ?
         # self.test_dataloader = self.get_parallel_dataloader(self.test_dataset, rank, world_size, self.batch_size)
         # self.validation_dataloader = self.get_parallel_dataloader(self.validation_dataset, rank, world_size, self.batch_size)
         
-        self.func = ODEFunc(self.nparticles, self.dim, self.nn_widths, self.activation_function, self.dtype).to(self.device).to(rank)
-        self.func = DDP(self.func, device_ids=[rank], output_device=rank, find_unused_parameters=False, static_graph=False)
+        self.func = DDP(self.func.to(rank), device_ids=[rank], output_device=rank, find_unused_parameters=False, static_graph=False)
         
         self.loss_func = self.set_loss_func(self.loss_func_name)
         self.optimizer = self.set_optimizer(self.optimizer_name)
@@ -71,8 +71,8 @@ class ParallelTrainer(Trainer):
                 # backward pass                    
                 loss.backward() 
                 self.optimizer.step()
-            
-                if is_main_process():  
+                
+                if is_main_process(): 
                     self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
 
                     if (self.itr+1) % self.itr_printing_freq == 0:

@@ -16,11 +16,12 @@ atom_style  full                                # can be used for CG or molecula
 # System Parameters
 variable sigma   equal 1.0                      # sigma in lj potential
 variable epsilon equal 1.0                      # sigma in lj potential
-variable cut     equal $CUT                  # cutoff in lj potential (lj distance units)
-variable temp    equal $TEMP                    # temperature (lj temperature units)
-variable K       equal $K    # spring constant (force/distance units)
-variable r0      equal $R0                        # equilibrium distance (lj distance units)
-variable seed    equal $SEED                        # random seed value
+variable Rin     equal $R_IN                    # inner cutoff beyond which force smoothing will be applied
+variable Rcut    equal $R_CUT                   # cutoff in lj potential (lj distance units)
+variable temp    equal $TEMP                    # outer cutoff for lj/smooth interactions (lj temperature units)
+variable K       equal $K                       # spring constant (force/distance units)
+variable r0      equal $R0                      # equilibrium distance (lj distance units)
+variable seed    equal $SEED                    # random seed value
 variable name    string NVE-temp-${temp}_K-${K}_r-${r0}_s-${seed}
 
 # Output File Names
@@ -46,11 +47,12 @@ group       hex_2 id 8 9 10 11 12 13 14         # label the atoms 8-14 as anothe
 
 # -------------------------- INTERATOMIC POTENTIALS -----------------------------
 # Pairwise potentials
-pair_style  lj/cut  ${cut}                      # lj truncated - cutoff at 1.12 sigma
-pair_coeff  *   *   1.0 ${sigma}                # epsilon | sigma - * * means all atoms interact with each other
+pair_style  lj/smooth ${Rin} ${Rcut}                      # lj truncated - cutoff at 1.12 sigma
+pair_coeff  *   *  1.0 ${sigma}                # epsilon | sigma - * * means all atoms interact with each other
+pair_modify shift yes
 fix hex_spring_NVT hex_1 spring couple hex_2 1.0 0.0 0.0 0.0 ${r0} # adds harmonic spring between rigid bodies
                             # f_hex_spring[1,2,3,4] = force_x, force_y, force_z, magnitude of the force
-
+pair_write 1 1 500 r 0.5 1.5 pair_potential.txt LJ
 
 ################## SYSTEM INITIALISATION WITH AN NVT SIMULATION ##################
 # -------------------------------------------------------------------------------
