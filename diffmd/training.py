@@ -41,6 +41,7 @@ class Trainer():
         self.learning_rate = config['learning_rate']
         self.traj_step = config['traj_step']
         self.batch_length = config['batch_length']
+        self.steps_per_dt = config['steps_per_dt']
         self.batch_length_step = config['batch_length_step']
         self.batch_length_freq = config['batch_length_freq']
         self.eval_batch_length = config['eval_batch_length']
@@ -106,7 +107,7 @@ class Trainer():
         # get timesteps
         # TODO: this is always the same and so we can make it simpler
         batch_t = self.get_batch_t(dt, batch_length)
-
+        
         # set constants
         if self.parallel:
             self.func.module.k = k.to(self.device, non_blocking=True).type(self.dtype)
@@ -380,10 +381,12 @@ class Trainer():
 
     def set_loss_func(self, loss_func):
         if 'all-mse' == loss_func:
+            raise NotImplementedError('all-mse loss function not implemented with new steps_per_dt')
             return all_mse
         elif 'final-mse' == loss_func:
             return final_mse
         elif 'all-mse-pos' == loss_func:
+            raise NotImplementedError('all-mse loss function not implemented with new steps_per_dt')
             return all_mse_pos
         elif 'final-mse-pos' == loss_func:
             return final_mse_pos
@@ -528,14 +531,19 @@ class Trainer():
         print('====================================================')
         return None
     
-    def get_batch_t(self, dt, batch_length=None):
+    def get_batch_t(self, dt, batch_length=None, plotting=False):
+        if plotting:
+            steps_per_dt = 1
+        else:
+            steps_per_dt = self.steps_per_dt
+
         if batch_length == None:
             batch_length = self.batch_length
 
         if type(dt) == torch.Tensor:
-            return torch.linspace(0.0,dt[0]*(batch_length),batch_length+1).to(self.device, non_blocking=True).type(self.dtype)
+            return torch.linspace(0.0,dt[0]*(batch_length),(batch_length*steps_per_dt)+1).to(self.device, non_blocking=True).type(self.dtype)
         else:
-            return torch.linspace(0.0,dt*(batch_length),batch_length+1).to(self.device, non_blocking=True).type(self.dtype)
+            return torch.linspace(0.0,dt*(batch_length),(batch_length*steps_per_dt)+1).to(self.device, non_blocking=True).type(self.dtype)
 
     def get_activation_functions(self, function):
         def get_function(string):
