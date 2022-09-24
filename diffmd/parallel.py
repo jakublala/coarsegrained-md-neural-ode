@@ -79,7 +79,7 @@ class ParallelTrainer(Trainer):
                         self.print_iteration()
 
                     # log everything
-                    self.logger.update([self.epoch, self.itr, self.optimizer.param_groups[0]["lr"], self.batch_length] + loss_parts + [None, time.perf_counter() - self.itr_start_time])
+                    self.logger.update([self.epoch, self.itr, self.optimizer.param_groups[0]["lr"], self.traj_steps, self.steps_per_dt] + loss_parts + [None, time.perf_counter() - self.itr_start_time])
                 
             # logging and waiting for all processes to finish epoch
             if is_main_process(): 

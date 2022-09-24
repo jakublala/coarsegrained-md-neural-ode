@@ -50,7 +50,7 @@ if __name__ == '__main__':
     k = 10*temp/R_in/R_in
     
     # takes about 50 seconds
-    log_freq = 1000
+    log_freq = 10000
     runsteps = 10000000
     timestep = 0.00001
     

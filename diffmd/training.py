@@ -2,6 +2,7 @@ from distutils.command.config import config
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
+from matplotlib.offsetbox import AnchoredText
 import time
 import os
 import shutil
@@ -39,11 +40,17 @@ class Trainer():
         self.epochs = config['epochs']
         self.start_epoch = config['start_epoch']
         self.learning_rate = config['learning_rate']
-        self.traj_step = config['traj_step']
-        self.batch_length = config['batch_length']
+        
+        self.traj_steps = config['traj_steps']
         self.steps_per_dt = config['steps_per_dt']
-        self.batch_length_step = config['batch_length_step']
-        self.batch_length_freq = config['batch_length_freq']
+        
+        assert self.traj_steps > self.steps_per_dt, 'traj_steps must be larger than steps_per_dt'
+        assert self.traj_steps % self.steps_per_dt == 0, 'traj_steps must be divisible by steps_per_dt'
+
+        # TODO: currently not implemented
+        # self.batch_length_step = config['batch_length_step']
+        # self.batch_length_freq = config['batch_length_freq']
+
         self.eval_batch_length = config['eval_batch_length']
         self.shuffle = config['shuffle']
         self.num_workers = config['num_workers']
@@ -59,9 +66,9 @@ class Trainer():
         self.dtype = config['dtype']
 
         # dataset setup
-        self.training_dataset = Dataset(config, dataset_type='train', batch_length=self.batch_length, dataset_fraction=config['training_fraction'], random_dataset=config['random_dataset'])
-        self.test_dataset = Dataset(config, dataset_type='test', batch_length=self.eval_batch_length)
-        self.validation_dataset = Dataset(config, dataset_type='validation', batch_length=self.eval_batch_length)
+        self.training_dataset = Dataset(config, dataset_type='train', traj_length=(self.traj_steps // self.steps_per_dt), dataset_fraction=config['training_fraction'], random_dataset=config['random_dataset'])
+        self.test_dataset = Dataset(config, dataset_type='test', traj_length=self.eval_batch_length)
+        self.validation_dataset = Dataset(config, dataset_type='validation', traj_length=self.eval_batch_length)
         self.training_dataloader = self.get_dataloader(self.training_dataset, shuffle=self.shuffle) 
         self.test_dataloader = self.get_dataloader(self.test_dataset) 
         self.validation_dataloader = self.get_dataloader(self.validation_dataset)
@@ -97,17 +104,16 @@ class Trainer():
         print(f'number of parameters = {self.nparameters}')
         print(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name}')
         print(f'scheduler = {self.scheduler_name}, scheduling factor = {self.scheduling_factor}, scheduling freq = {self.scheduling_freq}')
-        print(f'batch size = {self.batch_size}, traj length = {self.batch_length}')
+        print(f'batch size = {self.batch_size}, traj steps = {self.traj_steps}, steps per dt = {self.steps_per_dt}')
 
-    def forward_pass(self, batch_input, batch_length=None):
-        
+    def forward_pass(self, batch_input, traj_steps):
         batch_y0, dt, k, r0, inertia =  batch_input
         batch_y0 = tuple(i.to(self.device, non_blocking=True).type(self.dtype) for i in torch.split(batch_y0, [3, 3, 3, 4], dim=-1))
 
         # get timesteps
-        # TODO: this is always the same and so we can make it simpler
-        batch_t = self.get_batch_t(dt, batch_length)
-        
+        effective_dt = dt / self.steps_per_dt
+        batch_t = self.get_batch_t(effective_dt, traj_steps)
+
         # set constants
         if self.parallel:
             self.func.module.k = k.to(self.device, non_blocking=True).type(self.dtype)
@@ -147,7 +153,7 @@ class Trainer():
                     param.grad = None
 
                 # forward pass                
-                pred_y = self.forward_pass(batch_input)
+                pred_y = self.forward_pass(batch_input, self.traj_steps)
 
                 # compute loss
                 if self.loss_func_name == 'energy':
@@ -168,7 +174,7 @@ class Trainer():
                     self.print_iteration()
                 
                 # log everything
-                self.logger.update([self.epoch, self.itr, self.optimizer.param_groups[0]["lr"], self.batch_length] + loss_parts + [None, time.perf_counter() - self.itr_start_time])
+                self.logger.update([self.epoch, self.itr, self.optimizer.param_groups[0]["lr"], self.traj_steps, self.steps_per_dt] + loss_parts + [None, time.perf_counter() - self.itr_start_time])
                     
             if self.after_epoch():
                 # if True, then early stopping
@@ -192,8 +198,9 @@ class Trainer():
         if self.epoch % self.checkpoint_freq == 0:
             self.checkpoint()
 
-        if self.epoch % self.batch_length_freq == 0:
-            self.increase_batch_length()
+        # TODO: implement
+        # if self.epoch % self.batch_length_freq == 0:
+        #     self.increase_batch_length()
 
         # early stopping
         if self.epoch % self.stopping_freq == 0:
@@ -212,10 +219,11 @@ class Trainer():
             #     print('early stopping as stale convergence')
             #     return self.func, self.loss_meter
         
-    def increase_batch_length(self):
-        self.batch_length += self.batch_length_step
-        self.training_dataset.update(self.batch_length)
-        self.loss_meter.reset()
+    # TODO: not implemented
+    # def increase_batch_length(self):
+    #     self.batch_length += self.batch_length_step
+    #     self.training_dataset.update(self.batch_length)
+    #     self.loss_meter.reset()
 
     def load_func(self):
         # in case we load a DDP model checkpoint to a non-DDP model
@@ -237,30 +245,39 @@ class Trainer():
         print('Last epoch took:     ', time.perf_counter() - start_time, flush=True)
         print(f'Learning rate: {self.loss_meter.lrs[-1]}')
         print(f'Current learning rate: {self.optimizer.param_groups[0]["lr"]}')
-        print(f'Current batch length: {self.batch_length}')
+        print(f'Current traj steps: {self.traj_steps}, Current steps per dt: {self.steps_per_dt}')
         
     def print_iteration(self):
         print(f'Epoch: {self.epoch}, Iteration: {self.itr+1}, Loss: {self.loss_meter.val}')
         print(f'Last iteration took:', time.perf_counter() - self.itr_start_time, flush=True)
 
     def plot_traj(self, checkpoint=False):
-        from matplotlib.offsetbox import AnchoredText
-
         def get_anchored_text():
             at = AnchoredText(f'epoch: {self.epoch}', prop=dict(size=10), frameon=True, loc='upper left')
             at.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
             return at
-            
 
-        # temporarily change batch length for plotting
+        def plot(indices, body_id, title, filename):
+            colours = ['r-', 'b-', 'g-', 'm-']
+            fig, ax = plt.subplots()
+            for c, i in enumerate(indices):
+                ax.set_title(title)
+                ax.plot(batch_t, batch_y[:,body_id,i], 'k--', alpha=0.3, label=f'true {i}')
+                ax.plot(pred_t, pred_y[:,body_id,i], colours[c], alpha=0.5, label=f'pred {i}')
+            ax.add_artist(get_anchored_text())
+            fig.savefig(f'{subfolder}/{filename}.png')
+            plt.close(fig)            
+
+        # temporarily change traj length for plotting
         if checkpoint:
-            batch_length = 100
+            traj_steps = 5000
             subfolder = f'results/{self.day}/{self.time}/{self.epoch}'
         else:
-            batch_length = 100
+            traj_steps = 5000
             subfolder = f'results/{self.day}/{self.time}'
-        self.training_dataset.update(batch_length, traj_step=self.traj_step)
+        traj_length = traj_steps // self.steps_per_dt
         
+        self.training_dataset.update(traj_length)
         with torch.no_grad():
             # get the earliest init conditions to ensure trajectories are long enough
             init_index = self.training_dataset.init_IDS.index(min(self.training_dataset.init_IDS, key=len))
@@ -269,53 +286,21 @@ class Trainer():
             batch_input[0] = batch_input[0].unsqueeze(0)
             batch_input = tuple(batch_input)
 
-            pred_y = self.forward_pass(batch_input, batch_length=batch_length).squeeze().cpu().numpy()
+            pred_y = self.forward_pass(batch_input, traj_steps=traj_steps).squeeze().cpu().numpy()
             batch_y = batch_y.cpu().numpy()
-            batch_t = self.get_batch_t(batch_input[1], batch_length=batch_length).cpu().numpy()
-
-            assert batch_y.shape == pred_y.shape, 'batch_y and pred_y have different shapes'
+            
+            effective_dt = batch_input[1] / self.steps_per_dt
+            pred_t = self.get_batch_t(effective_dt, traj_steps).cpu().numpy()
+            batch_t = self.get_batch_t(batch_input[1], traj_length).cpu().numpy()
 
             ind_vel = [0, 1, 2]
             ind_ang = [3, 4, 5]
-            ind_pos = [6, 7, 8]
             ind_quat = [9, 10, 11, 12]
-            colours = ['r-', 'b-', 'g-', 'm-']
-
-            fig, ax = plt.subplots()
-            for c, i in enumerate(ind_vel):
-                ax.set_title('velocities 1')
-                ax.plot(batch_t, batch_y[:,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                ax.plot(batch_t, pred_y[:,0,i], colours[c], alpha=0.5, label=f'pred {i}')
-            ax.add_artist(get_anchored_text())
-            fig.savefig(f'{subfolder}/vel1.png')
-            plt.close(fig)
             
-            fig, ax = plt.subplots()
-            for c, i in enumerate(ind_vel):
-                ax.set_title('velocities 2')
-                ax.plot(batch_t, batch_y[:,1,i], 'k--', alpha=0.3, label=f'true {i}')
-                ax.plot(batch_t, pred_y[:,1,i], colours[c], alpha=0.5, label=f'pred {i}')
-            ax.add_artist(get_anchored_text())
-            fig.savefig(f'{subfolder}/vel2.png')
-            plt.close(fig)
-            
-            fig, ax = plt.subplots()
-            for c, i in enumerate(ind_ang):
-                ax.set_title('angular velocities 1')
-                ax.plot(batch_t, batch_y[:,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                ax.plot(batch_t, pred_y[:,0,i], colours[c], alpha=0.5, label=f'pred {i}')
-            ax.add_artist(get_anchored_text())
-            fig.savefig(f'{subfolder}/angvel1.png')
-            plt.close(fig)
-            
-            fig, ax = plt.subplots()
-            for c, i in enumerate(ind_ang):
-                ax.set_title('angular velocities 2')
-                ax.plot(batch_t, batch_y[:,1,i], 'k--', alpha=0.3, label=f'true {i}')
-                ax.plot(batch_t, pred_y[:,1,i], colours[c], alpha=0.5, label=f'pred {i}')
-            ax.add_artist(get_anchored_text())
-            fig.savefig(f'{subfolder}/angvel2.png')
-            plt.close(fig)
+            for i in [0, 1]:
+                plot(ind_vel, i, f'velocities {i+1}', f'vel{i+1}')
+                plot(ind_ang, i, f'angular velocities {i+1}', f'angvel{i+1}')
+                plot(ind_quat, i, f'quaternions {i+1}', f'quat{i+1}')
             
             # centre of mass positions (set initial position of first COM to zero)
             batch_y[:,:,6:9] = batch_y[:,:,6:9] - batch_y[:,[0],6:9]
@@ -328,33 +313,14 @@ class Trainer():
             fig, ax = plt.subplots()
             ax.set_title('separation')
             ax.plot(batch_t, batch_y_sep, 'k--', alpha=0.3, label=f'true')
-            ax.plot(batch_t, pred_y_sep, 'r-', alpha=0.5, label=f'pred')
+            ax.plot(pred_t, pred_y_sep, 'r-', alpha=0.5, label=f'pred')
             ax.add_artist(get_anchored_text())
             fig.savefig(f'{subfolder}/sep.png')
             plt.close(fig)
-            
-            # quaternions
-            fig, ax = plt.subplots()
-            for c, i in enumerate(ind_quat):
-                ax.set_title('quaternions 1')
-                ax.plot(batch_t, batch_y[:,0,i], 'k--', alpha=0.3, label=f'true {i}')
-                ax.plot(batch_t, pred_y[:,0,i], colours[c], alpha=0.5, label=f'pred {i}')
-            ax.add_artist(get_anchored_text())
-            fig.savefig(f'{subfolder}/quat1.png')
-            plt.close(fig)
-            
-            fig, ax = plt.subplots()
-            for c, i in enumerate(ind_quat):
-                ax.set_title('quaternions 2')
-                ax.plot(batch_t, batch_y[:,1,i], 'k--', alpha=0.3, label=f'true {i}')
-                ax.plot(batch_t, pred_y[:,1,i], colours[c], alpha=0.5, label=f'pred {i}')
-            ax.add_artist(get_anchored_text())
-            fig.savefig(f'{subfolder}/quat2.png')
-            plt.close(fig)
-            
-        # revert training dataset changes
-        self.training_dataset.update(self.batch_length, self.traj_step)
 
+        # revert changes to traj length
+        self.training_dataset.update(self.traj_steps // self.steps_per_dt)
+            
     def plot_loss(self, subfolder):
         # TODO: add return figure to be plotted into SigOpt
         fig, ax = plt.subplots()
@@ -464,7 +430,7 @@ class Trainer():
             eval_loss = []
             for batch_input, batch_y, _ in dataloader:
                 # forward pass
-                pred_y = self.forward_pass(batch_input, batch_length=self.eval_batch_length)
+                pred_y = self.forward_pass(batch_input, traj_steps=self.eval_batch_length)
 
                 # loss of the projected trajectory by one dt
                 loss, loss_parts = final_mse(pred_y, batch_y, dataset.stds, dataset.means)
@@ -531,19 +497,11 @@ class Trainer():
         print('====================================================')
         return None
     
-    def get_batch_t(self, dt, batch_length=None, plotting=False):
-        if plotting:
-            steps_per_dt = 1
-        else:
-            steps_per_dt = self.steps_per_dt
-
-        if batch_length == None:
-            batch_length = self.batch_length
-
+    def get_batch_t(self, dt, traj_steps):
         if type(dt) == torch.Tensor:
-            return torch.linspace(0.0,dt[0]*(batch_length),(batch_length*steps_per_dt)+1).to(self.device, non_blocking=True).type(self.dtype)
+            return torch.linspace(0.0,dt[0]*(traj_steps),(traj_steps)+1).to(self.device, non_blocking=True).type(self.dtype)
         else:
-            return torch.linspace(0.0,dt*(batch_length),(batch_length*steps_per_dt)+1).to(self.device, non_blocking=True).type(self.dtype)
+            return torch.linspace(0.0,dt*(traj_steps),(traj_steps)+1).to(self.device, non_blocking=True).type(self.dtype)
 
     def get_activation_functions(self, function):
         def get_function(string):

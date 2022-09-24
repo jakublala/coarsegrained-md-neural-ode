@@ -3,7 +3,7 @@ import pandas as pd
 
 class Logger():
     def __init__(self):
-        self.header = ['epoch', 'itr', 'lr', 'traj_length', 'train_loss-vel', 'train_loss-angvel', 'train_loss-pos', 'train_loss-quat', 'test_loss', 'time']
+        self.header = ['epoch', 'itr', 'lr', 'traj_steps', 'steps_per_dt', 'train_loss-vel', 'train_loss-angvel', 'train_loss-pos', 'train_loss-quat', 'test_loss', 'time']
         self.log = []
 
     def update(self, update):
