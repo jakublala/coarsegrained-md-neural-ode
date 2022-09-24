@@ -36,7 +36,7 @@ def assignVariables(file_path, variables, values):
 # run main
 if __name__ == '__main__':
 
-    folder_name = 'single_temp_small'
+    folder_name = 'single_temp'
 
     if not os.path.exists(f'../dataset/{folder_name}'):
         os.makedirs(f'../dataset/{folder_name}')
@@ -50,8 +50,8 @@ if __name__ == '__main__':
     k = 10*temp/R_in/R_in
     
     # takes about 50 seconds
-    log_freq = 100000
-    runsteps = 100000000
+    log_freq = 1000
+    runsteps = 10000000
     timestep = 0.00001
     
     train_split = 0.8
@@ -59,7 +59,7 @@ if __name__ == '__main__':
     validate_split = 0.1
     assert train_split + test_split + validate_split == 1
 
-    num_of_sims = 20
+    num_of_sims = 100
     train_n = int(num_of_sims * train_split)
     test_n = int(num_of_sims * test_split)
     validate_n = int(num_of_sims * validate_split)

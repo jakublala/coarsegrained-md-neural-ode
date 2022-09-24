@@ -157,21 +157,6 @@ class Trainer():
                 # backward pass      
                 loss.backward() 
                 self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
-
-                # print(batch_input[0][0, 0])
-                # quats = pred_y[0][:, 0, 9:]
-                # with open('quat_forward.txt', 'w') as f:
-                #     for quat in quats:
-                #         quat = list(quat.detach().cpu().numpy())
-                #         f.write(','.join([str(q) for q in quat]) + '\n')
-
-                # poss = pred_y[0][:, 0, 6:9]
-                # with open('pos_forward.txt', 'w') as f:
-                #     for pos in poss:
-                #         pos = list(pos.detach().cpu().numpy())
-                #         f.write(','.join([str(p) for p in pos]) + '\n')
-
-                # assert 0 == 1, 'after loss backward pass'
         
                 if self.optimizer_name == 'LBFGS':
                     self.optimizer.step(closure)
