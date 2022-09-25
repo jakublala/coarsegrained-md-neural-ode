@@ -56,8 +56,8 @@ class ODEFunc(nn.Module):
 
             # get energy and gradients
             # TODO: check that harmonic restraint is calculated correctly
-            # u = self.net(rq) + self.harmonic_restraint(rq) # [number of trajectories, potential energy]
-            u = self.zero_net(rq) + self.harmonic_restraint(rq) # [number of trajectories, potential energy]
+            u = self.net(rq) + self.harmonic_restraint(rq) # [number of trajectories, potential energy]
+            # u = self.zero_net(rq) + self.harmonic_restraint(rq) # [number of trajectories, potential energy]
 
             f = -compute_grad(inputs=x, output=u)
             grad_q = compute_grad(inputs=q, output=u)

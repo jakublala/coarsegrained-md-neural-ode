@@ -60,7 +60,7 @@ class ParallelTrainer(Trainer):
                 batch_y = batch_y.to(self.device, non_blocking=True).type(self.dtype)
 
                 # forward pass
-                pred_y = self.forward_pass(batch_input)
+                pred_y = self.forward_pass(batch_input, self.traj_steps, self.steps_per_dt)
                 
                 # compute loss
                 if self.loss_func_name == 'energy':
@@ -79,7 +79,7 @@ class ParallelTrainer(Trainer):
                         self.print_iteration()
 
                     # log everything
-                    self.logger.update([self.epoch, self.itr, self.optimizer.param_groups[0]["lr"], self.traj_steps, self.steps_per_dt] + loss_parts + [None, time.perf_counter() - self.itr_start_time])
+                    self.logger.update([self.epoch, self.itr, self.optimizer.param_groups[0]["lr"], self.dataset_steps, self.steps_per_dt] + loss_parts + [None, time.perf_counter() - self.itr_start_time])
                 
             # logging and waiting for all processes to finish epoch
             if is_main_process(): 
