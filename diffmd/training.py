@@ -27,7 +27,10 @@ class Trainer():
         self.subfolder = self.get_subfolder() 
         
         self.folder = config['folder']
-        self.device = config['device']
+        self.device = self.set_device(config['device'])
+        config['device'] = self.device
+        self.dtype = self.set_dtype(config['dtype'])
+        config['dtype'] = self.dtype
         self.sigopt = config['sigopt']
         self.parallel = False
         
@@ -57,7 +60,6 @@ class Trainer():
         self.scheduler_name = config['scheduler']
         self.scheduling_factor = config['scheduling_factor']
         
-        self.dtype = config['dtype']
 
         # dataset setup
         self.training_dataset = Dataset(config, dataset_type='train', traj_length=self.dataset_steps, dataset_fraction=config['training_fraction'], random_dataset=config['random_dataset'])
@@ -481,9 +483,10 @@ class Trainer():
         return
 
     def report_sigopt(self, subfolder):
-        sigopt.log_image(f'{subfolder}/loss.png', 'training loss evolution')
-        sigopt.log_image(f'{subfolder}/eval_loss.png', 'test loss evolution')
-        sigopt.log_image(f'{subfolder}/lr.png', 'learning rate evolution')
+        files = os.listdir(subfolder)
+        for f in files:
+            if f.endswith('.png'):
+                self.sigopt.log_image(f'{subfolder}/{f}')
         return
 
     def checkpoint(self):
@@ -536,7 +539,20 @@ class Trainer():
         else:
             raise Exception('activation function must be a string or a list of strings of the same length as the number of layers')
             
+    def set_dtype(self, dtype):
+        if dtype == 'float32':
+            return torch.float32
+        else:
+            raise Exception('dtype not implemented')
 
+    def set_device(self, device):
+        if device == 'cpu':
+            return torch.device('cpu')
+        elif device == 'cuda':
+            return torch.device('cuda')
+        else:
+            raise Exception('device not implemented')
+            
 class RunningAverageMeter(object):
     """Computes and stores the average and current value"""
 

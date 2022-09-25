@@ -5,6 +5,7 @@ import numpy as np
 from datetime import datetime
 import time
 import random
+import yaml
 
 def normalize_quat(q):
     # TODO: documentation
@@ -39,3 +40,7 @@ def get_run_ID():
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+def read_yaml(file_path):
+    with open(file_path, "r") as f:
+        return yaml.safe_load(f)
