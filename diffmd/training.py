@@ -486,7 +486,7 @@ class Trainer():
         files = os.listdir(subfolder)
         for f in files:
             if f.endswith('.png'):
-                self.sigopt.log_image(f'{subfolder}/{f}')
+                sigopt.log_image(f'{subfolder}/{f}')
         return
 
     def checkpoint(self):

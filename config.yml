@@ -13,7 +13,7 @@ weight_decay: 0
 loss_func : 'final-mse-pos'
 normalize_loss : True
 
-epochs : 30
+epochs : 1
 learning_rate: 0.02
 nn_widths: [64, 48, 32]
 activation_function: 'tanh'
@@ -42,4 +42,4 @@ scheduler: null
 scheduling_factor: 0.5
 scheduling_freq: 25
 
-sigopt: False
+sigopt: True
