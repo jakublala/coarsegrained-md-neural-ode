@@ -44,7 +44,8 @@ class Trainer():
         # self.batch_length_step = config['batch_length_step']
         # self.batch_length_freq = config['batch_length_freq']
 
-        self.eval_batch_length = config['eval_batch_length']
+        self.eval_dataset_steps = config['eval_dataset_steps']
+        
         self.shuffle = config['shuffle']
         self.num_workers = config['num_workers']
         self.batch_size = config['batch_size']
@@ -60,8 +61,8 @@ class Trainer():
 
         # dataset setup
         self.training_dataset = Dataset(config, dataset_type='train', traj_length=self.dataset_steps, dataset_fraction=config['training_fraction'], random_dataset=config['random_dataset'])
-        self.test_dataset = Dataset(config, dataset_type='test', traj_length=self.eval_batch_length)
-        self.validation_dataset = Dataset(config, dataset_type='validation', traj_length=self.eval_batch_length)
+        self.test_dataset = Dataset(config, dataset_type='test', traj_length=self.eval_dataset_steps)
+        self.validation_dataset = Dataset(config, dataset_type='validation', traj_length=self.eval_dataset_steps)
         self.training_dataloader = self.get_dataloader(self.training_dataset, shuffle=self.shuffle) 
         self.test_dataloader = self.get_dataloader(self.test_dataset) 
         self.validation_dataloader = self.get_dataloader(self.validation_dataset)
@@ -113,12 +114,12 @@ class Trainer():
             subfolder = f'results/{self.day}/{self.time}'
         return subfolder
 
-    def forward_pass(self, batch_input, traj_steps):
+    def forward_pass(self, batch_input, traj_steps, steps_per_dt):
         batch_y0, dt, k, r0, inertia =  batch_input
         batch_y0 = tuple(i.to(self.device, non_blocking=True).type(self.dtype) for i in torch.split(batch_y0, [3, 3, 3, 4], dim=-1))
 
         # get timesteps
-        effective_dt = dt / self.steps_per_dt
+        effective_dt = dt / steps_per_dt
         batch_t = self.get_batch_t(effective_dt, traj_steps)
 
         # set constants
@@ -147,6 +148,7 @@ class Trainer():
                 self.itr_start_time = time.perf_counter()
 
                 def closure():
+                    # TODO: does not work
                     for param in self.func.parameters():
                         param.grad = None  
                     # forward pass                
@@ -160,7 +162,7 @@ class Trainer():
                     param.grad = None
 
                 # forward pass                
-                pred_y = self.forward_pass(batch_input, self.traj_steps)
+                pred_y = self.forward_pass(batch_input, self.traj_steps, self.steps_per_dt)
 
                 # compute loss
                 if self.loss_func_name == 'energy':
@@ -294,7 +296,7 @@ class Trainer():
             batch_input[0] = batch_input[0].unsqueeze(0)
             batch_input = tuple(batch_input)
 
-            pred_y = self.forward_pass(batch_input, traj_steps=traj_steps).squeeze().cpu().numpy()
+            pred_y = self.forward_pass(batch_input, traj_steps=traj_steps, steps_per_dt=self.steps_per_dt).squeeze().cpu().numpy()
             batch_y = batch_y.cpu().numpy()
             
             effective_dt = batch_input[1] / self.steps_per_dt
@@ -305,12 +307,6 @@ class Trainer():
             ind_ang = [3, 4, 5]
             ind_quat = [9, 10, 11, 12]
 
-            print(pred_t.shape)
-            print(pred_y.shape)
-
-            print(batch_t.shape)
-            print(batch_y.shape)
-            
             for i in [0, 1]:
                 plot(ind_vel, i, f'velocities {i+1}', f'vel{i+1}')
                 plot(ind_ang, i, f'angular velocities {i+1}', f'angvel{i+1}')
@@ -446,7 +442,7 @@ class Trainer():
             eval_loss = []
             for batch_input, batch_y, _ in dataloader:
                 # forward pass
-                pred_y = self.forward_pass(batch_input, traj_steps=self.eval_batch_length)
+                pred_y = self.forward_pass(batch_input, traj_steps=self.eval_dataset_steps, steps_per_dt=1)
 
                 # loss of the projected trajectory by one dt
                 loss, loss_parts = final_mse(pred_y, batch_y, dataset.stds, dataset.means)

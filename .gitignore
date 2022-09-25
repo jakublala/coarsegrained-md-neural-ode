@@ -17,16 +17,10 @@ CG*
 RCS*
 
 # Custom files
-run.sh
-run.py
-run-parallel.py
+run*
 sigopt-model.py
 sigopt*
 experiment.yml
-run-gpu.py
-arch*
-4gpus*
-core*
 utils.ipynb
 
 # Folders
