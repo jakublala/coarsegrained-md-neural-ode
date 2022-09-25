@@ -41,12 +41,10 @@ class Trainer():
         self.start_epoch = config['start_epoch']
         self.learning_rate = config['learning_rate']
         
-        self.traj_steps = config['traj_steps']
+        self.dataset_steps = config['dataset_steps']
         self.steps_per_dt = config['steps_per_dt']
+        self.traj_steps = self.dataset_steps * self.steps_per_dt
         
-        assert self.traj_steps > self.steps_per_dt, 'traj_steps must be larger than steps_per_dt'
-        assert self.traj_steps % self.steps_per_dt == 0, 'traj_steps must be divisible by steps_per_dt'
-
         # TODO: currently not implemented
         # self.batch_length_step = config['batch_length_step']
         # self.batch_length_freq = config['batch_length_freq']
@@ -66,7 +64,7 @@ class Trainer():
         self.dtype = config['dtype']
 
         # dataset setup
-        self.training_dataset = Dataset(config, dataset_type='train', traj_length=(self.traj_steps // self.steps_per_dt), dataset_fraction=config['training_fraction'], random_dataset=config['random_dataset'])
+        self.training_dataset = Dataset(config, dataset_type='train', traj_length=self.dataset_steps, dataset_fraction=config['training_fraction'], random_dataset=config['random_dataset'])
         self.test_dataset = Dataset(config, dataset_type='test', traj_length=self.eval_batch_length)
         self.validation_dataset = Dataset(config, dataset_type='validation', traj_length=self.eval_batch_length)
         self.training_dataloader = self.get_dataloader(self.training_dataset, shuffle=self.shuffle) 
@@ -104,7 +102,7 @@ class Trainer():
         print(f'number of parameters = {self.nparameters}')
         print(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name}')
         print(f'scheduler = {self.scheduler_name}, scheduling factor = {self.scheduling_factor}, scheduling freq = {self.scheduling_freq}')
-        print(f'batch size = {self.batch_size}, traj steps = {self.traj_steps}, steps per dt = {self.steps_per_dt}')
+        print(f'batch size = {self.batch_size}, dataset_steps = {self.dataset_steps}, steps per dt = {self.steps_per_dt}')
 
     def forward_pass(self, batch_input, traj_steps):
         batch_y0, dt, k, r0, inertia =  batch_input
@@ -174,7 +172,7 @@ class Trainer():
                     self.print_iteration()
                 
                 # log everything
-                self.logger.update([self.epoch, self.itr, self.optimizer.param_groups[0]["lr"], self.traj_steps, self.steps_per_dt] + loss_parts + [None, time.perf_counter() - self.itr_start_time])
+                self.logger.update([self.epoch, self.itr, self.optimizer.param_groups[0]["lr"], self.dataset_steps, self.steps_per_dt] + loss_parts + [None, time.perf_counter() - self.itr_start_time])
                     
             if self.after_epoch():
                 # if True, then early stopping
@@ -245,7 +243,7 @@ class Trainer():
         print('Last epoch took:     ', time.perf_counter() - start_time, flush=True)
         print(f'Learning rate: {self.loss_meter.lrs[-1]}')
         print(f'Current learning rate: {self.optimizer.param_groups[0]["lr"]}')
-        print(f'Current traj steps: {self.traj_steps}, Current steps per dt: {self.steps_per_dt}')
+        print(f'Current dataset steps: {self.dataset_steps}, Current steps per dt: {self.steps_per_dt}')
         
     def print_iteration(self):
         print(f'Epoch: {self.epoch}, Iteration: {self.itr+1}, Loss: {self.loss_meter.val}')
@@ -270,14 +268,15 @@ class Trainer():
 
         # temporarily change traj length for plotting
         if checkpoint:
-            traj_steps = 5000
+            dataset_steps = 100
             subfolder = f'results/{self.day}/{self.time}/{self.epoch}'
         else:
-            traj_steps = 5000
+            dataset_steps = 3000
             subfolder = f'results/{self.day}/{self.time}'
-        traj_length = traj_steps // self.steps_per_dt
+
+        traj_steps = dataset_steps * self.steps_per_dt
         
-        self.training_dataset.update(traj_length)
+        self.training_dataset.update(dataset_steps)
         with torch.no_grad():
             # get the earliest init conditions to ensure trajectories are long enough
             init_index = self.training_dataset.init_IDS.index(min(self.training_dataset.init_IDS, key=len))
@@ -291,11 +290,17 @@ class Trainer():
             
             effective_dt = batch_input[1] / self.steps_per_dt
             pred_t = self.get_batch_t(effective_dt, traj_steps).cpu().numpy()
-            batch_t = self.get_batch_t(batch_input[1], traj_length).cpu().numpy()
+            batch_t = self.get_batch_t(batch_input[1], dataset_steps).cpu().numpy()
 
             ind_vel = [0, 1, 2]
             ind_ang = [3, 4, 5]
             ind_quat = [9, 10, 11, 12]
+
+            print(pred_t.shape)
+            print(pred_y.shape)
+
+            print(batch_t.shape)
+            print(batch_y.shape)
             
             for i in [0, 1]:
                 plot(ind_vel, i, f'velocities {i+1}', f'vel{i+1}')
@@ -319,7 +324,7 @@ class Trainer():
             plt.close(fig)
 
         # revert changes to traj length
-        self.training_dataset.update(self.traj_steps // self.steps_per_dt)
+        self.training_dataset.update(self.dataset_steps)
             
     def plot_loss(self, subfolder):
         # TODO: add return figure to be plotted into SigOpt
