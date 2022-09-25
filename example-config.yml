@@ -1,0 +1,45 @@
+folder: 'dataset/single_temp'
+training_fraction: 0.1
+random_dataset: False
+
+device : 'cuda' 
+dtype: 'float32'
+
+start_epoch : 0
+load_folder: null
+
+optimizer : 'Adamax'
+weight_decay: 0
+loss_func : 'final-mse-pos'
+normalize_loss : True
+
+epochs : 1
+learning_rate: 0.02
+nn_widths: [64, 48, 32]
+activation_function: 'tanh'
+
+dataset_steps: 10
+steps_per_dt: 3
+
+batch_size: 10000
+shuffle: True
+num_workers: 0
+
+eval_dataset_steps: 20
+eval_init_skip: 1
+evaluation_freq: 5
+
+itr_printing_freq: 1
+printing_freq: 1
+plotting_freq: 1
+
+stopping_freq: 5
+stopping_look_back: 2
+
+checkpoint_freq: 5
+
+scheduler: null 
+scheduling_factor: 0.5
+scheduling_freq: 25
+
+sigopt: True
