@@ -3,6 +3,8 @@ import torch
 from torch.autograd import grad
 import numpy as np
 from datetime import datetime
+import time
+import random
 
 def normalize_quat(q):
     # TODO: documentation
@@ -31,6 +33,8 @@ def get_run_ID():
     """
     Returns a unique ID for the current run based on the current date and time.
     """
+    # wait random amount of time to avoid overwriting
+    time.sleep(random.randint(0, 10))
     return datetime.now().strftime('%Y-%m-%d_%H-%M-%S').split('_')
 
 def count_parameters(model):

@@ -19,18 +19,13 @@ from diffmd.solvers import odeint_adjoint
 from diffmd.utils import get_run_ID, count_parameters
 from diffmd.losses import *
 
+
 class Trainer():
 
     def __init__(self, config):
         self.day, self.time = get_run_ID()
-        subfolder = f'results/{self.day}/{self.time}/'
-        if os.path.exists(f'{subfolder}'):
-            index = 2
-            subfolder = f'results/{self.day}/{self.time}_{index}/'
-            while os.path.exists(f'{subfolder}'):
-                index += 1
-                subfolder = f'results/{self.day}/{self.time}_{index}/'
-
+        self.subfolder = self.get_subfolder() 
+        
         self.folder = config['folder']
         self.device = config['device']
         self.sigopt = config['sigopt']
@@ -103,6 +98,20 @@ class Trainer():
         print(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name}')
         print(f'scheduler = {self.scheduler_name}, scheduling factor = {self.scheduling_factor}, scheduling freq = {self.scheduling_freq}')
         print(f'batch size = {self.batch_size}, dataset_steps = {self.dataset_steps}, steps per dt = {self.steps_per_dt}')
+
+    def get_subfolder(self):
+
+        def add_second(time):
+            # HACK: can add above 60 seconds
+            time = time.split('-')
+            time[2] = str(int(time[2]) + 1)
+            return '-'.join(time)
+
+        subfolder = f'results/{self.day}/{self.time}'
+        while os.path.exists(f'{subfolder}'):
+            self.time = add_second(self.time)
+            subfolder = f'results/{self.day}/{self.time}'
+        return subfolder
 
     def forward_pass(self, batch_input, traj_steps):
         batch_y0, dt, k, r0, inertia =  batch_input
@@ -271,7 +280,7 @@ class Trainer():
             dataset_steps = 100
             subfolder = f'results/{self.day}/{self.time}/{self.epoch}'
         else:
-            dataset_steps = 3000
+            dataset_steps = 100
             subfolder = f'results/{self.day}/{self.time}'
 
         traj_steps = dataset_steps * self.steps_per_dt
@@ -333,6 +342,7 @@ class Trainer():
         ax.plot(self.loss_meter.losses)
         ax.set_xlabel('Number of Iterations')
         fig.savefig(f'{subfolder}/loss.png')
+        plt.close(fig)
         return
 
     def plot_lr(self, subfolder):
@@ -340,6 +350,7 @@ class Trainer():
         ax.set_title('learning rate evolution')
         ax.plot(self.loss_meter.lrs)
         fig.savefig(f'{subfolder}/lr.png')
+        plt.close(fig)
         return
 
     def log_metadata(self, config):
@@ -456,6 +467,7 @@ class Trainer():
         ax.plot(eval_itr, self.loss_meter.evals)
         ax.set_xlabel('Number of epochs')
         fig.savefig(f'{subfolder}/eval_loss.png')
+        plt.close(fig)
         return
 
     def save(self):
