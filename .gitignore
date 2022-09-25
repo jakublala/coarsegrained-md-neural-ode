@@ -27,6 +27,7 @@ run-gpu.py
 arch*
 4gpus*
 core*
+utils.ipynb
 
 # Folders
 dataset/
