@@ -12,6 +12,7 @@ class ODEFunc(nn.Module):
         self.nparticles = nparticles
         self.dtype = dtype
         self.mass = 7.0 # HACK
+        self.kwargs = {'dim': dim, 'widths': widths, 'functions': functions, 'dtype': dtype}
         
         # define neural net
         depth = len(widths) 

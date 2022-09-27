@@ -89,7 +89,11 @@ class Trainer():
         self.evaluation_freq = config['evaluation_freq']
         self.checkpoint_freq = config['checkpoint_freq']
 
-        self.func = ODEFunc(self.nparticles, self.dim, self.nn_widths, self.activation_functions, self.dtype).to(self.device)
+        if self.load_folder != None:
+            self.func = self.load_func()
+        else:
+            self.func = ODEFunc(self.nparticles, self.dim, self.nn_widths, self.activation_functions, self.dtype).to(self.device)
+        
         self.nparameters = count_parameters(self.func)
 
         self.weight_decay = config['weight_decay']
@@ -98,8 +102,7 @@ class Trainer():
         self.optimizer = self.set_optimizer(self.optimizer_name)
         self.scheduler = self.set_scheduler(self.scheduler_name, self.scheduling_factor)
         
-        if self.load_folder != None:
-            self.load_func()
+        
 
         print(f'device = {self.device}')
         print(f'NN architecture = 11 - {self.nn_widths} - 1')
@@ -243,8 +246,18 @@ class Trainer():
     #     self.loss_meter.reset()
 
     def load_func(self):
+        loaded_state = torch.load(f'{self.load_folder}/model.pt')
+        
+        if type(loaded_state) == list:
+            kwargs, state_dict = torch.load(f'{self.load_folder}/model.pt')
+        else:
+            raise ValueError('model.pt should be a list of kwargs and state_dict, the previous behaviour has been depreciated')
+        # get specific NN architecture
+        self.dim = kwargs['dim']
+        self.nn_widths = kwargs['widths']
+        self.activation_functions = kwargs['functions']
+
         # in case we load a DDP model checkpoint to a non-DDP model
-        state_dict = torch.load(f'{self.load_folder}/model.pt')
         model_dict = OrderedDict()
         pattern = re.compile('module.')
 
@@ -253,7 +266,7 @@ class Trainer():
                 model_dict[re.sub(pattern, '', k)] = v
             else:
                 model_dict = state_dict
-        self.func.load_state_dict(model_dict)
+        return self.func.load_state_dict(model_dict)
 
 
     def print_loss(self, itr, start_time):
@@ -478,7 +491,7 @@ class Trainer():
         subfolder = f'results/{self.day}/{self.time}'
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
-        torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
+        torch.save([self.func.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
         self.plot_traj(False)
         self.plot_loss(subfolder)
         self.plot_lr(subfolder)
