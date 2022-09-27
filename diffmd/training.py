@@ -23,9 +23,16 @@ from diffmd.losses import *
 class Trainer():
 
     def __init__(self, config):
-        self.day, self.time = get_run_ID()
-        self.subfolder = self.get_subfolder() 
+        self.load_folder = config['load_folder']
         
+        if self.load_folder is None:
+            self.day, self.time = get_run_ID()
+            self.subfolder = self.get_subfolder() 
+        else:
+            # HACK: this will not work once we do .save(), hence think of a different way to do it, or rather change save()
+            self.day, self.time = self.load_folder.split('/')[-2:]
+            self.subfolder = self.load_folder
+            
         self.folder = config['folder']
         self.device = self.set_device(config['device'])
         config['device'] = self.device
@@ -54,7 +61,6 @@ class Trainer():
         self.batch_size = config['batch_size']
         self.nn_widths = config['nn_widths']
         self.activation_functions = self.get_activation_functions(config['activation_function'])
-        self.load_folder = config['load_folder']
         self.loss_func_name = config['loss_func']
         self.optimizer_name = config['optimizer']
         self.scheduler_name = config['scheduler']
