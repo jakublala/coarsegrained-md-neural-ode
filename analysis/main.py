@@ -1,7 +1,7 @@
 import sys
 import os
 
-from parity import parity_plot
+from plotter import Plotter
 
 
 sys.path.insert(0, os.path.abspath('..'))
@@ -20,5 +20,12 @@ if __name__ == '__main__':
     # TODO: add a way to adjust the NN size based on the loaded model
 
     trainer = Trainer(config)
-    parity_plot(trainer)
-    
+    plotter = Plotter(trainer)
+    plotter.LAMMPS_energy_plot(500)
+    plotter.plot_parity()
+    plotter.plot_pair_potential()
+    plotter.plot_hexagon_potential()
+    plotter.plot_traj_potential(500)
+
+
+
