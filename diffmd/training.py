@@ -250,13 +250,16 @@ class Trainer():
         
         if type(loaded_state) == list:
             kwargs, state_dict = torch.load(f'{self.load_folder}/model.pt')
-        else:
-            raise ValueError('model.pt should be a list of kwargs and state_dict, the previous behaviour has been depreciated')
-        # get specific NN architecture
-        self.dim = kwargs['dim']
-        self.nn_widths = kwargs['widths']
-        self.activation_functions = kwargs['functions']
 
+            # get specific NN architecture
+            self.dim = kwargs['dim']
+            self.nn_widths = kwargs['widths']
+            self.activation_functions = kwargs['functions']
+        else:
+            state_dict = loaded_state
+            # raise ValueError('model.pt should be a list of kwargs and state_dict, the previous behaviour has been depreciated')
+        
+        
         # in case we load a DDP model checkpoint to a non-DDP model
         model_dict = OrderedDict()
         pattern = re.compile('module.')
@@ -266,7 +269,9 @@ class Trainer():
                 model_dict[re.sub(pattern, '', k)] = v
             else:
                 model_dict = state_dict
-        return self.func.load_state_dict(model_dict)
+        func = ODEFunc(self.nparticles, self.dim, self.nn_widths, self.activation_functions, self.dtype).to(self.device)
+        func.load_state_dict(model_dict)
+        return func
 
 
     def print_loss(self, itr, start_time):

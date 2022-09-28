@@ -1,5 +1,6 @@
 import sys
 import os
+import shutil
 
 from plotter import Plotter
 
@@ -15,8 +16,15 @@ if __name__ == '__main__':
     if not os.path.exists('figures'):
         os.mkdir('figures')
 
+
+
+    if os.path.exists("figures/energies"):
+        shutil.rmtree('figures/energies')
+    os.makedirs('figures/energies')
+
+
     config = read_yaml('config.yml')
-    config['load_folder'] = 'results/archive/2022-09-25/23-43-55'
+    config['load_folder'] = 'results/archive/2022-09-27/12-01-08/1000'
     # TODO: add a way to adjust the NN size based on the loaded model
 
     trainer = Trainer(config)

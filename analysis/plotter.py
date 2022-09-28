@@ -77,7 +77,7 @@ class Plotter():
         plt.legend()
         plt.xlabel('Time step')
         plt.ylabel('Energy')
-        plt.savefig('figures/LAMMPS_energy.png')
+        plt.savefig('figures/energies/LAMMPS_energy.png')
         plt.close()
 
     def plot_parity(self):
@@ -99,21 +99,23 @@ class Plotter():
         ax.set_xlim([min_x, max_x])
         ax.set_ylim([min_y, max_y])
         ax.plot([min_x, min_x], [max_x, max_x], 'k-')
-        fig.savefig('figures/energy_matrix.png')
+        fig.savefig('figures/energies/energy_matrix.png')
         plt.close(fig)
 
 
     def plot_pair_potential(self):
         plt.plot(self.LAMMPS_potential[:, 0], self.LAMMPS_potential[:, 1], label='energy')
         plt.legend()
-        plt.savefig('figures/pair_potential.png')
+        plt.savefig('figures/energies/pair_potential.png')
         plt.close()
 
     def plot_hexagon_potential(self):
         potential = self.trainer.func.net
 
         inp = torch.zeros((self.LAMMPS_pot_steps, 11)).to(self.trainer.device)
-        interval = torch.linspace(self.LAMMPS_pot_start, self.LAMMPS_pot_end, self.LAMMPS_pot_steps)
+        # HACK
+        extrapolation = 5
+        interval = torch.linspace(self.LAMMPS_pot_start, self.LAMMPS_pot_end+extrapolation, self.LAMMPS_pot_steps)
         plot_interval = interval.cpu().numpy()
 
         # case 1: hexagons facing each other (i.e. varying z-axis)
@@ -130,7 +132,7 @@ class Plotter():
         plt.xlabel('z-axis')
         plt.ylabel('Energy')
         plt.ylim(predicted.min() - 0.01 * predicted.min(), predicted.max() + 0.01 * predicted.max())
-        plt.savefig('figures/hexagon_potential_1Dface.png')
+        plt.savefig('figures/energies/hexagon_potential_1Dface.png')
         plt.close()
 
         # case 2: hexagons in a single plane (i.e. varying x-axis)
@@ -148,7 +150,7 @@ class Plotter():
         plt.ylabel('Energy')
         plt.ylim(predicted.min() - 0.01 * predicted.min(), predicted.max() + 0.01 * predicted.max())
     
-        plt.savefig('figures/hexagon_potential_1Dplane.png')
+        plt.savefig('figures/energies/hexagon_potential_1Dplane.png')
         plt.close()
 
 
@@ -159,7 +161,7 @@ class Plotter():
         plt.ylabel('Energy')
         plt.xlabel('Time step')
         plt.legend()
-        plt.savefig('figures/trajectory_potential.png')
+        plt.savefig('figures/energies/trajectory_potential.png')
         plt.close()
 
     

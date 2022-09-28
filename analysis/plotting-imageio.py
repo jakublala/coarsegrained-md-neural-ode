@@ -2,13 +2,20 @@ from PIL import Image, ImageDraw
 import shutil
 import os
 
-if os.path.exists("results/temp/anim"):
-    shutil.rmtree('results/temp/anim')
-    os.makedirs('results/temp/anim')
+# if os.path.exists("results/temp/anim"):
+#     shutil.rmtree('results/temp/anim')
+#     os.makedirs('results/temp/anim')
 
-filename = 'results/2022-09-19/19-17-43'
+
+if os.path.exists("figures/traj_gifs"):
+    shutil.rmtree('figures/traj_gifs')
+    os.makedirs('figures/traj_gifs')
+
+os.chdir("..")
+
+filename = 'results/2022-09-27/12-01-08'
 batch_length = 20
-a = 'sep'
+plots = ['vel1', 'vel2', 'sep', 'angvel1', 'angvel2', 'quat1', 'quat2']
 
 # for i in range(10, 5001, 10):
 #     print(i)
@@ -39,10 +46,11 @@ import imageio
 #         image = imageio.imread(filename)
 #         writer.append_data(image)
 
-with imageio.get_writer(f'{a}.gif', format='GIF-PIL', mode='I') as writer:
-    for i in range(50, 5001, 50):
-        print(i)
-        # f = f'results/temp/anim/{a}_{i}.png'
-        f = f'{filename}/{i}/{a}.png'
-        image = imageio.imread(f)
-        writer.append_data(image)
+for p in plots:
+    with imageio.get_writer(f'figures/{p}.gif', format='GIF-PIL', mode='I') as writer:
+        for i in range(50, 1001, 50):
+            print(i)
+            # f = f'results/temp/anim/{a}_{i}.png'
+            f = f'{filename}/{i}/{p}.png'
+            image = imageio.imread(f)
+            writer.append_data(image)
