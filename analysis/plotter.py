@@ -144,14 +144,33 @@ class Plotter():
         
         plt.title('Hexagon Potential')
         plt.plot(plot_interval, predicted, 'r', label='NN')
-        plt.plot(self.LAMMPS_potential[:, 0], self.LAMMPS_potential[:, 1], 'k-', label='LAMMPS')
+        plt.plot(self.LAMMPS_potential[:, 0], self.LAMMPS_potential[:, 1] , 'k-', label='LAMMPS')
         plt.legend()
-        plt.xlabel('z-axis')
+        plt.xlabel('x-axis')
         plt.ylabel('Energy')
         plt.ylim(predicted.min() - 0.01 * predicted.min(), predicted.max() + 0.01 * predicted.max())
     
-        plt.savefig('figures/energies/hexagon_potential_1Dplane.png')
+        plt.savefig('figures/energies/hexagon_potential_1DplaneX.png')
         plt.close()
+
+        # case 3: hexagons in a single plane (i.e. varying y-axis)
+        temp_inp = inp.clone()
+        temp_inp[:, 1] = interval
+        temp_inp[:, 6] = 1.0
+        temp_inp[:, -1] = 1.0
+        predicted = potential(temp_inp).detach().cpu().numpy()
+        
+        plt.title('Hexagon Potential')
+        plt.plot(plot_interval, predicted, 'r', label='NN')
+        plt.plot(self.LAMMPS_potential[:, 0], self.LAMMPS_potential[:, 1], 'k-', label='LAMMPS')
+        plt.legend()
+        plt.xlabel('y-axis')
+        plt.ylabel('Energy')
+        plt.ylim(predicted.min() - 0.01 * predicted.min(), predicted.max() + 0.01 * predicted.max())
+    
+        plt.savefig('figures/energies/hexagon_potential_1DplaneY.png')
+        plt.close()
+
 
 
     def plot_traj_potential(self, num_steps):
