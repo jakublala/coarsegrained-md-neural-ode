@@ -18,9 +18,8 @@ if __name__ == '__main__':
 
 
 
-    if os.path.exists("figures/energies"):
-        shutil.rmtree('figures/energies')
-    os.makedirs('figures/energies')
+    if not os.path.exists("figures/energies"):
+        os.makedirs('figures/energies')
 
 
     config = read_yaml('config.yml')

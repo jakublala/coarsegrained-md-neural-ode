@@ -23,6 +23,7 @@ from diffmd.losses import *
 class Trainer():
 
     def __init__(self, config):
+        self.config = config
         self.load_folder = config['load_folder']
         
         if self.load_folder is None:
@@ -75,7 +76,6 @@ class Trainer():
         self.test_dataloader = self.get_dataloader(self.test_dataset) 
         self.validation_dataloader = self.get_dataloader(self.validation_dataset)
 
-        self.log_metadata(config)
         self.logger = Logger()
         self.loss_meter = RunningAverageMeter()
         
@@ -152,6 +152,7 @@ class Trainer():
         return pred_y
         
     def train(self):
+        self.log_metadata(self.config)
         for self.epoch in range(self.start_epoch + 1, (self.start_epoch + self.epochs) + 1):
             self.start_time = time.perf_counter()
             
@@ -198,8 +199,15 @@ class Trainer():
                     
             if self.after_epoch():
                 # if True, then early stopping
+                
+                # last checkpoint and save
+                self.checkpoint()
+                self.save()
                 return self.func, self.loss_meter
         
+        # last checkpoint and save
+        self.checkpoint()
+        self.save()
         return self.func, self.loss_meter
 
     def after_epoch(self):
@@ -497,11 +505,6 @@ class Trainer():
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
         torch.save([self.func.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
-        self.plot_traj(False)
-        self.plot_loss(subfolder)
-        self.plot_lr(subfolder)
-        self.plot_evaluation(subfolder)
-        self.logger.save_csv(subfolder)
         if self.sigopt:
             self.report_sigopt(subfolder)
         return
