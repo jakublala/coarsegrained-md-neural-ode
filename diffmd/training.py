@@ -76,6 +76,9 @@ class Trainer():
         self.test_dataloader = self.get_dataloader(self.test_dataset) 
         self.validation_dataloader = self.get_dataloader(self.validation_dataset)
 
+        assert len(self.training_dataset) > self.batch_size, "Batch size is too large for the dataset. Please reduce the batch size or increase the dataset size."
+
+
         self.logger = Logger()
         self.loss_meter = RunningAverageMeter()
         
@@ -85,6 +88,7 @@ class Trainer():
         self.itr_printing_freq = config['itr_printing_freq']
         self.stopping_freq = config['stopping_freq']
         self.stopping_look_back = config['stopping_look_back']
+        self.early_stopping = False
         self.scheduling_freq = config['scheduling_freq']
         self.evaluation_freq = config['evaluation_freq']
         self.checkpoint_freq = config['checkpoint_freq']
@@ -156,6 +160,9 @@ class Trainer():
         for self.epoch in range(self.start_epoch + 1, (self.start_epoch + self.epochs) + 1):
             self.start_time = time.perf_counter()
             
+            if self.early_stopping:
+                break
+
             for self.itr, (batch_input, batch_y, batch_energy) in enumerate(self.training_dataloader):
                 self.itr_start_time = time.perf_counter()
 
@@ -197,14 +204,9 @@ class Trainer():
                 # log everything
                 self.logger.update([self.epoch, self.itr, self.optimizer.param_groups[0]["lr"], self.dataset_steps, self.steps_per_dt] + loss_parts + [None, time.perf_counter() - self.itr_start_time])
                     
-            if self.after_epoch():
+            self.after_epoch()
                 # if True, then early stopping
                 
-                # last checkpoint and save
-                self.checkpoint()
-                self.save()
-                return self.func, self.loss_meter
-        
         # last checkpoint and save
         self.checkpoint()
         self.save()
@@ -239,8 +241,7 @@ class Trainer():
             if len(self.loss_meter.checkpoints) > 1 + self.stopping_look_back:
                 if self.loss_meter.checkpoints[-1-self.stopping_look_back] < self.loss_meter.checkpoints[-1]:
                     print('early stopping as non-convergent')
-                    # TODO: make this compliant with multiple GPUs
-                    return True
+                    self.early_stopping = True
             # TODO: add proper stale convergence and test it out
             # stale convergence
             # if np.sd(self.loss_meter.losses[-self.stopping_freq:]) > 0.001:

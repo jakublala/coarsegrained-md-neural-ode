@@ -26,7 +26,8 @@ class ParallelTrainer(Trainer):
         
         # TODO: fix a bug where having a batch length smaller than len(dataset) causes an error
         self.training_dataloader = self.get_parallel_dataloader(self.training_dataset, rank, world_size, self.batch_size)
-        
+        assert len(self.training_dataset) > self.batch_size * len(self.gpu_ids), "Batch size is too large for the dataset. Please reduce the batch size, increase the dataset size, or use less GPUs."
+
         # TODO: add parallel evaluate and validation ?
         # self.test_dataloader = self.get_parallel_dataloader(self.test_dataset, rank, world_size, self.batch_size)
         # self.validation_dataloader = self.get_parallel_dataloader(self.validation_dataset, rank, world_size, self.batch_size)
@@ -39,16 +40,15 @@ class ParallelTrainer(Trainer):
         
         self.train()
 
-        if is_main_process():
-            self.save()
-
-        # add early stopping?
         cleanup()
 
     def train(self):
         for self.epoch in range(self.start_epoch + 1, (self.start_epoch + self.epochs) + 1):
             self.training_dataloader.sampler.set_epoch(self.epoch)       
             self.start_time = time.perf_counter()
+
+            if self.early_stopping:
+                break
         
             for self.itr, (batch_input, batch_y, batch_energy) in enumerate(self.training_dataloader):
                 self.itr_start_time = time.perf_counter()
@@ -83,10 +83,15 @@ class ParallelTrainer(Trainer):
                 
             # logging and waiting for all processes to finish epoch
             if is_main_process(): 
-                if self.after_epoch():               
-                    return self.func, self.loss_meter
-
-            # torch.distributed.barrier()
+                self.after_epoch()          
+        
+            torch.distributed.barrier()
+        
+        if is_main_process():
+            self.checkpoint()
+            self.save()
+        
+        torch.distributed.barrier()
         
         return self.func, self.loss_meter
 
