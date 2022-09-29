@@ -257,7 +257,6 @@ class Trainer():
 
     def load_func(self):
         loaded_state = torch.load(f'{self.load_folder}/model.pt')
-        
         if type(loaded_state) == list:
             kwargs, state_dict = torch.load(f'{self.load_folder}/model.pt')
 
@@ -466,15 +465,21 @@ class Trainer():
         else:
             raise Exception('scheduler not implemented')
 
-    def evaluate(self, validate=False):
+    def evaluate(self, dataset):
         with torch.no_grad():
             # TODO: maybe move this elsewhere and make it more robust? maybe have an Evaluation class
-            if validate:
+            
+            if dataset == 'validate' :
                 dataloader = self.validation_dataloader
                 dataset = self.validation_dataset
-            else:
+            elif dataset == 'test':
                 dataloader = self.test_dataloader
                 dataset = self.test_dataset
+            elif dataset == 'train':
+                dataloader = self.training_dataloader
+                dataset = self.training_dataset
+            else:
+                raise ValueError(f'dataset {dataset} not recognised')
             
             eval_loss = []
             for batch_input, batch_y, _ in dataloader:
@@ -520,7 +525,7 @@ class Trainer():
         subfolder = f'results/{self.day}/{self.time}/{self.epoch}'
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
-        torch.save(self.func.state_dict(), f'{subfolder}/model.pt')
+        torch.save([self.func.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
         self.plot_traj(True)
         self.plot_loss(subfolder)
         self.plot_lr(subfolder)

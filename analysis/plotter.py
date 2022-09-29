@@ -144,7 +144,7 @@ class Plotter():
         
         plt.title('Hexagon Potential')
         plt.plot(plot_interval, predicted, 'r', label='NN')
-        plt.plot(self.LAMMPS_potential[:, 0], self.LAMMPS_potential[:, 1] , 'k-', label='LAMMPS')
+        plt.plot(self.LAMMPS_potential[:, 0] + 1, self.LAMMPS_potential[:, 1], 'k-', label='LAMMPS')
         plt.legend()
         plt.xlabel('x-axis')
         plt.ylabel('Energy')
@@ -162,7 +162,7 @@ class Plotter():
         
         plt.title('Hexagon Potential')
         plt.plot(plot_interval, predicted, 'r', label='NN')
-        plt.plot(self.LAMMPS_potential[:, 0], self.LAMMPS_potential[:, 1], 'k-', label='LAMMPS')
+        plt.plot(self.LAMMPS_potential[:, 0] + 1, self.LAMMPS_potential[:, 1], 'k-', label='LAMMPS')
         plt.legend()
         plt.xlabel('y-axis')
         plt.ylabel('Energy')

@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
 
     config = read_yaml('config.yml')
-    config['load_folder'] = 'results/archive/2022-09-27/12-01-08/1800'
+    config['load_folder'] = 'results/2022-09-29/13-17-29/50'
  
     trainer = Trainer(config)
     plotter = Plotter(trainer)
