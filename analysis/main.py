@@ -21,10 +21,12 @@ if __name__ == '__main__':
     if not os.path.exists("figures/energies"):
         os.makedirs('figures/energies')
 
+    if not os.path.exists("figures/trajs"):
+        os.makedirs('figures/trajs')
+
 
     config = read_yaml('config.yml')
-    config['load_folder'] = 'results/archive/2022-09-27/12-01-08/1000'
-    # TODO: add a way to adjust the NN size based on the loaded model
+    config['load_folder'] = 'results/archive/2022-09-27/12-01-08/1800'
 
     trainer = Trainer(config)
     plotter = Plotter(trainer)
@@ -33,6 +35,9 @@ if __name__ == '__main__':
     plotter.plot_pair_potential()
     plotter.plot_hexagon_potential()
     plotter.plot_traj_potential(500)
+
+    # TODO: finish this plotting
+    # plotter.plot_traj(dataset='test')
 
 
 

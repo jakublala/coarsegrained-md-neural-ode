@@ -2,6 +2,7 @@ import pandas as pd
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.offsetbox import AnchoredText
 
 class Plotter():
 
@@ -68,7 +69,6 @@ class Plotter():
         return harmonic_energy
 
     def LAMMPS_energy_plot(self, num_steps):
-        
         plt.title('Logged Energies from LAMMPS')
         plt.plot(self.df['total_energy'].to_numpy()[:num_steps] * self.natoms + self.harmonic_energy[:num_steps], 'k', label='Total')
         plt.plot(self.df['potential_energy'].to_numpy()[:num_steps] * self.natoms, 'b', label='Potential')
@@ -171,17 +171,98 @@ class Plotter():
         plt.savefig('figures/energies/hexagon_potential_1DplaneY.png')
         plt.close()
 
-
-
     def plot_traj_potential(self, num_steps):
         plt.plot(self.true_energies[:num_steps] * self.natoms, 'k', label='Actual')
         plt.plot(self.predicted_energies[:num_steps] - self.predicted_energies[0], 'r', label='Predicted')
-
         plt.ylabel('Energy')
         plt.xlabel('Time step')
         plt.legend()
         plt.savefig('figures/energies/trajectory_potential.png')
         plt.close()
-
     
             
+
+    def plot_traj(self, dataset, num_steps=100, checkpoint=False):
+        # TODO: finish this and make it work, so that we can call it from Trainer
+        def get_anchored_text():
+            at = AnchoredText(f'epoch: Final', prop=dict(size=10), frameon=True, loc='upper left')
+            at.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
+            return at
+
+        def plot(indices, body_id, title, filename):
+            colours = ['r-', 'b-', 'g-', 'm-']
+            fig, ax = plt.subplots()
+            for c, i in enumerate(indices):
+                ax.set_title(title)
+                ax.plot(batch_t, batch_y[:,body_id,i], 'k--', alpha=0.3, label=f'true {i}')
+                ax.plot(pred_t, pred_y[:,body_id,i], colours[c], alpha=0.5, label=f'pred {i}')
+            ax.add_artist(get_anchored_text())
+            fig.savefig(f'{subfolder}/{filename}.png')
+            plt.close(fig)            
+
+
+        subfolder = f'figures/trajs/{dataset}'
+        if dataset == 'train':
+            dataset = self.trainer.training_dataset
+        elif dataset == 'test':
+            dataset = self.trainer.test_dataset
+        elif dataset == 'validate':
+            dataset = self.trainer.validation_dataset
+        else:
+            raise ValueError('dataset must be train, test or validate')
+
+        dataset_steps = num_steps
+
+        traj_steps = dataset_steps * self.trainer.steps_per_dt
+        
+        # self.training_dataset.update(dataset_steps)
+        with torch.no_grad():
+            # get the earliest init conditions to ensure trajectories are long enough
+            init_index = dataset.init_IDS.index(min(dataset.init_IDS, key=len))
+            batch_input, batch_y, _ = dataset[init_index]
+            batch_input = list(batch_input)
+            batch_input[0] = batch_input[0].unsqueeze(0)
+            batch_input = tuple(batch_input)
+
+            pred_y = self.trainer.forward_pass(batch_input, traj_steps=traj_steps, steps_per_dt=self.trainer.steps_per_dt).squeeze().cpu().numpy()
+            batch_y = batch_y.cpu().numpy()
+            
+            effective_dt = batch_input[1] / self.trainer.steps_per_dt
+            pred_t = self.trainer.get_batch_t(effective_dt, traj_steps).cpu().numpy()
+            batch_t = self.trainer.get_batch_t(batch_input[1], dataset_steps).cpu().numpy()
+
+            print(pred_t.shape)
+            print(batch_t.shape)
+
+            print(pred_y.shape)
+            print(batch_y.shape)
+
+            ind_vel = [0, 1, 2]
+            ind_ang = [3, 4, 5]
+            ind_quat = [9, 10, 11, 12]
+
+            for i in [0, 1]:
+                plot(ind_vel, i, f'velocities {i+1}', f'vel{i+1}')
+                plot(ind_ang, i, f'angular velocities {i+1}', f'angvel{i+1}')
+                plot(ind_quat, i, f'quaternions {i+1}', f'quat{i+1}')
+            
+            # centre of mass positions (set initial position of first COM to zero)
+            batch_y[:,:,6:9] = batch_y[:,:,6:9] - batch_y[:,[0],6:9]
+            pred_y[:,:,6:9] = pred_y[:,:,6:9] - pred_y[:,[0],6:9]
+            
+            # centre of mass separation
+            batch_y_sep = np.linalg.norm(batch_y[:,1,6:9] - batch_y[:,0,6:9], axis=-1)
+            pred_y_sep = np.linalg.norm(pred_y[:,1,6:9] - pred_y[:,0,6:9], axis=-1)
+
+            fig, ax = plt.subplots()
+            ax.set_title('separation')
+            ax.plot(batch_t, batch_y_sep, 'k--', alpha=0.3, label=f'true')
+            ax.plot(pred_t, pred_y_sep, 'r-', alpha=0.5, label=f'pred')
+            ax.add_artist(get_anchored_text())
+            fig.savefig(f'{subfolder}/sep.png')
+            plt.close(fig)
+
+        # revert changes to traj length
+        # self.training_dataset.update(self.dataset_steps)
+    
+
