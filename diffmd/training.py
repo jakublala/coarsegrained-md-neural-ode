@@ -482,7 +482,7 @@ class Trainer():
                 pred_y = self.forward_pass(batch_input, traj_steps=self.eval_dataset_steps, steps_per_dt=1)
 
                 # loss of the projected trajectory by one dt
-                loss, loss_parts = final_mse(pred_y, batch_y, dataset.stds, dataset.means)
+                loss, loss_parts = final_mse(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means)
 
                 eval_loss.append(loss.cpu().item())
 
