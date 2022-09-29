@@ -30,9 +30,8 @@ class Trainer():
             self.day, self.time = get_run_ID()
             self.subfolder = self.get_subfolder() 
         else:
-            # HACK: this will not work once we do .save(), hence think of a different way to do it, or rather change save()
-            self.day, self.time = self.load_folder.split('/')[-2:]
-            self.subfolder = self.load_folder
+            self.day, self.time = self.load_folder.split('/')[-3:-1]
+            self.subfolder = '/'.join(self.load_folder.split('/')[:-1])
             
         self.folder = config['folder']
         self.device = self.set_device(config['device'])
@@ -42,9 +41,7 @@ class Trainer():
         self.sigopt = config['sigopt']
         self.parallel = False
         
-        # TODO: log everything similarly to device into print file
         self.epochs = config['epochs']
-        self.start_epoch = config['start_epoch']
         self.learning_rate = config['learning_rate']
         
         self.dataset_steps = config['dataset_steps']
@@ -95,9 +92,12 @@ class Trainer():
 
         if self.load_folder != None:
             self.func = self.load_func()
+            self.logger.load_previous(self.load_folder)
+            self.start_epoch = int(self.logger.log[-1][0])
         else:
             self.func = ODEFunc(self.nparticles, self.dim, self.nn_widths, self.activation_functions, self.dtype).to(self.device)
-        
+            self.start_epoch = 0
+
         self.nparameters = count_parameters(self.func)
 
         self.weight_decay = config['weight_decay']
@@ -156,8 +156,9 @@ class Trainer():
         return pred_y
         
     def train(self):
-        self.log_metadata(self.config)
         for self.epoch in range(self.start_epoch + 1, (self.start_epoch + self.epochs) + 1):
+            self.log_metadata(self.config)
+        
             self.start_time = time.perf_counter()
             
             if self.early_stopping:
@@ -387,10 +388,11 @@ class Trainer():
     def log_metadata(self, config):
         subfolder = f'results/{self.day}/{self.time}/'
         if not os.path.exists(f'{subfolder}'):
-            os.makedirs(f'{subfolder}')
-        with open(f'{subfolder}/metadata.csv', 'w') as f:
-            for key, value in config.items():
-                f.write(f'{str(key)},{str(value)} \n')        
+                os.makedirs(f'{subfolder}')
+        if self.epoch == 0 or self.epoch == self.start_epoch:
+            shutil.copyfile('config.yaml', f'{subfolder}/config_{self.epoch}.yaml')
+        else:
+            pass
 
     def set_loss_func(self, loss_func):
         if 'all-mse' == loss_func:
@@ -502,10 +504,7 @@ class Trainer():
         return
 
     def save(self):
-        subfolder = f'results/{self.day}/{self.time}'
-        if not os.path.exists(f'{subfolder}'):
-            os.makedirs(f'{subfolder}')
-        torch.save([self.func.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
+        subfolder = f'results/{self.day}/{self.time}/{self.epoch}'
         if self.sigopt:
             self.report_sigopt(subfolder)
         return

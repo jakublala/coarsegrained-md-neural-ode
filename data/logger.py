@@ -14,4 +14,5 @@ class Logger():
     def save_csv(self, folder):
         pd.DataFrame(np.array(self.log), columns=self.header).to_csv(f'{folder}/log.csv', index=None)
 
-    # TODO: add loading from previous CSV
+    def load_previous(self, folder):
+        self.log = pd.read_csv(f'{folder}/log.csv').values.tolist()

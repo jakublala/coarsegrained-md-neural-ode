@@ -35,7 +35,7 @@ def get_run_ID():
     Returns a unique ID for the current run based on the current date and time.
     """
     # wait random amount of time to avoid overwriting
-    time.sleep(random.randint(0, 100))
+    # time.sleep(random.randint(0, 100))
     return datetime.now().strftime('%Y-%m-%d_%H-%M-%S').split('_')
 
 def count_parameters(model):

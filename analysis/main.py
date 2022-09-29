@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     config = read_yaml('config.yml')
     config['load_folder'] = 'results/archive/2022-09-27/12-01-08/1800'
-
+ 
     trainer = Trainer(config)
     plotter = Plotter(trainer)
     plotter.LAMMPS_energy_plot(500)
