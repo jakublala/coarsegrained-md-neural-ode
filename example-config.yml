@@ -26,12 +26,12 @@ shuffle: True
 num_workers: 0
 
 eval_dataset_steps: 20
+eval_steps_per_dt: 100
 eval_init_skip: 1
 evaluation_freq: 5
 
 itr_printing_freq: 1
 printing_freq: 1
-plotting_freq: 1
 
 stopping_freq: 5
 stopping_look_back: 2
