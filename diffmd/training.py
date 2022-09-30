@@ -93,7 +93,7 @@ class Trainer():
         if self.load_folder != None:
             self.func = self.load_func()
             self.logger.load_previous(self.load_folder)
-            self.start_epoch = int(self.logger.log[-1][0])
+            self.start_epoch = int(self.logger.epoch[-1])
         else:
             self.func = ODEFunc(self.nparticles, self.dim, self.nn_widths, self.activation_functions, self.dtype).to(self.device)
             self.start_epoch = 0
@@ -188,7 +188,7 @@ class Trainer():
                 if self.loss_func_name == 'energy':
                     loss = self.loss_func(self.func.net, pred_y, batch_energy)
                 else:
-                    loss, loss_parts = self.loss_func(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.normalize_loss)
+                    loss, self.loss_parts = self.loss_func(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.normalize_loss)
 
                 # backward pass      
                 loss.backward() 
@@ -202,9 +202,8 @@ class Trainer():
                 if (self.itr+1) % self.itr_printing_freq == 0:
                     self.print_iteration()
                 
-                # log everything
-                self.logger.update([self.epoch, self.itr, self.optimizer.param_groups[0]["lr"], self.dataset_steps, self.steps_per_dt] + loss_parts + [None, time.perf_counter() - self.itr_start_time])
-                    
+                self.after_itr()
+                
             self.after_epoch()
                 # if True, then early stopping
                 
@@ -212,6 +211,23 @@ class Trainer():
         self.checkpoint()
         self.save()
         return self.func, self.loss_meter
+
+    def after_itr(self):
+        new_entry = {
+            'epoch': self.epoch,
+            'itr': self.itr+1,
+            'lr': self.optimizer.param_groups[0]["lr"],
+            'traj_steps': self.dataset_steps,
+            'steps_per_dt': self.steps_per_dt,
+            'train_loss': sum(self.loss_parts),
+            'train_loss_vel': self.loss_parts[0],
+            'train_loss_angvel': self.loss_parts[1],
+            'train_loss_pos': self.loss_parts[2],
+            'train_loss_quat': self.loss_parts[3],
+            'test_loss': None,
+            'time': time.perf_counter() - self.itr_start_time,
+        }
+        self.logger.update(new_entry)
 
     def after_epoch(self):
 
@@ -224,7 +240,7 @@ class Trainer():
             self.print_loss(self.epoch, self.start_time)
 
         if self.epoch % self.evaluation_freq == 0:
-            self.logger.log[-1][-2] = self.evaluate(validate=False)
+            self.logger.test_loss[-1] = self.evaluate('test')
 
         if self.epoch % self.checkpoint_freq == 0:
             self.checkpoint()
@@ -366,12 +382,21 @@ class Trainer():
         # revert changes to traj length
         self.training_dataset.update(self.dataset_steps)
             
-    def plot_loss(self, subfolder):
-        # TODO: add return figure to be plotted into SigOpt
+    def plot_losses(self, subfolder):
         fig, ax = plt.subplots()
-        ax.set_title('loss function evolution')
-        ax.plot(self.loss_meter.losses)
-        ax.set_xlabel('Number of Iterations')
+        ax.plot(self.logger.epoch, self.logger.train_loss, label='train')
+
+        eval_epochs = []
+        test_loss = []
+        for i, tl in enumerate(self.logger.test_loss):
+            if tl is not None:
+                eval_epochs.append(self.logger.epoch[i])
+                test_loss.append(tl)
+        ax.plot(eval_epochs, test_loss, label='test')
+
+        ax.set_xlabel('Number of Epochs')
+        ax.set_ylabel('Loss')
+        ax.legend()
         fig.savefig(f'{subfolder}/loss.png')
         plt.close(fig)
         return
@@ -498,16 +523,6 @@ class Trainer():
             
         return eval_loss
 
-    def plot_evaluation(self, subfolder):
-        fig, ax = plt.subplots()
-        ax.set_title('evaluation function evolution')
-        eval_itr = np.arange(len(self.loss_meter.evals)) * self.evaluation_freq
-        ax.plot(eval_itr, self.loss_meter.evals)
-        ax.set_xlabel('Number of epochs')
-        fig.savefig(f'{subfolder}/eval_loss.png')
-        plt.close(fig)
-        return
-
     def save(self):
         subfolder = f'results/{self.day}/{self.time}/{self.epoch}'
         if self.sigopt:
@@ -527,9 +542,8 @@ class Trainer():
             os.makedirs(f'{subfolder}')
         torch.save([self.func.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
         self.plot_traj(True)
-        self.plot_loss(subfolder)
+        self.plot_losses(subfolder)
         self.plot_lr(subfolder)
-        self.plot_evaluation(subfolder)
         self.logger.save_csv(subfolder)
         return None
 

@@ -1,6 +1,7 @@
 import os
 import shutil
 import subprocess
+import random
 
 def assignVariables(file_path, variables, values):
     """
@@ -36,34 +37,35 @@ def assignVariables(file_path, variables, values):
 # run main
 if __name__ == '__main__':
 
-    folder_name = 'single_temp'
+    folder_name = 'overfit-29092022'
 
     if not os.path.exists(f'../dataset/{folder_name}'):
         os.makedirs(f'../dataset/{folder_name}')
 
     variables = ['$R_IN', '$R_CUT', '$TEMP', '$R0', '$K', '$SEED', '$LOG_FREQ', '$RUNSTEPS', '$TIMESTEP' ]
     
-    R_cut = 2 ** (1/6)
-    R_in = R_cut - R_cut * 0.05
-    temp = 2.5
-    r0 = 2
-    k = 10*temp/R_in/R_in
+    # temps = [0.5, 1.0, 1.5, 2.0, 2.5]
+    temps = [2.0]
     
     # takes about 50 seconds
     log_freq = 10000
     runsteps = 10000000
     timestep = 0.00001
     
-    train_split = 0.8
-    test_split = 0.1
-    validate_split = 0.1
+    train_split = 1 / 3
+    test_split = 1 / 3
+    validate_split = 1 / 3
     assert train_split + test_split + validate_split == 1
 
-    num_of_sims = 100
-    train_n = int(num_of_sims * train_split)
-    test_n = int(num_of_sims * test_split)
-    validate_n = int(num_of_sims * validate_split)
-    assert train_n + test_n + validate_n == num_of_sims
+    num_sims = 3
+    num_temps = len(temps)
+    seeds = random.sample(range(0, 10000), num_sims)
+    assert num_sims % num_temps == 0
+
+    train_n = int((num_sims * train_split) / num_temps) 
+    test_n = int((num_sims * test_split) / num_temps)
+    validate_n = int((num_sims * validate_split) / num_temps)
+    assert train_n + test_n + validate_n == num_sims // num_temps
 
     # Create script to run all
     run_script = []
@@ -72,28 +74,35 @@ if __name__ == '__main__':
     #     slurm_file = slurm_file.readlines()
     #     slurm_file.append('\n')
 
+    for temp in temps:
+        R_cut = 2 ** (1/6)
+        R_in = R_cut - R_cut * 0.05
+        r0 = 2
+        k = 10*temp/R_in/R_in
 
+        # train
+        for i in range(train_n):
+            seed = seeds.pop()
+            values = [R_in, R_cut, temp, r0, k, seed, log_freq, runsteps, timestep]
+            assignVariables(f'../dataset/{folder_name}/train', variables, values)
+            run_script += [f'cd train/ \n', f'sbatch run-{seed}.sh \n', 'cd .. \n']
+            
+            
+        # test
+        for i in range(test_n):
+            seed = seeds.pop()
+            values = [R_in, R_cut, temp, r0, k, seed, log_freq, runsteps, timestep]
+            assignVariables(f'../dataset/{folder_name}/test', variables, values)
+            run_script += [f'cd test/ \n', f'sbatch run-{seed}.sh \n', 'cd .. \n']
+            
 
-    # train
-    for seed in range(1, train_n + 1):
-        values = [R_in, R_cut, temp, r0, k, seed, log_freq, runsteps, timestep]
-        assignVariables(f'../dataset/{folder_name}/train', variables, values)
-        run_script += [f'cd train/ \n', f'sbatch run-{seed}.sh \n', 'cd .. \n']
-        
-        
-    # test
-    for seed in range(train_n + 1, (train_n + 1) + test_n):
-        values = [R_in, R_cut, temp, r0, k, seed, log_freq, runsteps, timestep]
-        assignVariables(f'../dataset/{folder_name}/test', variables, values)
-        run_script += [f'cd test/ \n', f'sbatch run-{seed}.sh \n', 'cd .. \n']
-        
-
-    # validate
-    for seed in range((train_n + 1) + test_n, ((train_n + 1) + test_n) + validate_n):
-        values = [R_in, R_cut, temp, r0, k, seed, log_freq, runsteps, timestep]
-        assignVariables(f'../dataset/{folder_name}/validation', variables, values)
-        run_script += [f'cd validation/ \n', f'sbatch run-{seed}.sh \n', 'cd .. \n']
-        
+        # validate
+        for i in range(validate_n):
+            seed = seeds.pop()
+            values = [R_in, R_cut, temp, r0, k, seed, log_freq, runsteps, timestep]
+            assignVariables(f'../dataset/{folder_name}/validation', variables, values)
+            run_script += [f'cd validation/ \n', f'sbatch run-{seed}.sh \n', 'cd .. \n']
+            
     with open(f'../dataset/{folder_name}/run.sh', 'w') as f:
         f.writelines(run_script)
             

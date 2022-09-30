@@ -3,16 +3,28 @@ import pandas as pd
 
 class Logger():
     def __init__(self):
-        self.header = ['epoch', 'itr', 'lr', 'traj_steps', 'steps_per_dt', 'train_loss-vel', 'train_loss-angvel', 'train_loss-pos', 'train_loss-quat', 'test_loss', 'time']
-        self.log = []
+        self.epoch = []
+        self.itr = []
+        self.lr = []
+        self.traj_steps = []
+        self.steps_per_dt = []
+        self.train_loss = []
+        self.train_loss_vel = []
+        self.train_loss_angvel = []
+        self.train_loss_pos = []
+        self.train_loss_quat = []
+        self.test_loss = []
+        self.time = []
 
-    def update(self, update):
-        # update is a list of all metered values
-        # ['epoch', 'itr', 'lr', 'traj_length', 'train_loss-vel', 'train_loss-angvel', 'train_loss-pos', 'train_loss-quat', 'test_loss', 'time']
-        self.log.append(update)
+    def update(self, entry):
+        for key, value in entry.items():
+            self.__dict__[key].append(value)
 
     def save_csv(self, folder):
-        pd.DataFrame(np.array(self.log), columns=self.header).to_csv(f'{folder}/log.csv', index=None)
+        df = pd.DataFrame(self.__dict__)
+        df.to_csv(f'{folder}/log.csv', index=False)
 
     def load_previous(self, folder):
-        self.log = pd.read_csv(f'{folder}/log.csv').values.tolist()
+        df = pd.read_csv(f'{folder}/log.csv')
+        for key in df.keys():
+            self.__dict__[key] = df[key].to_list()
