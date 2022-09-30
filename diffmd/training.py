@@ -16,7 +16,7 @@ from data.logger import Logger
 from data.dataset import Dataset
 from diffmd.diffeqs import ODEFunc
 from diffmd.solvers import odeint_adjoint
-from diffmd.utils import get_run_ID, count_parameters, is_main_process
+from diffmd.utils import *
 from diffmd.losses import *
 
 
@@ -34,10 +34,8 @@ class Trainer():
             self.subfolder = '/'.join(self.load_folder.split('/')[:-1])
             
         self.folder = config['folder']
-        self.device = self.set_device(config['device'])
-        config['device'] = self.device
-        self.dtype = self.set_dtype(config['dtype'])
-        config['dtype'] = self.dtype
+        self.device = set_device(config['device'])
+        self.dtype = set_dtype(config['dtype'])
         self.sigopt = config['sigopt']
         self.parallel = False
         
@@ -591,21 +589,7 @@ class Trainer():
             return [get_function(i) for i in function]
         else:
             raise Exception('activation function must be a string or a list of strings of the same length as the number of layers')
-            
-    def set_dtype(self, dtype):
-        if dtype == 'float32':
-            return torch.float32
-        else:
-            raise Exception('dtype not implemented')
 
-    def set_device(self, device):
-        if device == 'cpu':
-            return torch.device('cpu')
-        elif device == 'cuda':
-            return torch.device('cuda')
-        else:
-            raise Exception('device not implemented')
-            
 class RunningAverageMeter(object):
     """Computes and stores the average and current value"""
 

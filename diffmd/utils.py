@@ -46,6 +46,21 @@ def read_yaml(file_path):
     with open(file_path, "r") as f:
         return yaml.safe_load(f)
 
+def set_dtype(dtype):
+    if dtype == 'float32':
+        return torch.float32
+    else:
+        raise Exception('dtype not implemented')
+
+def set_device(device):
+    if device == 'cpu':
+        return torch.device('cpu')
+    elif device == 'cuda':
+        return torch.device('cuda')
+    else:
+        raise Exception('device not implemented')
+        
+
 
 def is_dist_avail_and_initialized():
     if not dist.is_available():
@@ -64,3 +79,5 @@ def is_main_process():
 
 def cleanup():
     dist.destroy_process_group()
+
+

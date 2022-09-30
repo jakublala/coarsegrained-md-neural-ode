@@ -6,12 +6,13 @@ import os
 from data.trajectory import Trajectory
 import torch.utils.data
 import random
+from diffmd.utils import set_device, set_dtype
 
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, config, dataset_type, traj_length, dataset_fraction=None, random_dataset=False):
-        self.device = config['device']
-        self.dtype = config['dtype']
+        self.device = set_device(config['device'])
+        self.dtype = set_dtype(config['dtype'])
         self.traj_length = traj_length
         self.dataset_fraction = dataset_fraction
         self.random_dataset = random_dataset
