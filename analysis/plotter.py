@@ -13,10 +13,17 @@ class Plotter():
 
         self.df = self.get_dataframe()
         self.v, self.w, self.x, self.q, self.r, self.rq = self.get_trajectory()
+        self.pred_v, self.pred_w, self.pred_x, self.pred_q, self.pred_r, self.pred_rq = self.get_predicted_trajectories(1000)
+        
         self.true_energies, self.predicted_energies = self.get_energies()
-        self.harmonic_energy = self.get_harmonic_energy()
-        self.LAMMPS_potential, self.LAMMPS_pot_start, self.LAMMPS_pot_end, self.LAMMPS_pot_steps = self.read_pair_potential()
-
+        self.harmonic_energy = self.get_harmonic_energy(self.r)
+        self.kinetic_energy = self.get_kinetic_energy(self.v, self.w)
+        
+        try:
+            self.LAMMPS_potential, self.LAMMPS_pot_start, self.LAMMPS_pot_end, self.LAMMPS_pot_steps = self.read_pair_potential()
+        except:
+            print('no LAMMPS pair potential file found')
+            
     def get_dataframe(self):
         df = pd.read_csv(self.trainer.training_dataset.trajs[self.trajectory_index].file_path+'.csv')
         return df
@@ -61,12 +68,30 @@ class Plotter():
         data = np.array(lines, dtype=np.float32)
         return data[:, [1, 2]], start, end, num_steps
 
-    def get_harmonic_energy(self):
+    def get_harmonic_energy(self, r):
         # harmonic energy
         k = self.trainer.training_dataset.trajs[self.trajectory_index].k
         r0 = self.trainer.training_dataset.trajs[self.trajectory_index].r0
-        harmonic_energy = (0.5 * k * torch.square(torch.norm(self.r, dim=1) - r0)).detach().cpu().numpy()
+        harmonic_energy = (0.5 * k * torch.square(torch.norm(r, dim=1) - r0)).detach().cpu().numpy()
         return harmonic_energy
+
+    def get_kinetic_energy(self, v, w):
+        M = 7.0
+        kinetic_energy_trans = torch.sum(torch.sum(0.5 * M * v**2, dim=-1), dim=-1)
+        batch_input, _, _ = self.trainer.training_dataset[0]
+        inertia = batch_input[-1]
+        kinetic_energy_rot = torch.sum(torch.sum(0.5 * inertia * w**2, dim=-1), dim=-1)
+        kinetic_energy = (kinetic_energy_trans + kinetic_energy_rot).detach().cpu().numpy()
+
+        plt.plot(kinetic_energy_rot.detach().cpu(), label='rot')
+        plt.plot(kinetic_energy_trans.detach().cpu(), label='trans')
+        plt.plot(kinetic_energy, label='tot')
+        plt.legend()
+        plt.savefig('figures/test.png')
+        plt.close()
+
+        return kinetic_energy
+
 
     def LAMMPS_energy_plot(self, num_steps):
         plt.title('Logged Energies from LAMMPS')
@@ -179,8 +204,57 @@ class Plotter():
         plt.legend()
         plt.savefig('figures/energies/trajectory_potential.png')
         plt.close()
+
+    def get_predicted_trajectories(self, num_steps):
+        batch_input, _, _ = self.trainer.training_dataset[0]
+        batch_input = list(batch_input)
+        batch_input[0] = batch_input[0].unsqueeze(0)
+        batch_input = tuple(batch_input)
+        with torch.no_grad():
+            pred_y = self.trainer.forward_pass(batch_input, num_steps, 1)
+        pred_y = list(torch.split(pred_y, [3, 3, 3, 4], dim=-1))
+        pred_y = [x.squeeze(0) for x in pred_y]
+        pred_y.append(pred_y[2][:, 1, :] - pred_y[2][:, 0, :])
+        pred_y.append(torch.cat((pred_y[-1], pred_y[-2].reshape(-1, 8)), dim=1).reshape(-1, 11).type(torch.float32))
+        return [i.detach() for i in pred_y]
+
+
+    def traj_energies(self, num_steps):
+        potential_energy = self.trainer.func.net(self.pred_rq).squeeze().detach().cpu().numpy()
+        kinetic_energy = self.get_kinetic_energy(self.pred_v, self.pred_w)
+        harmonic_energy = self.get_harmonic_energy(self.pred_r)
+
+        plt.plot(potential_energy[:num_steps], 'b', label='Potential')
+        plt.plot(kinetic_energy[:num_steps], 'r', label='Kinetic')
+        plt.plot(harmonic_energy[:num_steps], 'g', label='Harmonic')
+
+        total_energy = potential_energy + kinetic_energy + harmonic_energy
+        plt.plot(total_energy[:num_steps], 'k', label='Total')
+        
+        plt.title('Energies of Predicted Trajectory Using NN Potential')
+        plt.ylabel('Energy')
+        plt.xlabel('Time step')
+        plt.legend()
+        plt.savefig('figures/energies/traj_energies.png')
+        plt.close()
     
-            
+
+
+
+    def NN_energy(self, num_steps):
+        plt.plot(self.predicted_energies[:num_steps], 'b-', label='Potential')
+        plt.plot(self.harmonic_energy[:num_steps], 'g-', label='Harmonic')
+        plt.plot(self.kinetic_energy[:num_steps], 'r-', label='Kinetic')
+        total_energy = self.predicted_energies[:num_steps].squeeze() + self.harmonic_energy[:num_steps] + self.kinetic_energy[:num_steps]
+        plt.plot(total_energy, 'k', alpha=0.8, label='Total ')        
+        plt.legend()
+        plt.title('NN Energy based on LAMMPS trajectory')
+        plt.xlabel('Time step')
+        plt.ylabel('Energy')
+        plt.savefig('figures/energies/NN_energy.png')
+        plt.close()
+
+                
 
     def plot_traj(self, dataset, num_steps=100, checkpoint=False):
         # TODO: finish this and make it work, so that we can call it from Trainer
@@ -265,4 +339,5 @@ class Plotter():
         # revert changes to traj length
         # self.training_dataset.update(self.dataset_steps)
     
+
 
