@@ -16,7 +16,7 @@ from data.logger import Logger
 from data.dataset import Dataset
 from diffmd.diffeqs import ODEFunc
 from diffmd.solvers import odeint_adjoint
-from diffmd.utils import get_run_ID, count_parameters
+from diffmd.utils import get_run_ID, count_parameters, is_main_process
 from diffmd.losses import *
 
 
@@ -53,6 +53,8 @@ class Trainer():
         # self.batch_length_freq = config['batch_length_freq']
 
         self.eval_dataset_steps = config['eval_dataset_steps']
+        self.eval_steps_per_dt = config['eval_steps_per_dt']
+        self.eval_init_skip = config['eval_init_skip']
         
         self.shuffle = config['shuffle']
         self.num_workers = config['num_workers']
@@ -157,8 +159,12 @@ class Trainer():
         
     def train(self):
         for self.epoch in range(self.start_epoch + 1, (self.start_epoch + self.epochs) + 1):
-            self.log_metadata(self.config)
-        
+            if self.parallel:
+                self.training_dataloader.sampler.set_epoch(self.epoch)
+
+            if (self.parallel and is_main_process()) or not self.parallel:
+                self.log_metadata(self.config)
+            
             self.start_time = time.perf_counter()
             
             if self.early_stopping:
@@ -167,19 +173,12 @@ class Trainer():
             for self.itr, (batch_input, batch_y, batch_energy) in enumerate(self.training_dataloader):
                 self.itr_start_time = time.perf_counter()
 
-                def closure():
-                    # TODO: does not work
-                    for param in self.func.parameters():
-                        param.grad = None  
-                    # forward pass                
-                    pred_y = self.forward_pass(batch_input)
-                    loss = self.loss_func(pred_y, batch_y)
-                    loss.backward()
-                    return loss
-
                 # zero out gradients with less memory operations
                 for param in self.func.parameters():
                     param.grad = None
+
+                if self.parallel:
+                    batch_y = batch_y.to(self.device, non_blocking=True).type(self.dtype)
 
                 # forward pass                
                 pred_y = self.forward_pass(batch_input, self.traj_steps, self.steps_per_dt)
@@ -192,24 +191,32 @@ class Trainer():
 
                 # backward pass      
                 loss.backward() 
-                self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
-        
+                
                 if self.optimizer_name == 'LBFGS':
-                    self.optimizer.step(closure)
+                    raise NotImplementedError
                 else:
                     self.optimizer.step()    
                 
-                if (self.itr+1) % self.itr_printing_freq == 0:
-                    self.print_iteration()
-                
-                self.after_itr()
-                
-            self.after_epoch()
-                # if True, then early stopping
-                
-        # last checkpoint and save
-        self.checkpoint()
-        self.save()
+                if (self.parallel and is_main_process()) or not self.parallel:
+                    self.loss_meter.update(loss.item(), self.optimizer.param_groups[0]["lr"])
+
+                    if (self.itr+1) % self.itr_printing_freq == 0:
+                        self.print_iteration()
+
+                    self.after_itr()
+
+            if self.parallel:
+                if is_main_process():
+                    self.after_epoch()
+                torch.distributed.barrier()
+            elif not self.parallel:
+                self.after_epoch()
+            
+        if (self.parallel and is_main_process()) or not self.parallel:
+            # last checkpoint and save
+            self.checkpoint()
+            self.save()
+            
         return self.func, self.loss_meter
 
     def after_itr(self):
@@ -509,7 +516,7 @@ class Trainer():
             eval_loss = []
             for batch_input, batch_y, _ in dataloader:
                 # forward pass
-                pred_y = self.forward_pass(batch_input, traj_steps=self.eval_dataset_steps, steps_per_dt=1)
+                pred_y = self.forward_pass(batch_input, traj_steps=self.eval_dataset_steps, steps_per_dt=self.eval_steps_per_dt)
 
                 # loss of the projected trajectory by one dt
                 loss, loss_parts = final_mse(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means)

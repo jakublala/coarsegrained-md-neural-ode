@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
 
     config = read_yaml('config.yml')
-    config['folder'] = 'dataset/archive/oscillation'
+    # config['folder'] = 'dataset/archive/oscillation'
     config['load_folder'] = 'results/2022-09-29/16-48-03/1001'
  
     trainer = Trainer(config)
@@ -37,9 +37,9 @@ if __name__ == '__main__':
     plotter.plot_pair_potential()
     plotter.plot_hexagon_potential()
     plotter.plot_traj_potential(500)
-    plotter.traj_energies(100)
+    plotter.traj_energies()
 
-    # plotter.get_kinetic_energy(plotter.pred_v, plotter.pred_w)
+    plotter.get_kinetic_energy(plotter.pred_v, plotter.pred_w)
 
     # TODO: finish this plotting
     # plotter.plot_traj(dataset='test')

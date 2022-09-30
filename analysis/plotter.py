@@ -13,7 +13,8 @@ class Plotter():
 
         self.df = self.get_dataframe()
         self.v, self.w, self.x, self.q, self.r, self.rq = self.get_trajectory()
-        self.pred_v, self.pred_w, self.pred_x, self.pred_q, self.pred_r, self.pred_rq = self.get_predicted_trajectories(1000)
+        dataset_steps = 10
+        self.pred_v, self.pred_w, self.pred_x, self.pred_q, self.pred_r, self.pred_rq, self.pred_t = self.get_predicted_trajectories(dataset_steps)
         
         self.true_energies, self.predicted_energies = self.get_energies()
         self.harmonic_energy = self.get_harmonic_energy(self.r)
@@ -205,35 +206,41 @@ class Plotter():
         plt.savefig('figures/energies/trajectory_potential.png')
         plt.close()
 
-    def get_predicted_trajectories(self, num_steps):
+    def get_predicted_trajectories(self, dataset_steps):
         batch_input, _, _ = self.trainer.training_dataset[0]
         batch_input = list(batch_input)
         batch_input[0] = batch_input[0].unsqueeze(0)
         batch_input = tuple(batch_input)
+
+        steps_per_dt = 10
+        traj_steps = dataset_steps * steps_per_dt
+
         with torch.no_grad():
-            pred_y = self.trainer.forward_pass(batch_input, num_steps, 1)
+            pred_y = self.trainer.forward_pass(batch_input, traj_steps, steps_per_dt=steps_per_dt)
+            effective_dt = batch_input[1] / steps_per_dt
+            pred_t = self.trainer.get_batch_t(effective_dt, traj_steps).detach().cpu().numpy()
         pred_y = list(torch.split(pred_y, [3, 3, 3, 4], dim=-1))
         pred_y = [x.squeeze(0) for x in pred_y]
         pred_y.append(pred_y[2][:, 1, :] - pred_y[2][:, 0, :])
-        pred_y.append(torch.cat((pred_y[-1], pred_y[-2].reshape(-1, 8)), dim=1).reshape(-1, 11).type(torch.float32))
-        return [i.detach() for i in pred_y]
+        pred_y.append(torch.cat((pred_y[-1], pred_y[-2].reshape(-1, 8)), dim=1).reshape(-1, 11).type(torch.float32))        
+        return *[i.detach() for i in pred_y], pred_t
 
 
-    def traj_energies(self, num_steps):
+    def traj_energies(self):
         potential_energy = self.trainer.func.net(self.pred_rq).squeeze().detach().cpu().numpy()
         kinetic_energy = self.get_kinetic_energy(self.pred_v, self.pred_w)
         harmonic_energy = self.get_harmonic_energy(self.pred_r)
 
-        plt.plot(potential_energy[:num_steps], 'b', label='Potential')
-        plt.plot(kinetic_energy[:num_steps], 'r', label='Kinetic')
-        plt.plot(harmonic_energy[:num_steps], 'g', label='Harmonic')
+        plt.plot(self.pred_t, potential_energy, 'b', label='Potential')
+        plt.plot(self.pred_t, kinetic_energy, 'r', label='Kinetic')
+        plt.plot(self.pred_t, harmonic_energy, 'g', label='Harmonic')
 
         total_energy = potential_energy + kinetic_energy + harmonic_energy
-        plt.plot(total_energy[:num_steps], 'k', label='Total')
-        
+        plt.plot(self.pred_t, total_energy, 'k', label='Total')
+      
         plt.title('Energies of Predicted Trajectory Using NN Potential')
         plt.ylabel('Energy')
-        plt.xlabel('Time step')
+        plt.xlabel('Time (s)')
         plt.legend()
         plt.savefig('figures/energies/traj_energies.png')
         plt.close()

@@ -37,7 +37,7 @@ def assignVariables(file_path, variables, values):
 # run main
 if __name__ == '__main__':
 
-    folder_name = 'overfit-29092022'
+    folder_name = 'overfit-30092022'
 
     if not os.path.exists(f'../dataset/{folder_name}'):
         os.makedirs(f'../dataset/{folder_name}')
@@ -48,7 +48,7 @@ if __name__ == '__main__':
     temps = [2.0]
     
     # takes about 50 seconds
-    log_freq = 10000
+    log_freq = 1000
     runsteps = 10000000
     timestep = 0.00001
     
