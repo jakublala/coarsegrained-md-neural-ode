@@ -2,18 +2,23 @@ import pandas as pd
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+import shutil
 from matplotlib.offsetbox import AnchoredText
 
 class Plotter():
 
-    def __init__(self, trainer):
+    def __init__(self, trainer, dataset_steps = 10):
         self.trainer = trainer
+        self.folder = self.trainer.load_folder
+        
+        self.create_folders()
+        
         self.natoms = 14
         self.trajectory_index = 0
 
         self.df = self.get_dataframe()
         self.v, self.w, self.x, self.q, self.r, self.rq = self.get_trajectory()
-        dataset_steps = 10
         self.pred_v, self.pred_w, self.pred_x, self.pred_q, self.pred_r, self.pred_rq, self.pred_t = self.get_predicted_trajectories(dataset_steps)
         
         self.true_energies, self.predicted_energies = self.get_energies()
@@ -25,6 +30,13 @@ class Plotter():
         except:
             print('no LAMMPS pair potential file found')
             
+    def create_folders(self):
+        folders = ["figures/energies/lammps", "figures/energies/nn"]
+        for f in folders:
+            if not os.path.exists(f):
+                os.makedirs(f)
+
+
     def get_dataframe(self):
         df = pd.read_csv(self.trainer.training_dataset.trajs[self.trajectory_index].file_path+'.csv')
         return df
@@ -107,14 +119,13 @@ class Plotter():
         plt.close()
 
     def plot_parity(self):
-        indices = np.random.randint(500, size=self.rq.shape[0])
+        indices = np.random.randint(1000, size=self.rq.shape[0])
         fig, ax = plt.subplots()
         ax.plot(self.true_energies[indices], self.predicted_energies[indices], 'bo', markersize=1)
         ax.set_xlabel('Actual')
         ax.set_ylabel('Predicted')
 
-        # set equal aspect ratio
-        # ax.set_aspect('equal')
+        ax.set_aspect('equal')
 
         min_y = self.predicted_energies[indices].min()
         max_y = self.predicted_energies[indices].max()
@@ -203,7 +214,7 @@ class Plotter():
         plt.close()
 
     def plot_traj_potential(self, num_steps):
-        plt.plot(self.true_energies[:num_steps] * self.natoms, 'k', label='Actual')
+        plt.plot(self.true_energies[:num_steps], 'k', label='Actual')
         plt.plot(self.predicted_energies[:num_steps] - self.predicted_energies[0], 'r', label='Predicted')
         plt.ylabel('Energy')
         plt.xlabel('Time step')

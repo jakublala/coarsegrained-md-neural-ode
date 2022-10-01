@@ -106,17 +106,15 @@ class Trainer():
         self.optimizer = self.set_optimizer(self.optimizer_name)
         self.scheduler = self.set_scheduler(self.scheduler_name, self.scheduling_factor)
         
-        
-
         print(f'device = {self.device}')
         print(f'NN architecture = 11 - {self.nn_widths} - 1')
         print(f'number of parameters = {self.nparameters}')
         print(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name}')
         print(f'scheduler = {self.scheduler_name}, scheduling factor = {self.scheduling_factor}, scheduling freq = {self.scheduling_freq}')
         print(f'batch size = {self.batch_size}, dataset_steps = {self.dataset_steps}, steps per dt = {self.steps_per_dt}')
-        print(f'effective dt', self.training_dataset.trajs[0].dt / self.steps_per_dt)
-        print(f'LAMMPS dt', self.training_dataset.trajs[0].reader.timestep)
-        print(f'ratio of dts', round(self.training_dataset.trajs[0].dt / self.training_dataset.trajs[0].reader.timestep))
+        print(f'effective dt', self.training_dataset.trajs[0].logged_dt / self.steps_per_dt)
+        print(f'LAMMPS integration dt', self.training_dataset.trajs[0].lammps_dt, 'LAMMPS logged dt', self.training_dataset.trajs[0].logged_dt)
+        print(f'ratio of dts', round(self.training_dataset.trajs[0].logged_dt / self.training_dataset.trajs[0].lammps_dt))
 
     def get_subfolder(self):
 
@@ -220,7 +218,7 @@ class Trainer():
             
         if (self.parallel and is_main_process()) or not self.parallel:
             # last checkpoint and save
-            self.checkpoint()
+            self.checkpoint(final=True)
             self.save()
             
         return self.func, self.loss_meter
@@ -325,7 +323,7 @@ class Trainer():
         print(f'Epoch: {self.epoch}, Iteration: {self.itr+1}, Loss: {self.loss_meter.val}')
         print(f'Last iteration took:', time.perf_counter() - self.itr_start_time, flush=True)
 
-    def plot_traj(self, checkpoint=False):
+    def plot_traj(self, final):
         def get_anchored_text():
             at = AnchoredText(f'epoch: {self.epoch}', prop=dict(size=10), frameon=True, loc='upper left')
             at.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
@@ -339,16 +337,17 @@ class Trainer():
                 ax.plot(batch_t, batch_y[:,body_id,i], 'k--', alpha=0.3, label=f'true {i}')
                 ax.plot(pred_t, pred_y[:,body_id,i], colours[c], alpha=0.5, label=f'pred {i}')
             ax.add_artist(get_anchored_text())
+            plt.xlabel('Time')
             fig.savefig(f'{subfolder}/{filename}.png')
             plt.close(fig)            
 
         # temporarily change traj length for plotting
-        if checkpoint:
-            dataset_steps = 100
-            subfolder = f'results/{self.day}/{self.time}/{self.epoch}'
+        if final:
+            dataset_steps = 10
+            subfolder = f'results/{self.day}/{self.time}'
         else:
             dataset_steps = 100
-            subfolder = f'results/{self.day}/{self.time}'
+            subfolder = f'results/{self.day}/{self.time}/{self.epoch}'
 
         traj_steps = dataset_steps * self.steps_per_dt
         
@@ -359,14 +358,33 @@ class Trainer():
             batch_input, batch_y, _ = self.training_dataset[init_index]
             batch_input = list(batch_input)
             batch_input[0] = batch_input[0].unsqueeze(0)
-            batch_input = tuple(batch_input)
+            dataset_dt = batch_input[1]
+            
+            # if final:
+            #     traj_index = int(self.training_dataset.init_IDS[init_index].split('-')[0])
+            #     dt = self.training_dataset.trajs[traj_index].lammps_dt
+            #     batch_input[1] = dt
+            #     traj_steps = 10000
+            #     subfolder = f'results/temp/plot'
+            #     steps_per_dt = 1
 
-            pred_y = self.forward_pass(batch_input, traj_steps=traj_steps, steps_per_dt=self.steps_per_dt).squeeze().cpu().numpy()
+            # else:
+            #     dt = batch_input[1] / self.steps_per_dt
+            #     steps_per_dt = self.steps_per_dt
+            #     subfolder = f'results/temp/plot2'
+
+            start = time.perf_counter()
+            pred_y = self.forward_pass(batch_input, traj_steps=traj_steps, steps_per_dt=steps_per_dt).squeeze().cpu().numpy()
+            print(f'Forward pass took: {time.perf_counter() - start}')
             batch_y = batch_y.cpu().numpy()
             
-            effective_dt = batch_input[1] / self.steps_per_dt
-            pred_t = self.get_batch_t(effective_dt, traj_steps).cpu().numpy()
-            batch_t = self.get_batch_t(batch_input[1], dataset_steps).cpu().numpy()
+            pred_t = self.get_batch_t(dt, traj_steps).cpu().numpy()
+            batch_t = self.get_batch_t(dataset_dt, dataset_steps).cpu().numpy()
+
+            print(pred_y.shape)
+            print(batch_y.shape)
+            print(pred_t.shape)
+            print(batch_t.shape)
 
             ind_vel = [0, 1, 2]
             ind_ang = [3, 4, 5]
@@ -547,7 +565,7 @@ class Trainer():
                 sigopt.log_image(f'{subfolder}/{f}')
         return
 
-    def checkpoint(self):
+    def checkpoint(self, final=False):
         subfolder = f'results/{self.day}/{self.time}/{self.epoch}'
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
@@ -555,7 +573,7 @@ class Trainer():
             torch.save([self.func.module.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
         else:
             torch.save([self.func.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
-        self.plot_traj(True)
+        self.plot_traj(final)
         self.plot_losses(subfolder)
         self.plot_lr(subfolder)
         self.logger.save_csv(subfolder)

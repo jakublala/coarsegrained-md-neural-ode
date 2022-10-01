@@ -17,7 +17,7 @@ class Trajectory():
         self.timesteps = self.reader.logged_timesteps
         self.traj, self.inertia = self.get_traj()
         self.potential_energy, self.kinetic_energy, self.total_energy = self.get_energies()
-        self.dt = self.get_dt(self.reader)     
+        self.logged_dt, self.lammps_dt = self.get_dts()
 
     def get_metadata_from_file_path(self, file_path):
         # TODO: documentation
@@ -115,9 +115,9 @@ class Trajectory():
         return (vel.to(self.device), ang_vel.to(self.device), coms.to(self.device), quats.to(self.device))
 
         
-    def get_dt(self, reader):
-        log_freq = reader.log_frequency
-        time_step = reader.timestep
-        return time_step * log_freq
+    def get_dts(self):
+        log_freq = self.reader.log_frequency
+        time_step = self.reader.timestep
+        return time_step * log_freq, time_step
 
     

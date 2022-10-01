@@ -54,7 +54,7 @@ class Dataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         init_id = self.init_IDS[index]
         traj_id, timestep_id = [int(i) for i in init_id.split('-')]
-        dt = self.trajs[traj_id].dt
+        dt = self.trajs[traj_id].logged_dt
         k = self.trajs[traj_id].k
         r0 = self.trajs[traj_id].r0
         inertia = self.trajs[traj_id].inertia
