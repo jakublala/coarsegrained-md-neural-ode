@@ -55,8 +55,8 @@ def set_dtype(dtype):
 def set_device(device):
     if device == 'cpu':
         return torch.device('cpu')
-    elif device == 'cuda':
-        return torch.device('cuda')
+    elif 'cuda' in device:
+        return torch.device(device)
     else:
         raise Exception('device not implemented')
         

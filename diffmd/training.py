@@ -75,7 +75,6 @@ class Trainer():
 
         assert len(self.training_dataset) > self.batch_size, "Batch size is too large for the dataset. Please reduce the batch size or increase the dataset size."
 
-
         self.logger = Logger()
         self.loss_meter = RunningAverageMeter()
         
@@ -151,8 +150,12 @@ class Trainer():
         
         # TODO: add assertion to check right dimensions
         pred_y = odeint_adjoint(self.func, batch_y0, batch_t, method='NVE', options=options)
+
         pred_y = torch.swapaxes(torch.cat(pred_y, dim=-1), 0, 1)
         
+        # TODO: assert energy conservation
+        # if self.epoch < 10:
+        #     self.training_dataset.assert_energy_conservation(pred_y, self.func.net, self.traj_steps, self.steps_per_dt)
         return pred_y
         
     def train(self):

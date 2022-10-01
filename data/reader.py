@@ -7,6 +7,7 @@ class Reader():
 
     def __init__(self, file_path):
         self.file_path = file_path
+        # HACK: this is a hack to get the number of particles
         self.nparticles = 14
         self.timestep, self.runsteps, self.log_frequency = self.get_metadata()
         self.n_logged_timesteps = int(self.runsteps/self.log_frequency + 1)
@@ -22,12 +23,12 @@ class Reader():
         labels, lines = self.read_reduced_traj()
         df = pd.DataFrame(lines, columns=labels)
         
-        # get energies
+        # get energies (multiply to get system energy)
         labels, lines = self.read_simulation_log()
         data = np.array(lines)
-        df['potential_energy'] = data[:, labels.index('PotEng')]
-        df['kinetic_energy'] = data[:, labels.index('KinEng')]
-        df['total_energy'] = data[:, labels.index('TotEng')]
+        df['potential_energy'] = data[:, labels.index('PotEng')] * self.nparticles
+        df['kinetic_energy'] = data[:, labels.index('KinEng')] * self.nparticles
+        df['total_energy'] = data[:, labels.index('TotEng')] * self.nparticles
 
         # save to csv
         df.to_csv(self.file_path+'.csv', index=False)

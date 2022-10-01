@@ -35,9 +35,12 @@ class Dataset(torch.utils.data.Dataset):
         self.trajs = self.get_trajectories()
         
         self.data = self.get_data()
-        self.energies = self.get_energies()
+        self.potential_energies, self.kinetic_energies, self.harmonic_energies, self.total_energies = self.get_energies()
 
         self.init_IDS = self.get_init_IDS()
+
+        if dataset_type == 'train':
+            self.energy_deviation = self.get_energy_deviation()
         
         if self.dataset_fraction != None:
             self.init_IDS = self.get_fraction_IDS()
@@ -61,7 +64,7 @@ class Dataset(torch.utils.data.Dataset):
         
         # get true trajectory
         batch_y = self.data[traj_id, timestep_id:(timestep_id+self.traj_length+1)]
-        final_energy = self.energies[traj_id, timestep_id+self.traj_length]
+        final_energy = self.potential_energies[traj_id, timestep_id+self.traj_length]
         return init, batch_y, final_energy
 
     def get_filenames(self):
@@ -73,7 +76,49 @@ class Dataset(torch.utils.data.Dataset):
         return [Trajectory(self.folder+filename, self.device, self.dtype) for filename in self.filenames]
 
     def get_energies(self):
-        return torch.stack([torch.from_numpy(t.energies).to(self.device).type(self.dtype) for t in self.trajs])
+        potential_energies = torch.stack([torch.from_numpy(t.potential_energy).to(self.device).type(self.dtype) for t in self.trajs])
+        kinetic_energies = torch.stack([torch.from_numpy(t.kinetic_energy).to(self.device).type(self.dtype) for t in self.trajs])
+        total_energies = torch.stack([torch.from_numpy(t.total_energy).to(self.device).type(self.dtype) for t in self.trajs])
+        
+        k = torch.stack([t.k for t in self.trajs])
+        r0 = torch.stack([t.r0 for t in self.trajs])
+        x = self.data[:, :, :, 6:9]
+        r = x[:, :, 1, :] - x[:, :, 0, :]
+        harmonic_energies = (0.5 * k * torch.square(torch.norm(r, dim=-1) - r0))
+        
+        return potential_energies, kinetic_energies, harmonic_energies, total_energies
+
+    def get_energy_deviation(self):
+        total_energy = self.total_energies + self.harmonic_energies
+        return torch.max(torch.std(total_energy, dim=1))
+            
+    def assert_energy_conservation(self, pred_y, potential, traj_steps, steps_per_dt):
+        # TODO: make an automatic check for energy conservation
+        v, w, x, q = torch.split(pred_y, [3, 3, 3, 4], dim=-1)
+        r = x[:, :, 1, :] - x[:, :, 0, :]
+
+        potential_energy = potential(torch.cat((r, q.reshape(-1, 8)), dim=1).reshape(-1, 11))
+        
+        # HACK
+        M = 7.0
+        kinetic_energy_trans = torch.sum(torch.sum(0.5 * M * v**2, dim=-1), dim=-1)
+        batch_input, _, _ = self.trainer.training_dataset[0]
+        inertia = batch_input[-1]
+        kinetic_energy_rot = torch.sum(torch.sum(0.5 * inertia * w**2, dim=-1), dim=-1)
+        kinetic_energy = (kinetic_energy_trans + kinetic_energy_rot)
+
+        k = torch.stack([t.k for t in self.trajs])
+        r0 = torch.stack([t.r0 for t in self.trajs])
+        x = self.data[:, :, :, 6:9]
+        r = x[:, :, 1, :] - x[:, :, 0, :]
+        harmonic_energies = (0.5 * k * torch.square(torch.norm(r, dim=-1) - r0))
+
+
+        
+        print(pred_y.shape)
+        print(traj_steps)
+        print(steps_per_dt)
+        print(f'Max energy deviation: {self.energy_deviation}')
 
     def set_folder(self, config, dataset_type):
         if dataset_type in ['train', 'validation', 'test']:

@@ -16,7 +16,7 @@ class Trajectory():
         self.reader = Reader(self.file_path)
         self.timesteps = self.reader.logged_timesteps
         self.traj, self.inertia = self.get_traj()
-        self.energies = self.get_energies()
+        self.potential_energy, self.kinetic_energy, self.total_energy = self.get_energies()
         self.dt = self.get_dt(self.reader)     
 
     def get_metadata_from_file_path(self, file_path):
@@ -42,7 +42,7 @@ class Trajectory():
 
     def get_energies(self):
         df = pd.read_csv(self.file_path+'.csv')
-        return df['potential_energy'].to_numpy()
+        return df['potential_energy'].to_numpy(), df['kinetic_energy'].to_numpy(), df['total_energy'].to_numpy()
 
     def get_data(self):
         df = pd.read_csv(self.file_path+'.csv')
