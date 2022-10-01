@@ -150,14 +150,15 @@ class Plotter():
         temp_inp[:, 6] = 1.0
         temp_inp[:, -1] = 1.0
         predicted = potential(temp_inp).detach().cpu().numpy()
-
-        plt.title('Hexagon Potential')
-        plt.plot(plot_interval, predicted, 'r', label='NN')
+        
+        plt.title('Hexagon Potential') 
+        plt.plot(plot_interval, predicted, 'r', alpha=0.5, label='NN original')
+        plt.plot(plot_interval, predicted - predicted[-1], 'r', label='NN shifted')
         plt.plot(self.LAMMPS_potential[:, 0], self.LAMMPS_potential[:, 1], 'k-', label='LAMMPS')
         plt.legend()
         plt.xlabel('z-axis')
         plt.ylabel('Energy')
-        plt.ylim(predicted.min() - 0.01 * predicted.min(), predicted.max() + 0.01 * predicted.max())
+        plt.ylim(0, predicted.max() + 0.01 * predicted.max())
         plt.savefig('figures/energies/hexagon_potential_1Dface.png')
         plt.close()
 
@@ -169,12 +170,14 @@ class Plotter():
         predicted = potential(temp_inp).detach().cpu().numpy()
         
         plt.title('Hexagon Potential')
-        plt.plot(plot_interval, predicted, 'r', label='NN')
-        plt.plot(self.LAMMPS_potential[:, 0] + 1, self.LAMMPS_potential[:, 1], 'k-', label='LAMMPS')
+        plt.plot(plot_interval, predicted, 'r', alpha=0.5, label='NN original')
+        plt.plot(plot_interval, predicted - predicted[-1], 'r', label='NN shifted')
+        plt.plot(self.LAMMPS_potential[:, 0], self.LAMMPS_potential[:, 1], 'k-', alpha=0.5, label='LAMMPS')
+        plt.plot(self.LAMMPS_potential[:, 0] + 1, self.LAMMPS_potential[:, 1], 'k-', label='LAMMPS + 1')
         plt.legend()
         plt.xlabel('x-axis')
         plt.ylabel('Energy')
-        plt.ylim(predicted.min() - 0.01 * predicted.min(), predicted.max() + 0.01 * predicted.max())
+        plt.ylim(0, predicted.max() + 0.01 * predicted.max())
     
         plt.savefig('figures/energies/hexagon_potential_1DplaneX.png')
         plt.close()
@@ -187,12 +190,14 @@ class Plotter():
         predicted = potential(temp_inp).detach().cpu().numpy()
         
         plt.title('Hexagon Potential')
-        plt.plot(plot_interval, predicted, 'r', label='NN')
-        plt.plot(self.LAMMPS_potential[:, 0] + 1, self.LAMMPS_potential[:, 1], 'k-', label='LAMMPS')
+        plt.plot(plot_interval, predicted, 'r', alpha=0.5, label='NN original')
+        plt.plot(plot_interval, predicted - predicted[-1], 'r', label='NN shifted')
+        plt.plot(self.LAMMPS_potential[:, 0], self.LAMMPS_potential[:, 1], 'k-', alpha=0.5, label='LAMMPS')
+        plt.plot(self.LAMMPS_potential[:, 0] + 1, self.LAMMPS_potential[:, 1], 'k-', label='LAMMPS + 1')
         plt.legend()
         plt.xlabel('y-axis')
         plt.ylabel('Energy')
-        plt.ylim(predicted.min() - 0.01 * predicted.min(), predicted.max() + 0.01 * predicted.max())
+        plt.ylim(0, predicted.max() + 0.01 * predicted.max())
     
         plt.savefig('figures/energies/hexagon_potential_1DplaneY.png')
         plt.close()
