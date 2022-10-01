@@ -25,6 +25,7 @@ class Trainer():
     def __init__(self, config):
         self.config = config
         self.load_folder = config['load_folder']
+        self.parallel = False
         
         if self.load_folder is None:
             self.day, self.time = get_run_ID()

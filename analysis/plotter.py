@@ -96,9 +96,9 @@ class Plotter():
 
     def LAMMPS_energy_plot(self, num_steps):
         plt.title('Logged Energies from LAMMPS')
-        plt.plot(self.df['total_energy'].to_numpy()[:num_steps] * self.natoms + self.harmonic_energy[:num_steps], 'k', label='Total')
-        plt.plot(self.df['potential_energy'].to_numpy()[:num_steps] * self.natoms, 'b', label='Potential')
-        plt.plot(self.df['kinetic_energy'].to_numpy()[:num_steps] * self.natoms, 'r', label='Kinetic')
+        plt.plot(self.df['total_energy'].to_numpy()[:num_steps] + self.harmonic_energy[:num_steps], 'k', label='Total')
+        plt.plot(self.df['potential_energy'].to_numpy()[:num_steps], 'b', label='Potential')
+        plt.plot(self.df['kinetic_energy'].to_numpy()[:num_steps], 'r', label='Kinetic')
         plt.plot(self.harmonic_energy[:num_steps], 'g', label='Harmonic')
         plt.legend()
         plt.xlabel('Time step')
@@ -109,7 +109,7 @@ class Plotter():
     def plot_parity(self):
         indices = np.random.randint(500, size=self.rq.shape[0])
         fig, ax = plt.subplots()
-        ax.plot(self.true_energies[indices] * self.natoms, self.predicted_energies[indices], 'bo', markersize=1)
+        ax.plot(self.true_energies[indices], self.predicted_energies[indices], 'bo', markersize=1)
         ax.set_xlabel('Actual')
         ax.set_ylabel('Predicted')
 
@@ -212,7 +212,7 @@ class Plotter():
         batch_input[0] = batch_input[0].unsqueeze(0)
         batch_input = tuple(batch_input)
 
-        steps_per_dt = 10
+        steps_per_dt = 100
         traj_steps = dataset_steps * steps_per_dt
 
         with torch.no_grad():
