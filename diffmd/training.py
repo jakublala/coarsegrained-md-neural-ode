@@ -114,6 +114,9 @@ class Trainer():
         print(f'learning rate = {self.learning_rate}, optimizer = {self.optimizer_name}')
         print(f'scheduler = {self.scheduler_name}, scheduling factor = {self.scheduling_factor}, scheduling freq = {self.scheduling_freq}')
         print(f'batch size = {self.batch_size}, dataset_steps = {self.dataset_steps}, steps per dt = {self.steps_per_dt}')
+        print(f'effective dt', self.training_dataset.trajs[0].dt / self.steps_per_dt)
+        print(f'LAMMPS dt', self.training_dataset.trajs[0].reader.timestep)
+        print(f'ratio of dts', round(self.training_dataset.trajs[0].dt / self.training_dataset.trajs[0].reader.timestep))
 
     def get_subfolder(self):
 
@@ -164,9 +167,10 @@ class Trainer():
             if self.parallel:
                 self.training_dataloader.sampler.set_epoch(self.epoch)
 
-            if (self.parallel and is_main_process()) or not self.parallel:
-                self.log_metadata(self.config)
-            
+            if self.epoch == self.start_epoch + 1:
+                if (self.parallel and is_main_process()) or not self.parallel:
+                    self.log_metadata(self.config)
+                
             self.start_time = time.perf_counter()
             
             if self.early_stopping:
@@ -315,6 +319,7 @@ class Trainer():
         print(f'Learning rate: {self.loss_meter.lrs[-1]}')
         print(f'Current learning rate: {self.optimizer.param_groups[0]["lr"]}')
         print(f'Current dataset steps: {self.dataset_steps}, Current steps per dt: {self.steps_per_dt}')
+        print(f'Absolute timestep: {self.training_dataset.trajs[0].dt / self.steps_per_dt}, Timestep ratio to LAMMPS: {self.training_dataset.trajs[0].dt / self.steps_per_dt / self.training_dataset.trajs[0].reader.timestep}')
         
     def print_iteration(self):
         print(f'Epoch: {self.epoch}, Iteration: {self.itr+1}, Loss: {self.loss_meter.val}')
@@ -422,11 +427,8 @@ class Trainer():
         subfolder = f'results/{self.day}/{self.time}/'
         if not os.path.exists(f'{subfolder}'):
                 os.makedirs(f'{subfolder}')
-        if self.epoch == 0 or self.epoch == self.start_epoch:
-            shutil.copyfile('config.yaml', f'{subfolder}/config_{self.epoch}.yaml')
-        else:
-            pass
-
+        shutil.copyfile('config.yml', f'{subfolder}/config_{self.epoch}.yaml')
+        
     def set_loss_func(self, loss_func):
         if 'all-mse' == loss_func:
             raise NotImplementedError('all-mse loss function not implemented with new steps_per_dt')
@@ -549,7 +551,10 @@ class Trainer():
         subfolder = f'results/{self.day}/{self.time}/{self.epoch}'
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
-        torch.save([self.func.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
+        if self.parallel:
+            torch.save([self.func.module.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
+        else:
+            torch.save([self.func.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
         self.plot_traj(True)
         self.plot_losses(subfolder)
         self.plot_lr(subfolder)
