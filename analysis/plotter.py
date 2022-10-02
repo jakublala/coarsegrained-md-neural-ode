@@ -36,7 +36,6 @@ class Plotter():
             if not os.path.exists(f):
                 os.makedirs(f)
 
-
     def get_dataframe(self):
         df = pd.read_csv(self.trainer.training_dataset.trajs[self.trajectory_index].file_path+'.csv')
         return df
@@ -154,6 +153,7 @@ class Plotter():
         # HACK
         extrapolation = 5
         interval = torch.linspace(self.LAMMPS_pot_start, self.LAMMPS_pot_end+extrapolation, self.LAMMPS_pot_steps)
+        interval = torch.linspace(-5, 5, 500)
         plot_interval = interval.cpu().numpy()
 
         # case 1: hexagons facing each other (i.e. varying z-axis)
@@ -170,7 +170,7 @@ class Plotter():
         plt.legend()
         plt.xlabel('z-axis')
         plt.ylabel('Energy')
-        plt.ylim(0, predicted.max() + 0.01 * predicted.max())
+        plt.ylim(-5, predicted.max() + 0.01 * predicted.max())
         plt.savefig('figures/energies/hexagon_potential_1Dface.png')
         plt.close()
 
@@ -185,11 +185,11 @@ class Plotter():
         plt.plot(plot_interval, predicted, 'r', alpha=0.5, label='NN original')
         plt.plot(plot_interval, predicted - predicted[-1], 'r', label='NN shifted')
         plt.plot(self.LAMMPS_potential[:, 0], self.LAMMPS_potential[:, 1], 'k-', alpha=0.5, label='LAMMPS')
-        plt.plot(self.LAMMPS_potential[:, 0] + 1, self.LAMMPS_potential[:, 1], 'k-', label='LAMMPS + 1')
+        plt.plot(self.LAMMPS_potential[:, 0] + 2, self.LAMMPS_potential[:, 1], 'k-', label='LAMMPS + 2')
         plt.legend()
         plt.xlabel('x-axis')
         plt.ylabel('Energy')
-        plt.ylim(0, predicted.max() + 0.01 * predicted.max())
+        plt.ylim(-5, predicted.max() + 0.01 * predicted.max())
     
         plt.savefig('figures/energies/hexagon_potential_1DplaneX.png')
         plt.close()
@@ -205,11 +205,11 @@ class Plotter():
         plt.plot(plot_interval, predicted, 'r', alpha=0.5, label='NN original')
         plt.plot(plot_interval, predicted - predicted[-1], 'r', label='NN shifted')
         plt.plot(self.LAMMPS_potential[:, 0], self.LAMMPS_potential[:, 1], 'k-', alpha=0.5, label='LAMMPS')
-        plt.plot(self.LAMMPS_potential[:, 0] + 1, self.LAMMPS_potential[:, 1], 'k-', label='LAMMPS + 1')
+        plt.plot(self.LAMMPS_potential[:, 0] + 2, self.LAMMPS_potential[:, 1], 'k-', label='LAMMPS + 2')
         plt.legend()
         plt.xlabel('y-axis')
         plt.ylabel('Energy')
-        plt.ylim(0, predicted.max() + 0.01 * predicted.max())
+        plt.ylim(-5, predicted.max() + 0.01 * predicted.max())
     
         plt.savefig('figures/energies/hexagon_potential_1DplaneY.png')
         plt.close()
@@ -278,7 +278,14 @@ class Plotter():
         plt.savefig('figures/energies/NN_energy.png')
         plt.close()
 
-                
+    def traj_distribution(self, var='r'):
+        r_norm = torch.norm(self.__dict__[var], dim=-1)
+        plt.hist(r_norm.flatten().detach().cpu().numpy(), bins=100)
+        plt.ylabel('Occurences')
+        plt.xlabel(f'{var}')
+        plt.savefig(f'figures/hist_{var}.png')
+        plt.close()
+
 
     def plot_traj(self, dataset, num_steps=100, checkpoint=False):
         # TODO: finish this and make it work, so that we can call it from Trainer

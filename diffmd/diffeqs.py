@@ -13,7 +13,8 @@ class ODEFunc(nn.Module):
         self.dtype = dtype
         self.mass = 7.0 # HACK
         self.kwargs = {'dim': dim, 'widths': widths, 'functions': functions, 'dtype': dtype}
-        
+        self.cutoff = 2 + 2 ** (1/6) # HACK
+
         # define neural net
         depth = len(widths) 
         layers = []
@@ -56,7 +57,11 @@ class ODEFunc(nn.Module):
             # assert torch.all(torch.flatten(q[:, 0, :]) == torch.swapaxes(q, 0, 1).reshape(-1, 8)[0, :]), 'incorrect resize'
 
             # get energy and gradients
-            # TODO: check that harmonic restraint is calculated correctly
+            # extrapolation_mask = (torch.norm(r, dim=-1) < self.cutoff).type(self.dtype)
+            # print(extrapolation_mask[:10])
+            # print(torch.norm(r, dim=-1)[:10])
+            # assert 0 == 1
+            
             u = self.net(rq) + self.harmonic_restraint(rq) # [number of trajectories, potential energy]
             # u = self.zero_net(rq) + self.harmonic_restraint(rq) # [number of trajectories, potential energy]
 
