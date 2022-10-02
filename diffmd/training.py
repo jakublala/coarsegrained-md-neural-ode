@@ -195,10 +195,10 @@ class Trainer():
                         loss = self.loss_func(self.func.net, pred_y, batch_energy)
                     self.loss_parts = [0 for i in range(4)] + [loss.item()]
                 elif self.loss_func_name == 'final-mse-pos-and-energy':
-                    loss, self.loss_parts = final_mse_pos_and_energy(self.func.net, batch_energy, pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.normalize_loss, 0.1)
+                    loss, self.loss_parts = final_mse_pos_and_energy(self.func.net, batch_energy, pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.normalize_loss, 1e-6)
                 else:
                     loss, self.loss_parts = self.loss_func(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.normalize_loss)
-
+                    self.loss_parts += [0]
                 # backward pass      
                 loss.backward() 
                 
@@ -350,9 +350,12 @@ class Trainer():
 
         # temporarily change traj length for plotting
         if final:
-            dataset_steps = 10
+            dataset_steps = 100
+            steps_per_dt = self.steps_per_dt * 10
         else:
             dataset_steps = 100
+            steps_per_dt = self.steps_per_dt
+            
         
         traj_steps = dataset_steps * self.steps_per_dt
         
@@ -365,7 +368,6 @@ class Trainer():
             batch_input[0] = batch_input[0].unsqueeze(0)
             dataset_dt = batch_input[1]
             
-            steps_per_dt = self.steps_per_dt
             # if final:
             #     traj_index = int(self.training_dataset.init_IDS[init_index].split('-')[0])
             #     dt = self.training_dataset.trajs[traj_index].lammps_dt
@@ -613,6 +615,10 @@ class Trainer():
                 return nn.Tanh()
             elif string == 'sigmoid':
                 return nn.Sigmoid()
+            elif string == 'gelu':
+                return nn.GELU()
+            elif string == 'elu':
+                return nn.ELU()
             else:
                 raise Exception('activation function not implemented')
 

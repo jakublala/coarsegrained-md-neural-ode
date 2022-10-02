@@ -119,16 +119,17 @@ class Plotter():
         plt.close()
 
     def plot_parity(self):
+        predicted_energies = self.predicted_energies - self.predicted_energies[0]
         indices = np.random.randint(1000, size=self.rq.shape[0])
         fig, ax = plt.subplots()
-        ax.plot(self.true_energies[indices], self.predicted_energies[indices], 'bo', markersize=1)
+        ax.plot(self.true_energies[indices], predicted_energies[indices], 'bo', markersize=1)
         ax.set_xlabel('Actual')
         ax.set_ylabel('Predicted')
 
         ax.set_aspect('equal')
 
-        min_y = self.predicted_energies[indices].min()
-        max_y = self.predicted_energies[indices].max()
+        min_y = predicted_energies[indices].min()
+        max_y = predicted_energies[indices].max()
 
         min_x = self.true_energies[indices].min()
         max_x = self.true_energies[indices].max()

@@ -14,7 +14,7 @@ os.chdir("..")
 if __name__ == '__main__':
     config = read_yaml('config.yml')
     # config['folder'] = 'dataset/archive/oscillation'
-    config['load_folder'] = 'results/2022-10-01/10-54-15/1100'
+    config['load_folder'] = 'results/2022-10-02/11-22-30/2050'
  
     trainer = Trainer(config)
 
