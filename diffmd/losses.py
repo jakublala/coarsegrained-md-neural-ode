@@ -87,6 +87,11 @@ def energy(potential, pred_y, batch_energy):
     predicted_energies = potential(rq)
     return torch.mean((predicted_energies - batch_energy)**2)
 
+def final_mse_pos_and_energy(potential, batch_energy, pred_y, true_y, stds, means, normalize=False, weight = 1.0):
+    loss, loss_parts = final_mse_pos(pred_y, true_y, stds, means, normalize)
+    energy_loss = weight * energy(potential, pred_y, batch_energy)
+    return loss + energy_loss, loss_parts + [energy_loss.detach().cpu().item()]
+
 
 # def all_loss_func(pred_y, true_y):
 #     return torch.mean(torch.abs(pred_y - true_y))

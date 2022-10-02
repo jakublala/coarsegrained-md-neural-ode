@@ -189,7 +189,13 @@ class Trainer():
 
                 # compute loss
                 if self.loss_func_name == 'energy':
-                    loss = self.loss_func(self.func.net, pred_y, batch_energy)
+                    if self.parallel:
+                        loss = self.loss_func(self.func.module.net, pred_y, batch_energy)
+                    else:
+                        loss = self.loss_func(self.func.net, pred_y, batch_energy)
+                    self.loss_parts = [0 for i in range(4)] + [loss.item()]
+                elif self.loss_func_name == 'final-mse-pos-and-energy':
+                    loss, self.loss_parts = final_mse_pos_and_energy(self.func.net, batch_energy, pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.normalize_loss, 0.1)
                 else:
                     loss, self.loss_parts = self.loss_func(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.normalize_loss)
 
@@ -230,11 +236,12 @@ class Trainer():
             'lr': self.optimizer.param_groups[0]["lr"],
             'traj_steps': self.dataset_steps,
             'steps_per_dt': self.steps_per_dt,
-            'train_loss': sum(self.loss_parts),
+            'train_loss': sum(self.loss_parts[:-1]),
             'train_loss_vel': self.loss_parts[0],
             'train_loss_angvel': self.loss_parts[1],
             'train_loss_pos': self.loss_parts[2],
             'train_loss_quat': self.loss_parts[3],
+            'train_loss_energy': self.loss_parts[4],
             'test_loss': None,
             'time': time.perf_counter() - self.itr_start_time,
         }
@@ -317,13 +324,13 @@ class Trainer():
         print(f'Learning rate: {self.loss_meter.lrs[-1]}')
         print(f'Current learning rate: {self.optimizer.param_groups[0]["lr"]}')
         print(f'Current dataset steps: {self.dataset_steps}, Current steps per dt: {self.steps_per_dt}')
-        print(f'Absolute timestep: {self.training_dataset.trajs[0].dt / self.steps_per_dt}, Timestep ratio to LAMMPS: {self.training_dataset.trajs[0].dt / self.steps_per_dt / self.training_dataset.trajs[0].reader.timestep}')
+        print(f'Absolute timestep: {self.training_dataset.trajs[0].logged_dt / self.steps_per_dt}, Timestep ratio to LAMMPS: {self.training_dataset.trajs[0].logged_dt / self.steps_per_dt / self.training_dataset.trajs[0].lammps_dt}')
         
     def print_iteration(self):
         print(f'Epoch: {self.epoch}, Iteration: {self.itr+1}, Loss: {self.loss_meter.val}')
         print(f'Last iteration took:', time.perf_counter() - self.itr_start_time, flush=True)
 
-    def plot_traj(self, final):
+    def plot_traj(self, subfolder, final):
         def get_anchored_text():
             at = AnchoredText(f'epoch: {self.epoch}', prop=dict(size=10), frameon=True, loc='upper left')
             at.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
@@ -344,11 +351,9 @@ class Trainer():
         # temporarily change traj length for plotting
         if final:
             dataset_steps = 10
-            subfolder = f'results/{self.day}/{self.time}'
         else:
             dataset_steps = 100
-            subfolder = f'results/{self.day}/{self.time}/{self.epoch}'
-
+        
         traj_steps = dataset_steps * self.steps_per_dt
         
         self.training_dataset.update(dataset_steps)
@@ -360,6 +365,7 @@ class Trainer():
             batch_input[0] = batch_input[0].unsqueeze(0)
             dataset_dt = batch_input[1]
             
+            steps_per_dt = self.steps_per_dt
             # if final:
             #     traj_index = int(self.training_dataset.init_IDS[init_index].split('-')[0])
             #     dt = self.training_dataset.trajs[traj_index].lammps_dt
@@ -373,18 +379,13 @@ class Trainer():
             #     steps_per_dt = self.steps_per_dt
             #     subfolder = f'results/temp/plot2'
 
+            dt = batch_input[1] / steps_per_dt
             start = time.perf_counter()
             pred_y = self.forward_pass(batch_input, traj_steps=traj_steps, steps_per_dt=steps_per_dt).squeeze().cpu().numpy()
-            print(f'Forward pass took: {time.perf_counter() - start}')
             batch_y = batch_y.cpu().numpy()
             
             pred_t = self.get_batch_t(dt, traj_steps).cpu().numpy()
             batch_t = self.get_batch_t(dataset_dt, dataset_steps).cpu().numpy()
-
-            print(pred_y.shape)
-            print(batch_y.shape)
-            print(pred_t.shape)
-            print(batch_t.shape)
 
             ind_vel = [0, 1, 2]
             ind_ang = [3, 4, 5]
@@ -416,7 +417,10 @@ class Trainer():
             
     def plot_losses(self, subfolder):
         fig, ax = plt.subplots()
-        ax.plot(self.logger.epoch, self.logger.train_loss, label='train')
+        if self.loss_func_name == 'energy':
+            ax.plot(self.logger.epoch, self.logger.train_loss_energy, label='train')
+        else:
+            ax.plot(self.logger.epoch, self.logger.train_loss, label='train')
 
         eval_epochs = []
         test_loss = []
@@ -460,6 +464,8 @@ class Trainer():
             return final_mse_pos
         elif 'energy' == loss_func:
             return energy
+        elif 'final-mse-pos-and-energy':
+            return final_mse_pos_and_energy
         else:
             raise ValueError(f'loss function {loss_func} not recognised')
 
@@ -573,7 +579,7 @@ class Trainer():
             torch.save([self.func.module.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
         else:
             torch.save([self.func.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
-        self.plot_traj(final)
+        self.plot_traj(subfolder, final)
         self.plot_losses(subfolder)
         self.plot_lr(subfolder)
         self.logger.save_csv(subfolder)

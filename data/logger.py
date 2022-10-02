@@ -13,6 +13,7 @@ class Logger():
         self.train_loss_angvel = []
         self.train_loss_pos = []
         self.train_loss_quat = []
+        self.train_loss_energy = []
         self.test_loss = []
         self.time = []
 
