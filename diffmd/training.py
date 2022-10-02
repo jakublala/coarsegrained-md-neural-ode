@@ -9,6 +9,7 @@ import shutil
 import numpy as np
 import sigopt
 import re
+import copy
 from collections import OrderedDict
 
 from data.reader import Reader
@@ -324,7 +325,7 @@ class Trainer():
         print(f'Learning rate: {self.loss_meter.lrs[-1]}')
         print(f'Current learning rate: {self.optimizer.param_groups[0]["lr"]}')
         print(f'Current dataset steps: {self.dataset_steps}, Current steps per dt: {self.steps_per_dt}')
-        print(f'Absolute timestep: {self.training_dataset.trajs[0].logged_dt / self.steps_per_dt}, Timestep ratio to LAMMPS: {self.training_dataset.trajs[0].logged_dt / self.steps_per_dt / self.training_dataset.trajs[0].lammps_dt}')
+        print(f'Absolute timestep: {self.training_dataset.trajs[0].logged_dt / self.steps_per_dt}, Timestep ratio to LAMMPS: {round(self.training_dataset.trajs[0].logged_dt / self.steps_per_dt / self.training_dataset.trajs[0].lammps_dt)}')
         
     def print_iteration(self):
         print(f'Epoch: {self.epoch}, Iteration: {self.itr+1}, Loss: {self.loss_meter.val}')
@@ -543,6 +544,9 @@ class Trainer():
             else:
                 raise ValueError(f'dataset {dataset} not recognised')
             
+            orig_length = copy.copy(dataset.traj_length)
+            dataset.update(self.eval_dataset_steps)
+
             eval_loss = []
             for batch_input, batch_y, _ in dataloader:
                 # forward pass
@@ -557,6 +561,8 @@ class Trainer():
             
             eval_loss = np.mean(eval_loss)
             self.loss_meter.evals.append(eval_loss)
+
+            dataset.update(orig_length)
             
         return eval_loss
 
