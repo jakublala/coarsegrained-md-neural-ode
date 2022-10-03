@@ -170,7 +170,7 @@ class Plotter():
         plt.legend()
         plt.xlabel('z-axis')
         plt.ylabel('Energy')
-        plt.ylim(-5, predicted.max() + 0.01 * predicted.max())
+        plt.ylim(-20, predicted.max() + 0.01 * predicted.max())
         plt.savefig('figures/energies/hexagon_potential_1Dface.png')
         plt.close()
 
@@ -189,7 +189,7 @@ class Plotter():
         plt.legend()
         plt.xlabel('x-axis')
         plt.ylabel('Energy')
-        plt.ylim(-5, predicted.max() + 0.01 * predicted.max())
+        plt.ylim(-20, predicted.max() + 0.01 * predicted.max())
     
         plt.savefig('figures/energies/hexagon_potential_1DplaneX.png')
         plt.close()
@@ -209,7 +209,7 @@ class Plotter():
         plt.legend()
         plt.xlabel('y-axis')
         plt.ylabel('Energy')
-        plt.ylim(-5, predicted.max() + 0.01 * predicted.max())
+        plt.ylim(-20, predicted.max() + 0.01 * predicted.max())
     
         plt.savefig('figures/energies/hexagon_potential_1DplaneY.png')
         plt.close()

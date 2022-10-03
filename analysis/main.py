@@ -15,16 +15,16 @@ os.chdir("..")
 if __name__ == '__main__':
     config = read_yaml('config.yml')
     # config['folder'] = 'dataset/archive/oscillation'
-    config['load_folder'] = 'results/2022-10-02/17-41-21/100'
+    config['load_folder'] = 'results/2022-10-02/17-41-21/5000'
  
     trainer = Trainer(config)
 
     dataset_steps = 1
     plotter = Plotter(trainer, dataset_steps)
     plotter.traj_distribution()
-    # plotter.LAMMPS_energy_plot(500)
-    # plotter.NN_energy(500)
-    # plotter.plot_parity()
+    plotter.LAMMPS_energy_plot(500)
+    plotter.NN_energy(500)
+    plotter.plot_parity()
     # plotter.plot_pair_potential()
     plotter.plot_hexagon_potential()
     plotter.plot_traj_potential(1000)

@@ -170,3 +170,5 @@ class Dataset(torch.utils.data.Dataset):
     def update(self, traj_length=None):
         if traj_length != None:
             self.traj_length = traj_length
+            self.max_traj_length = traj_length
+            self.init_IDS = self.get_init_IDS()
