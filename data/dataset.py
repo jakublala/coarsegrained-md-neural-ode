@@ -136,11 +136,12 @@ class Dataset(torch.utils.data.Dataset):
         for traj_id, traj in enumerate(self.trajs):
             ids = list(range(traj.reader.n_logged_timesteps))
             ids = [f'{traj_id}-{i}' for i in ids]
-            if self.eval_init_skip == None:
+            if self.traj_length == 0:
+                init_IDS += ids
+            elif self.eval_init_skip == None:
                 init_IDS += ids[:-self.max_traj_length]
             else:
                 init_IDS += ids[:-self.max_traj_length:self.eval_init_skip]
-
         return init_IDS
 
     def get_fraction_IDS(self):

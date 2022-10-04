@@ -12,7 +12,6 @@ import re
 import copy
 from collections import OrderedDict
 
-from data.reader import Reader
 from data.logger import Logger
 from data.dataset import Dataset
 from diffmd.diffeqs import ODEFunc
@@ -131,7 +130,7 @@ class Trainer():
             subfolder = f'results/{self.day}/{self.time}'
         return subfolder
 
-    def forward_pass(self, batch_input, traj_steps, steps_per_dt):
+    def predict_traj(self, batch_input, traj_steps, steps_per_dt):
         batch_y0, dt, k, r0, inertia =  batch_input
         batch_y0 = tuple(i.to(self.device, non_blocking=True).type(self.dtype) for i in torch.split(batch_y0, [3, 3, 3, 4], dim=-1))
 
@@ -160,7 +159,7 @@ class Trainer():
         # if self.epoch < 10:
         #     self.training_dataset.assert_energy_conservation(pred_y, self.func.net, self.traj_steps, self.steps_per_dt)
         return pred_y
-        
+
     def train(self):
         for self.epoch in range(self.start_epoch + 1, (self.start_epoch + self.epochs) + 1):
             if self.parallel:
@@ -185,24 +184,18 @@ class Trainer():
                 if self.parallel:
                     batch_y = batch_y.to(self.device, non_blocking=True).type(self.dtype)
 
-                # forward pass                
-                pred_y = self.forward_pass(batch_input, self.traj_steps, self.steps_per_dt)
+                loss = self.forward_pass(batch_input, batch_y, batch_energy)
 
-                # compute loss
-                if self.loss_func_name == 'energy':
-                    if self.parallel:
-                        loss = self.loss_func(self.func.module.net, pred_y, batch_energy)
-                    else:
-                        loss = self.loss_func(self.func.net, pred_y, batch_energy)
-                    self.loss_parts = [0 for i in range(4)] + [loss.item()]
-                elif self.loss_func_name == 'final-mse-pos-and-energy':
-                    loss, self.loss_parts = final_mse_pos_and_energy(self.func.net, batch_energy, pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.normalize_loss, 1e-6)
-                else:
-                    loss, self.loss_parts = self.loss_func(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.normalize_loss)
-                    self.loss_parts += [0]
                 # backward pass      
                 loss.backward() 
-                
+
+                # total_norm = 0
+                # for p in self.func.parameters():
+                #     param_norm = p.grad.data.norm(2)
+                #     total_norm += param_norm.item() ** 2
+                # total_norm = total_norm ** (1. / 2)
+                # print(total_norm)
+
                 if self.optimizer_name == 'LBFGS':
                     raise NotImplementedError
                 else:
@@ -229,6 +222,7 @@ class Trainer():
             self.save()
             
         return self.func, self.loss_meter
+
 
     def after_itr(self):
         new_entry = {
@@ -384,7 +378,7 @@ class Trainer():
 
             dt = batch_input[1] / steps_per_dt
             start = time.perf_counter()
-            pred_y = self.forward_pass(batch_input, traj_steps=traj_steps, steps_per_dt=steps_per_dt).squeeze().cpu().numpy()
+            pred_y = self.predict_traj(batch_input, traj_steps=traj_steps, steps_per_dt=steps_per_dt).squeeze().cpu().numpy()
             batch_y = batch_y.cpu().numpy()
             
             pred_t = self.get_batch_t(dt, traj_steps).cpu().numpy()
@@ -550,7 +544,7 @@ class Trainer():
             eval_loss = []
             for batch_input, batch_y, _ in dataloader:
                 # forward pass
-                pred_y = self.forward_pass(batch_input, traj_steps=self.eval_dataset_steps, steps_per_dt=self.eval_steps_per_dt)
+                pred_y = self.predict_traj(batch_input, traj_steps=self.eval_dataset_steps, steps_per_dt=self.eval_steps_per_dt)
 
                 # loss of the projected trajectory by one dt
                 loss, loss_parts = final_mse(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means)

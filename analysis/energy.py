@@ -4,7 +4,7 @@ import sys
 import os
 import numpy as np
 sys.path.insert(0, os.path.abspath('..'))
-from diffmd.training import Trainer
+from diffmd.trainer_base import Trainer
 
 natoms = 14
 

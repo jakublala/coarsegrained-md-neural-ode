@@ -7,7 +7,7 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import DataLoader
 import torch.multiprocessing as mp
 
-from diffmd.training import Trainer
+from diffmd.trainer_base import Trainer
 from diffmd.diffeqs import ODEFunc
 from diffmd.solvers import odeint_adjoint
 from data.dataset import Dataset
