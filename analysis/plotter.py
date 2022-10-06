@@ -233,7 +233,7 @@ class Plotter():
         traj_steps = dataset_steps * steps_per_dt
 
         with torch.no_grad():
-            pred_y = self.trainer.forward_pass(batch_input, traj_steps, steps_per_dt=steps_per_dt)
+            pred_y = self.trainer.predict_traj(batch_input, traj_steps, steps_per_dt=steps_per_dt)
             effective_dt = batch_input[1] / steps_per_dt
             pred_t = self.trainer.get_batch_t(effective_dt, traj_steps).detach().cpu().numpy()
         pred_y = list(torch.split(pred_y, [3, 3, 3, 4], dim=-1))
@@ -305,8 +305,10 @@ class Plotter():
             fig.savefig(f'{subfolder}/{filename}.png')
             plt.close(fig)            
 
-
         subfolder = f'figures/trajs/{dataset}'
+        if not os.path.exists(subfolder):
+            os.makedirs(subfolder)
+        
         if dataset == 'train':
             dataset = self.trainer.training_dataset
         elif dataset == 'test':
@@ -320,7 +322,7 @@ class Plotter():
 
         traj_steps = dataset_steps * self.trainer.steps_per_dt
         
-        # self.training_dataset.update(dataset_steps)
+        dataset.update(dataset_steps)
         with torch.no_grad():
             # get the earliest init conditions to ensure trajectories are long enough
             init_index = dataset.init_IDS.index(min(dataset.init_IDS, key=len))
@@ -329,7 +331,9 @@ class Plotter():
             batch_input[0] = batch_input[0].unsqueeze(0)
             batch_input = tuple(batch_input)
 
-            pred_y = self.trainer.forward_pass(batch_input, traj_steps=traj_steps, steps_per_dt=self.trainer.steps_per_dt).squeeze().cpu().numpy()
+            print(traj_steps)
+            print(self.trainer.steps_per_dt)
+            pred_y = self.trainer.predict_traj(batch_input, traj_steps=traj_steps, steps_per_dt=self.trainer.steps_per_dt).squeeze().cpu().numpy()
             batch_y = batch_y.cpu().numpy()
             
             effective_dt = batch_input[1] / self.trainer.steps_per_dt
@@ -368,7 +372,7 @@ class Plotter():
             plt.close(fig)
 
         # revert changes to traj length
-        # self.training_dataset.update(self.dataset_steps)
+        dataset.update(self.trainer.dataset_steps)
     
 
 

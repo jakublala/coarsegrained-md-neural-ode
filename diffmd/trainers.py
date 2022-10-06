@@ -1,6 +1,6 @@
 import torch
-import torch.nn as nn
 from diffmd.trainer_base import Trainer
+from diffmd.baseline import BaselineModel
 
 class NODETrainer(Trainer):
 
@@ -45,44 +45,9 @@ class BaselineTrainer(Trainer):
     def forward_pass(self, batch_input, batch_y, batch_energy):  
         # forward pass
         batch_y0, _, _, _, _ =  batch_input
-        v, w, x, q = tuple(i.to(self.device, non_blocking=True).type(self.dtype) for i in torch.split(batch_y0, [3, 3, 3, 4], dim=-1))
-        r = x[:, 1, :] - x[:, 0, :]
-        rq = torch.cat((r, q.reshape(-1, 8)), dim=1).reshape(-1, self.dim)
-        pred_energy = self.func(rq)
+        batch_y0 = tuple(i.to(self.device, non_blocking=True).type(self.dtype) for i in torch.split(batch_y0, [3, 3, 3, 4], dim=-1))
+        pred_energy = self.func(batch_y0)
         
         loss = torch.mean((pred_energy - batch_energy)**2)
         self.loss_parts = [loss.item(), 0, 0, 0, loss.item()]
         return loss
-
-
-class BaselineModel(nn.Module):
-    def __init__(self, nparticles, dim, widths, functions, dtype):
-        super(BaselineModel, self).__init__()
-        self.dim = dim
-        self.nparticles = nparticles
-        self.dtype = dtype
-        self.mass = 7.0 # HACK
-        self.kwargs = {'dim': dim, 'widths': widths, 'functions': functions, 'dtype': dtype}
-
-        # define neural net
-        depth = len(widths) 
-        layers = []
-        # first layer takes in all configurational variables (xyz and quaternions)
-        layers += [nn.Linear(self.dim, widths[0]), functions[0]]
-        for i, width in enumerate(widths):
-            if i == (depth-1):  
-                # last layer outputs a single potential energy value
-                layers += [nn.Linear(width, 1)]
-            else:
-                layers += [nn.Linear(widths[i], widths[i+1]), functions[i+1]]        
-        self.net = nn.Sequential(*layers).type(self.dtype)
-
-        # initialise NN parameters
-        for m in self.net.modules():
-            if isinstance(m,nn.Linear):
-                nn.init.xavier_normal_(m.weight)
-                nn.init.constant_(m.bias,val=0)
-
-    def forward(self, rq):
-        return self.net(rq)
-

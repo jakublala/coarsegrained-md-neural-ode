@@ -7,7 +7,7 @@ from plotter import Plotter
 
 
 sys.path.insert(0, os.path.abspath('..'))
-from diffmd.trainer_base import Trainer
+from diffmd.trainers import NODETrainer, BaselineTrainer
 from diffmd.utils import read_yaml
 
 os.chdir("..")
@@ -15,25 +15,26 @@ os.chdir("..")
 if __name__ == '__main__':
     config = read_yaml('config.yml')
     # config['folder'] = 'dataset/archive/oscillation'
-    config['load_folder'] = 'results/2022-10-02/17-41-21/5000'
+    config['load_folder'] = 'results/archive/2022-10-04/14-44-22/100'
+    config['device'] = 'cuda:1'
  
-    trainer = Trainer(config)
+    trainer = NODETrainer(config)
 
     dataset_steps = 1
     plotter = Plotter(trainer, dataset_steps)
-    plotter.traj_distribution()
-    plotter.LAMMPS_energy_plot(500)
-    plotter.NN_energy(500)
-    plotter.plot_parity()
+    # plotter.traj_distribution()
+    # plotter.LAMMPS_energy_plot(500)
+    # plotter.NN_energy(500)
+    # plotter.plot_parity()
     # plotter.plot_pair_potential()
-    plotter.plot_hexagon_potential()
-    plotter.plot_traj_potential(1000)
+    # plotter.plot_hexagon_potential()
+    # plotter.plot_traj_potential(1000)
     # plotter.traj_energies()
 
     # plotter.get_kinetic_energy(plotter.pred_v, plotter.pred_w)
 
     # TODO: finish this plotting
-    # plotter.plot_traj(dataset='test')
+    plotter.plot_traj(dataset='train')
 
 
 

@@ -581,7 +581,7 @@ class Trainer():
             torch.save([self.func.module.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
         else:
             torch.save([self.func.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
-        self.plot_traj(subfolder, final)
+        # self.plot_traj(subfolder, final)
         self.plot_losses(subfolder)
         self.plot_lr(subfolder)
         self.logger.save_csv(subfolder)
