@@ -7,7 +7,7 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import DataLoader
 import torch.multiprocessing as mp
 
-from diffmd.trainer_base import Trainer
+from diffmd.trainers import NODETrainer
 from diffmd.diffeqs import ODEFunc
 from diffmd.solvers import odeint_adjoint
 from data.dataset import Dataset
@@ -16,7 +16,7 @@ from diffmd.utils import cleanup
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 
-class ParallelTrainer(Trainer):
+class ParallelTrainer(NODETrainer):
     def __init__(self, config):
         super().__init__(config)
         self.parallel = True

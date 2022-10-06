@@ -37,7 +37,7 @@ def assignVariables(file_path, variables, values):
 # run main
 if __name__ == '__main__':
 
-    folder_name = 'overfit-01102022'
+    folder_name = 'single_temp'
 
     if not os.path.exists(f'../dataset/{folder_name}'):
         os.makedirs(f'../dataset/{folder_name}')
@@ -52,12 +52,12 @@ if __name__ == '__main__':
     runsteps = 10000000
     timestep = 0.00001
     
-    train_split = 1 / 3
-    test_split = 1 / 3
-    validate_split = 1 / 3
+    train_split = 0.8
+    test_split = 0.1
+    validate_split = 0.1
     assert train_split + test_split + validate_split == 1
 
-    num_sims = 3
+    num_sims = 100
     num_temps = len(temps)
     seeds = random.sample(range(0, 10000), num_sims)
     assert num_sims % num_temps == 0
