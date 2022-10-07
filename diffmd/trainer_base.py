@@ -16,6 +16,7 @@ from data.logger import Logger
 from data.dataset import Dataset
 from diffmd.diffeqs import ODEFunc
 from diffmd.solvers import odeint_adjoint
+from diffmd.activations import get_activation_functions
 from diffmd.utils import *
 from diffmd.losses import *
 
@@ -59,7 +60,7 @@ class Trainer():
         self.num_workers = config['num_workers']
         self.batch_size = config['batch_size']
         self.nn_widths = config['nn_widths']
-        self.activation_functions = self.get_activation_functions(config['activation_function'])
+        self.activation_functions = get_activation_functions(config['activation_function'], self.nn_widths)
         self.loss_func_name = config['loss_func']
         self.optimizer_name = config['optimizer']
         self.scheduler_name = config['scheduler']
@@ -133,7 +134,7 @@ class Trainer():
     def predict_traj(self, batch_input, traj_steps, steps_per_dt):
         batch_y0, dt, k, r0, inertia =  batch_input
         batch_y0 = tuple(i.to(self.device, non_blocking=True).type(self.dtype) for i in torch.split(batch_y0, [3, 3, 3, 4], dim=-1))
-
+        
         # get timesteps
         effective_dt = dt / steps_per_dt
         batch_t = self.get_batch_t(effective_dt, traj_steps)
@@ -354,7 +355,9 @@ class Trainer():
         
         traj_steps = dataset_steps * self.steps_per_dt
         
-        self.training_dataset.update(dataset_steps)
+        # TODO: remove this update and do the plotting differently so that we don't have to change the traj length inside plotting
+        # this especially caused problems with using a fraction of the dataset
+        # self.training_dataset.update(dataset_steps)
         with torch.no_grad():
             # get the earliest init conditions to ensure trajectories are long enough
             init_index = self.training_dataset.init_IDS.index(min(self.training_dataset.init_IDS, key=len))
@@ -410,7 +413,7 @@ class Trainer():
             plt.close(fig)
 
         # revert changes to traj length
-        self.training_dataset.update(self.dataset_steps)
+        # self.training_dataset.update(self.dataset_steps)
             
     def plot_losses(self, subfolder):
         fig, ax = plt.subplots()
@@ -581,7 +584,7 @@ class Trainer():
             torch.save([self.func.module.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
         else:
             torch.save([self.func.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
-        # self.plot_traj(subfolder, final)
+        self.plot_traj(subfolder, final)
         self.plot_losses(subfolder)
         self.plot_lr(subfolder)
         self.logger.save_csv(subfolder)
@@ -604,30 +607,6 @@ class Trainer():
             return torch.linspace(0.0,dt[0]*(traj_steps),(traj_steps)+1).to(self.device, non_blocking=True).type(self.dtype)
         else:
             return torch.linspace(0.0,dt*(traj_steps),(traj_steps)+1).to(self.device, non_blocking=True).type(self.dtype)
-
-    def get_activation_functions(self, function):
-        def get_function(string):
-            if string == 'relu':
-                return nn.ReLU()
-            elif string == 'leaky_relu':
-                return nn.LeakyReLU()
-            elif string == 'tanh':
-                return nn.Tanh()
-            elif string == 'sigmoid':
-                return nn.Sigmoid()
-            elif string == 'gelu':
-                return nn.GELU()
-            elif string == 'elu':
-                return nn.ELU()
-            else:
-                raise Exception('activation function not implemented')
-
-        if type(function) == str:
-            return [get_function(function) for i in range(len(self.nn_widths))]
-        elif type(function) == list and len(function) == len(self.nn_widths):
-            return [get_function(i) for i in function]
-        else:
-            raise Exception('activation function must be a string or a list of strings of the same length as the number of layers')
 
 class RunningAverageMeter(object):
     """Computes and stores the average and current value"""

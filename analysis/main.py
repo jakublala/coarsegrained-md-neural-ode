@@ -15,7 +15,7 @@ os.chdir("..")
 if __name__ == '__main__':
     config = read_yaml('config.yml')
     # config['folder'] = 'dataset/archive/oscillation'
-    config['load_folder'] = 'results/2022-10-04/14-44-22/1000'
+    config['load_folder'] = 'results/2022-10-04/14-44-22/4525'
     config['device'] = 'cuda:1'
  
     trainer = NODETrainer(config)
