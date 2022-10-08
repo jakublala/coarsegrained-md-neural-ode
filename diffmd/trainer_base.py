@@ -138,7 +138,7 @@ class Trainer():
         # get timesteps
         effective_dt = dt / steps_per_dt
         batch_t = self.get_batch_t(effective_dt, traj_steps)
-
+        
         # set constants
         if self.parallel:
             self.func.module.k = k.to(self.device, non_blocking=True).type(self.dtype)
@@ -233,6 +233,7 @@ class Trainer():
             'traj_steps': self.dataset_steps,
             'steps_per_dt': self.steps_per_dt,
             'train_loss': sum(self.loss_parts[:-1]),
+            'avg_train_loss': None,
             'train_loss_vel': self.loss_parts[0],
             'train_loss_angvel': self.loss_parts[1],
             'train_loss_pos': self.loss_parts[2],
@@ -244,6 +245,7 @@ class Trainer():
         self.logger.update(new_entry)
 
     def after_epoch(self):
+        self.avg_epoch_loss()
 
         if self.scheduler_name == 'CyclicLR':
             self.scheduler.step()
@@ -253,7 +255,7 @@ class Trainer():
         if self.epoch % self.printing_freq == 0:
             self.print_loss(self.epoch, self.start_time)
 
-        if self.epoch % self.evaluation_freq == 0:
+        if self.epoch % self.evaluation_freq == 0 or self.epoch == self.start_epoch + 1:
             self.logger.test_loss[-1] = self.evaluate('test')
 
         if self.epoch % self.checkpoint_freq == 0:
@@ -285,6 +287,10 @@ class Trainer():
     #     self.training_dataset.update(self.batch_length)
     #     self.loss_meter.reset()
 
+    def avg_epoch_loss(self):
+        indices = [i for i, e in enumerate(self.logger.epoch) if e == self.epoch]
+        self.logger.avg_train_loss[-1] = np.mean([self.logger.train_loss[i] for i in indices])
+        
     def load_func(self):
         loaded_state = torch.load(f'{self.load_folder}/model.pt')
         if type(loaded_state) == list:
@@ -417,10 +423,12 @@ class Trainer():
             
     def plot_losses(self, subfolder):
         fig, ax = plt.subplots()
+
         if self.loss_func_name == 'energy':
             ax.plot(self.logger.epoch, self.logger.train_loss_energy, label='train')
         else:
-            ax.plot(self.logger.epoch, self.logger.train_loss, label='train')
+            avg_train_loss = [i for i in self.logger.avg_train_loss if i is not None]
+            ax.plot(range(1, self.epoch+1), avg_train_loss, label='train')
 
         eval_epochs = []
         test_loss = []
@@ -541,17 +549,20 @@ class Trainer():
             else:
                 raise ValueError(f'dataset {dataset} not recognised')
             
-            orig_length = copy.copy(dataset.traj_length)
-            dataset.update(self.eval_dataset_steps)
+            # orig_length = copy.copy(dataset.traj_length)
+            # TODO: finish this similar to plot_traj
+            # dataset.update(self.eval_dataset_steps)
+
+            traj_steps = self.eval_dataset_steps * self.steps_per_dt
 
             eval_loss = []
             for batch_input, batch_y, _ in dataloader:
                 # forward pass
-                pred_y = self.predict_traj(batch_input, traj_steps=self.eval_dataset_steps, steps_per_dt=self.eval_steps_per_dt)
-
+                # TODO: traj_steps and steps_per_dt should take into account which dataset is used
+                pred_y = self.predict_traj(batch_input, traj_steps=traj_steps, steps_per_dt=self.eval_steps_per_dt)
+                
                 # loss of the projected trajectory by one dt
-                loss, loss_parts = final_mse(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means)
-
+                loss, loss_parts = final_mse_pos(pred_y, batch_y, dataset.stds, dataset.means, True)
                 eval_loss.append(loss.cpu().item())
 
                 del pred_y, loss, batch_input, batch_y
@@ -559,8 +570,7 @@ class Trainer():
             eval_loss = np.mean(eval_loss)
             self.loss_meter.evals.append(eval_loss)
 
-            dataset.update(orig_length)
-            
+            # dataset.update(orig_length)
         return eval_loss
 
     def save(self):
@@ -584,7 +594,7 @@ class Trainer():
             torch.save([self.func.module.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
         else:
             torch.save([self.func.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
-        self.plot_traj(subfolder, final)
+        # self.plot_traj(subfolder, final)
         self.plot_losses(subfolder)
         self.plot_lr(subfolder)
         self.logger.save_csv(subfolder)

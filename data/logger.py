@@ -9,6 +9,7 @@ class Logger():
         self.traj_steps = []
         self.steps_per_dt = []
         self.train_loss = []
+        self.avg_train_loss = []
         self.train_loss_vel = []
         self.train_loss_angvel = []
         self.train_loss_pos = []
