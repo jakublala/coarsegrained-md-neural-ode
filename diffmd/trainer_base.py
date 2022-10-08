@@ -234,6 +234,7 @@ class Trainer():
             'steps_per_dt': self.steps_per_dt,
             'train_loss': sum(self.loss_parts[:-1]),
             'avg_train_loss': None,
+            'run_avg_train_loss': None,
             'train_loss_vel': self.loss_parts[0],
             'train_loss_angvel': self.loss_parts[1],
             'train_loss_pos': self.loss_parts[2],
@@ -290,6 +291,8 @@ class Trainer():
     def avg_epoch_loss(self):
         indices = [i for i, e in enumerate(self.logger.epoch) if e == self.epoch]
         self.logger.avg_train_loss[-1] = np.mean([self.logger.train_loss[i] for i in indices])
+
+        self.logg.run_avg_train_loss[-1] = self.loss_meter.avg
         
     def load_func(self):
         loaded_state = torch.load(f'{self.load_folder}/model.pt')
@@ -428,7 +431,9 @@ class Trainer():
             ax.plot(self.logger.epoch, self.logger.train_loss_energy, label='train')
         else:
             avg_train_loss = [i for i in self.logger.avg_train_loss if i is not None]
-            ax.plot(range(1, self.epoch+1), avg_train_loss, label='train')
+            ax.plot(range(1, self.epoch+1), avg_train_loss, 'b-', label='train')
+            run_avg_train_loss = [i for i in self.logger.run_avg_train_loss if i is not None]
+            ax.plot(range(1, self.epoch+1), run_avg_train_loss, 'b-', alpha=0.5)
 
         eval_epochs = []
         test_loss = []
@@ -436,7 +441,7 @@ class Trainer():
             if tl is not None:
                 eval_epochs.append(self.logger.epoch[i])
                 test_loss.append(tl)
-        ax.plot(eval_epochs, test_loss, label='test')
+        ax.plot(eval_epochs, test_loss, 'r-', label='test')
 
         ax.set_xlabel('Number of Epochs')
         ax.set_ylabel('Loss')
