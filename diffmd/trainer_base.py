@@ -292,7 +292,7 @@ class Trainer():
         indices = [i for i, e in enumerate(self.logger.epoch) if e == self.epoch]
         self.logger.avg_train_loss[-1] = np.mean([self.logger.train_loss[i] for i in indices])
 
-        self.logg.run_avg_train_loss[-1] = self.loss_meter.avg
+        self.logger.run_avg_train_loss[-1] = self.loss_meter.avg
         
     def load_func(self):
         loaded_state = torch.load(f'{self.load_folder}/model.pt')
