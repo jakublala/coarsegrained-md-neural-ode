@@ -17,6 +17,8 @@ class Dataset(torch.utils.data.Dataset):
         self.dataset_fraction = dataset_fraction
         self.random_dataset = random_dataset
 
+        # TODO: assert that all trajectories have same dt?
+
         if dataset_type == 'train':
             # TODO: fix after implementing gradual traj length
             # HACK

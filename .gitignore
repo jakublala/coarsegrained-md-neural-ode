@@ -27,6 +27,6 @@ config.yml
 # Folders
 dataset/
 figures/
-execution/
 results/
 temp/
+wandb/

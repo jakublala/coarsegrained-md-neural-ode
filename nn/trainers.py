@@ -1,5 +1,5 @@
 import torch
-from diffmd.trainer_base import Trainer
+from nn.trainer_base import Trainer
 from diffmd.baseline import BaselineModel
 
 class NODETrainer(Trainer):
@@ -25,11 +25,6 @@ class NODETrainer(Trainer):
             loss, self.loss_parts = self.loss_func(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.normalize_loss)
             self.loss_parts += [0]
         return loss
-
-
-
-
-
 
 class BaselineTrainer(Trainer):
 
