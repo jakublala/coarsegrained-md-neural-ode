@@ -38,7 +38,8 @@ class Trainer():
         self.parallel = False
         
         self.epochs = config['epochs']
-        self.learning_rate = config['learning_rate']
+        self.log_lr = config['log_lr']
+        self.learning_rate = 10**(self.log_lr)
         
         self.dataset_steps = config['dataset_steps']
         self.steps_per_dt = config['steps_per_dt']
@@ -92,7 +93,9 @@ class Trainer():
 
         self.nparameters = count_parameters(self.func)
 
-        self.weight_decay = config['weight_decay']
+        self.log_weight = config['log_weight']
+        self.weight_decay = 10**(self.log_weight)
+
         self.loss_func = self.set_loss_func(self.loss_func_name)
         self.normalize_loss = config['normalize_loss']
         self.optimizer = self.set_optimizer(self.optimizer_name)
@@ -125,8 +128,8 @@ class Trainer():
                 "loss_func": self.loss_func_name,
                 "normalize_loss": self.normalize_loss,
                 "optimizer": self.optimizer_name,
-                "learning_rate": self.learning_rate,
-                "weight_decay": self.weight_decay,
+                "log_lr": self.log_lr,
+                "log_weight": self.log_weight,
                 "scheduler": self.scheduler_name,
                 "scheduling_factor": self.scheduling_factor,
                 "scheduling_freq": self.scheduling_freq,
@@ -233,22 +236,27 @@ class Trainer():
     def log_itr(self):
         self.run.log({
             # TODO: make train loss into a dictionary that is pased, WANDB should understand this
-            'epoch': self.epoch,
-            'itr': self.itr+1,
-            'train_loss': self.loss.item(),
+            'batch_training_loss': self.loss.item(),
             'itr_time': time.perf_counter() - self.itr_start_time,
         })
       
     def log_epoch(self):
+        if self.epoch % self.evaluation_freq == 0 or self.epoch == self.start_epoch + 1:
+            validation_loss = self.evaluate('validation')
+        else:
+            validation_loss = None
+
+        
         self.run.log({
             'epoch': self.epoch, 
-            'train_loss': np.mean(self.batch_loss),
-            'val_loss': self.evaluate('validation'),
+            'training_loss': np.mean(self.batch_loss),
+            'validation_loss': validation_loss,
             'epoch_time': time.perf_counter() - self.start_time,
             })
         
 
     def after_epoch(self):
+        print(f'Epoch {self.epoch}, train loss: {np.mean(self.batch_loss)}, validation loss: {self.evaluate("validation")}, epoch time: {time.perf_counter() - self.start_time:.2f}s')
 
         if self.scheduler_name == 'CyclicLR':
             self.scheduler.step()

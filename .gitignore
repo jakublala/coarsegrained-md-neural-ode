@@ -23,6 +23,7 @@ sigopt*
 experiment.yml
 utils.ipynb
 config.yml
+sweep.yml
 
 # Folders
 dataset/
