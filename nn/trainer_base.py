@@ -10,6 +10,8 @@ import re
 import copy
 from collections import OrderedDict
 
+from nn.wandb import Wandb
+from nn.config import Config
 from data.dataset import Dataset
 from diffmd.diffeqs import ODEFunc
 from diffmd.solvers import odeint_adjoint
@@ -20,138 +22,44 @@ from nn.losses import *
 
 class Trainer():
 
-    def __init__(self, config):
-        self.config = config
-        self.load_folder = config['load_folder']
-        self.parallel = False
-        
-        if self.load_folder is None:
-            self.day, self.time = get_run_ID()
-            self.subfolder = self.get_subfolder() 
-        else:
-            self.day, self.time = self.load_folder.split('/')[-3:-1]
-            self.subfolder = '/'.join(self.load_folder.split('/')[:-1])
-            
-        self.folder = config['folder']
-        self.device = set_device(config['device'])
-        self.dtype = set_dtype(config['dtype'])
-        self.parallel = False
-        
-        self.epochs = config['epochs']
-        self.log_lr = config['log_lr']
-        self.learning_rate = 10**(self.log_lr)
-        
-        self.dataset_steps = config['dataset_steps']
-        self.steps_per_dt = config['steps_per_dt']
-        self.traj_steps = self.dataset_steps * self.steps_per_dt
-        
-        # TODO: currently not implemented
-        # self.batch_length_step = config['batch_length_step']
-        # self.batch_length_freq = config['batch_length_freq']
+    def __init__(self, config_file):
+        self.config = Config(config_file, sweep=False)
 
-        self.eval_dataset_steps = config['eval_dataset_steps']
-        self.eval_steps_per_dt = config['eval_steps_per_dt']
-        self.eval_init_skip = config['eval_init_skip']
+        self.parallel = False
+        self.early_stopping = False
         
-        self.shuffle = config['shuffle']
-        self.num_workers = config['num_workers']
-        self.batch_size = config['batch_size']
-        self.nn_widths = config['nn_widths']
-        self.activation_functions = get_activation_functions(config['activation_function'], self.nn_widths)
-        self.loss_func_name = config['loss_func']
-        self.optimizer_name = config['optimizer']
-        self.scheduler_name = config['scheduler']
-        self.scheduling_factor = config['scheduling_factor']
+        if self.config.wandb and self.is_master():
+            self.wandb = Wandb(self.config)
+
+        assert 0 == 1
+
         
+        self.device = set_device(self.config.device)
+        self.dtype = set_dtype(self.config.dtype)
+        self.activation_functions = get_activation_functions(self.config.activation_function, self.config.nn_widths)
 
         # dataset setup
-        self.training_dataset = Dataset(config, dataset_type='train', traj_length=self.dataset_steps, dataset_fraction=config['training_fraction'], random_dataset=config['random_dataset'])
-        self.test_dataset = Dataset(config, dataset_type='test', traj_length=self.eval_dataset_steps)
-        self.validation_dataset = Dataset(config, dataset_type='validation', traj_length=self.eval_dataset_steps)
-        self.training_dataloader = self.get_dataloader(self.training_dataset, shuffle=self.shuffle) 
+        self.training_dataset = Dataset(self.config, dataset_type='train', traj_length=self.config.dataset_steps, dataset_fraction=self.config.training_fraction, random_dataset=self.config.random_dataset)
+        self.test_dataset = Dataset(self.config, dataset_type='test', traj_length=self.config.eval_dataset_steps)
+        self.validation_dataset = Dataset(self.config, dataset_type='validation', traj_length=self.config.eval_dataset_steps)
+        self.training_dataloader = self.get_dataloader(self.training_dataset, shuffle=self.config.shuffle) 
         self.test_dataloader = self.get_dataloader(self.test_dataset) 
         self.validation_dataloader = self.get_dataloader(self.validation_dataset)
+        assert len(self.training_dataset) > self.config.batch_size, "Batch size is too large for the dataset. Please reduce the batch size or increase the dataset size."
 
-        assert len(self.training_dataset) > self.batch_size, "Batch size is too large for the dataset. Please reduce the batch size or increase the dataset size."
-
-        self.nparticles = 2
-        self.dim = 3 + (2*4)
-        self.stopping_freq = config['stopping_freq']
-        self.stopping_look_back = config['stopping_look_back']
-        self.early_stopping = False
-        self.scheduling_freq = config['scheduling_freq']
-        self.evaluation_freq = config['evaluation_freq']
-        self.checkpoint_freq = config['checkpoint_freq']
-
-        if self.load_folder != None:
+        if self.config.load_folder != None:
             self.func = self.load_func()
             # self.logger.load_previous(self.load_folder)
             self.start_epoch = int(self.logger.epoch[-1])
         else:
-            self.func = ODEFunc(self.nparticles, self.dim, self.nn_widths, self.activation_functions, self.dtype).to(self.device)
+            self.func = ODEFunc(self.config.nparticles, self.config.dim, self.config.nn_widths, self.activation_functions, self.dtype).to(self.device)
             self.start_epoch = 0
 
-        self.nparameters = count_parameters(self.func)
+        self.config.nparameters = count_parameters(self.func)
 
-        self.log_weight = config['log_weight']
-        self.weight_decay = 10**(self.log_weight)
-
-        self.loss_func = self.set_loss_func(self.loss_func_name)
-        self.normalize_loss = config['normalize_loss']
-        self.optimizer = self.set_optimizer(self.optimizer_name)
-        self.scheduler = self.set_scheduler(self.scheduler_name, self.scheduling_factor)
-        
-        # weights and biases - logging
-        if self.is_master():
-            self.run = wandb.init(project="my-test-project",
-            config={
-                "epochs": self.epochs,
-                "batch_size": self.batch_size,
-                "nn_widths": self.nn_widths,
-                'n_parameters': self.nparameters,
-                "activation_function": config['activation_function'],
-                
-                "dataset": self.folder,
-                "training_fraction": config['training_fraction'],
-                "random_dataset": config['random_dataset'],
-
-                # TODO: currently updating config is not supported
-                "dataset_steps": self.dataset_steps,
-                "steps_per_dt": self.steps_per_dt,
-                "lammps_dt": self.training_dataset.trajs[0].lammps_dt,
-                "logged_dt": self.training_dataset.trajs[0].logged_dt,
-                "ratio_dt": round(self.training_dataset.trajs[0].logged_dt / self.training_dataset.trajs[0].lammps_dt),
-                
-                # TODO: load folder should follow somehow model from WANDB
-                "load_folder": self.load_folder,
-                
-                "loss_func": self.loss_func_name,
-                "normalize_loss": self.normalize_loss,
-                "optimizer": self.optimizer_name,
-                "log_lr": self.log_lr,
-                "log_weight": self.log_weight,
-                "scheduler": self.scheduler_name,
-                "scheduling_factor": self.scheduling_factor,
-                "scheduling_freq": self.scheduling_freq,
-
-                "eval_dataset_steps": self.eval_dataset_steps,
-                "eval_steps_per_dt": self.eval_steps_per_dt,
-                "eval_init_skip": self.eval_init_skip,
-                })
-
-    def get_subfolder(self):
-
-        def add_second(time):
-            # HACK: can add above 60 seconds
-            time = time.split('-')
-            time[2] = str(int(time[2]) + 1)
-            return '-'.join(time)
-
-        subfolder = f'results/{self.day}/{self.time}'
-        while os.path.exists(f'{subfolder}'):
-            self.time = add_second(self.time)
-            subfolder = f'results/{self.day}/{self.time}'
-        return subfolder
+        self.loss_func = self.set_loss_func(self.config.loss_func)
+        self.optimizer = self.set_optimizer(self.config.optimizer)
+        self.scheduler = self.set_scheduler(self.config.scheduler, self.config.scheduling_factor)
 
     def predict_traj(self, batch_input, traj_steps, steps_per_dt):
         batch_y0, dt, k, r0, inertia =  batch_input
@@ -184,15 +92,11 @@ class Trainer():
         return pred_y
 
     def train(self):
-        for self.epoch in range(self.start_epoch + 1, (self.start_epoch + self.epochs) + 1):
+        for self.epoch in range(self.start_epoch + 1, (self.start_epoch + self.config.epochs) + 1):
             self.batch_loss = []
             if self.parallel:
                 self.training_dataloader.sampler.set_epoch(self.epoch)
-
-            if self.epoch == self.start_epoch + 1:
-                if (self.parallel and is_main_process()) or not self.parallel:
-                    self.log_metadata(self.config)
-                
+    
             self.start_time = time.perf_counter()
             
             if self.early_stopping:
@@ -214,7 +118,7 @@ class Trainer():
                 # backward pass      
                 self.loss.backward() 
 
-                if self.optimizer_name == 'LBFGS':
+                if self.config.optimizer == 'LBFGS':
                     raise NotImplementedError
                 else:
                     self.optimizer.step()    
@@ -234,20 +138,20 @@ class Trainer():
 
 
     def log_itr(self):
-        self.run.log({
+        self.wandb.run.log({
             # TODO: make train loss into a dictionary that is pased, WANDB should understand this
             'batch_training_loss': self.loss.item(),
             'itr_time': time.perf_counter() - self.itr_start_time,
         })
       
     def log_epoch(self):
-        if self.epoch % self.evaluation_freq == 0 or self.epoch == self.start_epoch + 1:
+        if self.epoch % self.config.evaluation_freq == 0 or self.epoch == self.start_epoch + 1:
             validation_loss = self.evaluate('validation')
         else:
             validation_loss = None
 
         
-        self.run.log({
+        self.wandb.run.log({
             'epoch': self.epoch, 
             'training_loss': np.mean(self.batch_loss),
             'validation_loss': validation_loss,
@@ -260,13 +164,13 @@ class Trainer():
 
         if self.scheduler_name == 'CyclicLR':
             self.scheduler.step()
-        elif self.epoch % self.scheduling_freq == 0 and self.scheduler_name != None:
+        elif self.epoch % self.config.scheduling_freq == 0 and self.config.scheduler != None:
             self.scheduler.step()
 
         # if self.epoch % self.evaluation_freq == 0 or self.epoch == self.start_epoch + 1:
         #     self.logger.test_loss[-1] = self.evaluate('test')
 
-        if self.epoch % self.checkpoint_freq == 0:
+        if self.epoch % self.config.checkpoint_freq == 0:
             self.checkpoint()
 
         # TODO: implement
@@ -300,9 +204,9 @@ class Trainer():
     #     self.logger.run_avg_train_loss[-1] = self.loss_meter.avg
         
     def load_func(self):
-        loaded_state = torch.load(f'{self.load_folder}/model.pt')
+        loaded_state = torch.load(f'{self.config.load_folder}/model.pt')
         if type(loaded_state) == list:
-            kwargs, state_dict = torch.load(f'{self.load_folder}/model.pt')
+            kwargs, state_dict = torch.load(f'{self.config.load_folder}/model.pt')
 
             # get specific NN architecture
             self.dim = kwargs['dim']
@@ -347,13 +251,13 @@ class Trainer():
         # temporarily change traj length for plotting
         if final:
             dataset_steps = 100
-            steps_per_dt = self.steps_per_dt * 10
+            steps_per_dt = self.config.steps_per_dt * 10
         else:
             dataset_steps = 100
-            steps_per_dt = self.steps_per_dt
+            steps_per_dt = self.config.steps_per_dt
             
         
-        traj_steps = dataset_steps * self.steps_per_dt
+        traj_steps = dataset_steps * self.config.steps_per_dt
         
         # TODO: remove this update and do the plotting differently so that we don't have to change the traj length inside plotting
         # this especially caused problems with using a fraction of the dataset
@@ -418,7 +322,7 @@ class Trainer():
     def plot_losses(self, subfolder):
         fig, ax = plt.subplots()
 
-        if self.loss_func_name == 'energy':
+        if self.config.loss_func == 'energy':
             ax.plot(self.logger.epoch, self.logger.train_loss_energy, label='train')
         else:
             avg_train_loss = [i for i in self.logger.avg_train_loss if i is not None]
@@ -450,10 +354,9 @@ class Trainer():
         return
 
     def log_metadata(self, config):
-        subfolder = f'results/{self.day}/{self.time}/'
-        if not os.path.exists(f'{subfolder}'):
-                os.makedirs(f'{subfolder}')
-        shutil.copyfile('config.yml', f'{subfolder}/config_{self.epoch}.yaml')
+        if not os.path.exists(f'{self.config.subfolder}'):
+                os.makedirs(f'{self.config.subfolder}')
+        shutil.copyfile('config.yml', f'{self.config.subfolder}/config_{self.epoch}.yaml')
         
     def set_loss_func(self, loss_func):
         if 'all-mse' == loss_func:
@@ -476,11 +379,11 @@ class Trainer():
         
     def get_dataloader(self, dataset, no_batch=False, shuffle=False):
         # TODO: make this cleaner
-        params = {'num_workers': self.num_workers}
+        params = {'num_workers': self.config.num_workers}
         if no_batch:
             params['batch_size'] = 1
         else:
-            params['batch_size'] = self.batch_size
+            params['batch_size'] = self.config.batch_size
         
         if shuffle:
             params['shuffle'] = True
@@ -491,29 +394,29 @@ class Trainer():
 
     def set_optimizer(self, optimizer):
         if optimizer == 'Adadelta':
-            return torch.optim.Adadelta(self.func.parameters(), lr=self.learning_rate)
+            return torch.optim.Adadelta(self.func.parameters(), lr=self.config.learning_rate)
         elif optimizer == 'Adagrad':
-            return torch.optim.Adagrad(self.func.parameters(), lr=self.learning_rate)
+            return torch.optim.Adagrad(self.func.parameters(), lr=self.config.learning_rate)
         elif optimizer == 'Adam':
-            return torch.optim.Adam(self.func.parameters(), lr=self.learning_rate)
+            return torch.optim.Adam(self.func.parameters(), lr=self.config.learning_rate)
         elif optimizer == 'AdamW':
-            return torch.optim.AdamW(self.func.parameters(), lr=self.learning_rate)
+            return torch.optim.AdamW(self.func.parameters(), lr=self.config.learning_rate)
         elif optimizer == 'NAdam':
-            return torch.optim.NAdam(self.func.parameters(), lr=self.learning_rate)
+            return torch.optim.NAdam(self.func.parameters(), lr=self.config.learning_rate)
         elif optimizer == 'RAdam':
-            return torch.optim.RAdam(self.func.parameters(), lr=self.learning_rate)
+            return torch.optim.RAdam(self.func.parameters(), lr=self.config.learning_rate)
         elif optimizer == 'Adamax':
-            return torch.optim.Adamax(self.func.parameters(), lr=self.learning_rate, betas=(0.9, 0.999), weight_decay=self.weight_decay)
+            return torch.optim.Adamax(self.func.parameters(), lr=self.config.learning_rate, betas=(0.9, 0.999), weight_decay=self.config.weight_decay)
         elif optimizer == 'SGD':
-            return torch.optim.SGD(self.func.parameters(), lr=self.learning_rate)
+            return torch.optim.SGD(self.func.parameters(), lr=self.config.learning_rate)
         elif optimizer == 'ASGD':
-            return torch.optim.ASGD(self.func.parameters(), lr=self.learning_rate)
+            return torch.optim.ASGD(self.func.parameters(), lr=self.config.learning_rate)
         elif optimizer == 'RMSProp':
-            return torch.optim.RMSprop(self.func.parameters(), lr=self.learning_rate)
+            return torch.optim.RMSprop(self.func.parameters(), lr=self.config.learning_rate)
         elif optimizer == 'Rprop':
-            return torch.optim.Rprop(self.func.parameters(), lr=self.learning_rate)
+            return torch.optim.Rprop(self.func.parameters(), lr=self.config.learning_rate)
         elif optimizer == 'LBFGS':
-            return torch.optim.LBFGS(self.func.parameters(), lr=self.learning_rate)
+            return torch.optim.LBFGS(self.func.parameters(), lr=self.config.learning_rate)
         else:
             raise Exception('optimizer not implemented')
 
@@ -523,7 +426,7 @@ class Trainer():
         elif scheduler == 'ExponentialLR':
             return torch.optim.lr_scheduler.ExponentialLR(self.optimizer, gamma=alpha)
         elif scheduler == 'CyclicLR':
-            return torch.optim.lr_scheduler.CyclicLR(self.optimizer, base_lr=alpha * self.learning_rate, max_lr=self.learning_rate, step_size_up=self.scheduling_freq, cycle_momentum=False)
+            return torch.optim.lr_scheduler.CyclicLR(self.optimizer, base_lr=alpha * self.config.learning_rate, max_lr=self.config.learning_rate, step_size_up=self.config.scheduling_freq, cycle_momentum=False)
         elif scheduler == None:
             return
         else:
@@ -549,13 +452,13 @@ class Trainer():
             # TODO: finish this similar to plot_traj
             # dataset.update(self.eval_dataset_steps)
 
-            traj_steps = self.eval_dataset_steps * self.steps_per_dt
+            traj_steps = self.config.eval_dataset_steps * self.config.steps_per_dt
 
             eval_loss = []
             for batch_input, batch_y, _ in dataloader:
                 # forward pass
                 # TODO: traj_steps and steps_per_dt should take into account which dataset is used
-                pred_y = self.predict_traj(batch_input, traj_steps=traj_steps, steps_per_dt=self.eval_steps_per_dt)
+                pred_y = self.predict_traj(batch_input, traj_steps=traj_steps, steps_per_dt=self.config.eval_steps_per_dt)
                 
                 # loss of the projected trajectory by one dt
                 loss, loss_parts = final_mse_pos(pred_y, batch_y, dataset.stds, dataset.means, True)
@@ -572,7 +475,7 @@ class Trainer():
         return (self.parallel and is_main_process()) or not self.parallel
 
     def checkpoint(self, final=False):
-        subfolder = f'results/{self.day}/{self.time}/{self.epoch}'
+        subfolder = f'{self.config.subfolder}/{self.epoch}'
         if not os.path.exists(f'{subfolder}'):
             os.makedirs(f'{subfolder}')
         if self.parallel:
