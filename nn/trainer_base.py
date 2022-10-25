@@ -31,9 +31,6 @@ class Trainer():
         if self.config.wandb and self.is_master():
             self.wandb = Wandb(self.config)
 
-        assert 0 == 1
-
-        
         self.device = set_device(self.config.device)
         self.dtype = set_dtype(self.config.dtype)
         self.activation_functions = get_activation_functions(self.config.activation_function, self.config.nn_widths)
@@ -138,31 +135,34 @@ class Trainer():
 
 
     def log_itr(self):
-        self.wandb.run.log({
-            # TODO: make train loss into a dictionary that is pased, WANDB should understand this
-            'batch_training_loss': self.loss.item(),
-            'itr_time': time.perf_counter() - self.itr_start_time,
-        })
+        if self.config.wandb:
+            self.wandb.run.log({
+                # TODO: make train loss into a dictionary that is pased, WANDB should understand this
+                'batch_training_loss': self.loss.item(),
+                'itr_time': time.perf_counter() - self.itr_start_time,
+            })
       
     def log_epoch(self):
+        # perform evaluation on validation test
         if self.epoch % self.config.evaluation_freq == 0 or self.epoch == self.start_epoch + 1:
             validation_loss = self.evaluate('validation')
         else:
             validation_loss = None
 
         
-        self.wandb.run.log({
-            'epoch': self.epoch, 
-            'training_loss': np.mean(self.batch_loss),
-            'validation_loss': validation_loss,
-            'epoch_time': time.perf_counter() - self.start_time,
-            })
+        if self.config.wandb:
+            self.wandb.run.log({
+                'epoch': self.epoch, 
+                'training_loss': np.mean(self.batch_loss),
+                'validation_loss': validation_loss,
+                'epoch_time': time.perf_counter() - self.start_time,
+                })
         
 
     def after_epoch(self):
         print(f'Epoch {self.epoch}, train loss: {np.mean(self.batch_loss)}, validation loss: {self.evaluate("validation")}, epoch time: {time.perf_counter() - self.start_time:.2f}s')
 
-        if self.scheduler_name == 'CyclicLR':
+        if self.config.scheduler == 'CyclicLR':
             self.scheduler.step()
         elif self.epoch % self.config.scheduling_freq == 0 and self.config.scheduler != None:
             self.scheduler.step()

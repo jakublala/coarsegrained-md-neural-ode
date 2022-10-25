@@ -3,7 +3,7 @@ import wandb
 class Wandb():
     def __init__(self, config):
         self.config = config
-        self.run = wandb.init(project='diffmd', config=config)
+        self.run = wandb.init(project='my-test-project', config=config)
         
     # def init(self, config):
 
