@@ -2,9 +2,17 @@ import os
 from diffmd.utils import read_yaml, get_run_ID, count_parameters
 
 class Config():
-    def __init__(self, file, sweep=False):
+    def __init__(self, file):
         config = read_yaml(file)
         self.__dict__.update(config)
+        if self.device == 'cuda':
+            device_id = os.environ['CUDA_VISIBLE_DEVICES']
+            assert len(device_id) == 1, 'Only one GPU is supported'
+            self.device = f"cuda:{device_id}"
+
+        # print(self.device)
+        self.device = 'cuda:0'
+        # assert 0 == 1
 
         self.assign_folders()
 
@@ -22,14 +30,14 @@ class Config():
         # self.batch_length_freq = config['batch_length_freq']
 
 
-        if not sweep:
+        if not self.sweep:
             print('Config:')
             for key, value in self.__dict__.items():
                 print(f'{key}: {value}')
 
-    def assign_sweep_config(self):
-        for key, value in sweep_config['parameters'].items():
-            self.__dict__[key] = wandb.config[key]
+    def assign_sweep_config(self, values):
+        for key, value in values.items():
+            self.__dict__[key] = value
 
         print('Sweep Config:')
         for key, value in self.__dict__.items():

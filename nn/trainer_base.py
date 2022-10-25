@@ -23,14 +23,16 @@ from nn.losses import *
 class Trainer():
 
     def __init__(self, config_file):
-        self.config = Config(config_file, sweep=False)
-
         self.parallel = False
         self.early_stopping = False
+
+        self.config = Config(config_file)
         
         if self.config.wandb and self.is_master():
             self.wandb = Wandb(self.config)
-
+            # update config based on wandb sweep
+            self.config.assign_sweep_config(self.wandb.sweep_values)
+            
         self.device = set_device(self.config.device)
         self.dtype = set_dtype(self.config.dtype)
         self.activation_functions = get_activation_functions(self.config.activation_function, self.config.nn_widths)
@@ -139,7 +141,7 @@ class Trainer():
             self.wandb.run.log({
                 # TODO: make train loss into a dictionary that is pased, WANDB should understand this
                 'batch_training_loss': self.loss.item(),
-                'itr_time': time.perf_counter() - self.itr_start_time,
+                # 'itr_time': time.perf_counter() - self.itr_start_time,
             })
       
     def log_epoch(self):
@@ -155,7 +157,7 @@ class Trainer():
                 'epoch': self.epoch, 
                 'training_loss': np.mean(self.batch_loss),
                 'validation_loss': validation_loss,
-                'epoch_time': time.perf_counter() - self.start_time,
+                # 'epoch_time': time.perf_counter() - self.start_time,
                 })
         
 
