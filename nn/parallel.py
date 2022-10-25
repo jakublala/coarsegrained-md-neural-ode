@@ -7,7 +7,7 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.utils.data import DataLoader
 import torch.multiprocessing as mp
 
-from diffmd.trainers import NODETrainer
+from nn.trainers import NODETrainer
 from diffmd.diffeqs import ODEFunc
 from diffmd.solvers import odeint_adjoint
 from data.dataset import Dataset
@@ -15,12 +15,12 @@ from diffmd.utils import cleanup
 
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-
 class ParallelTrainer(NODETrainer):
-    def __init__(self, config):
+    def __init__(self, config, gpu_ids):
         super().__init__(config)
         self.parallel = True
-        self.gpu_ids = config["gpu_ids"]
+        self.gpu_ids = gpu_ids
+        self.world_size = len(gpu_ids)
         
     def process(self, rank, world_size):
         self.setup_process(rank, world_size)

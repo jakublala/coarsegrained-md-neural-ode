@@ -1,40 +1,35 @@
 import torch
-from diffmd.trainer_base import Trainer
+from nn.trainer_base import Trainer
 from diffmd.baseline import BaselineModel
 
 class NODETrainer(Trainer):
 
-    def __init__(self, config):
-        super().__init__(config)
+    def __init__(self, config_file):
+        super().__init__(config_file)
 
     def forward_pass(self, batch_input, batch_y, batch_energy):
         # forward pass                
-        pred_y = self.predict_traj(batch_input, self.traj_steps, self.steps_per_dt)
+        pred_y = self.predict_traj(batch_input, self.config.traj_steps, self.config.steps_per_dt)
 
         # compute loss
-        if self.loss_func_name == 'energy':
+        if self.config.loss_func == 'energy':
             if self.parallel:
-                loss = self.loss_func(self.func.module.net, pred_y, batch_energy)
+                loss = self.loss_func(self.func.module.net, pred_y, batch_energy, self.config.normalize_loss)
             else:
-                loss = self.loss_func(self.func.net, pred_y, batch_energy)
+                loss = self.loss_func(self.func.net, pred_y, batch_energy, self.config.normalize_loss)
             self.loss_parts = [0 for i in range(4)] + [loss.item()]
-        elif self.loss_func_name == 'final-mse-pos-and-energy':
+        elif self.config.loss_func == 'final-mse-pos-and-energy':
             raise NotImplementedError
-            loss, self.loss_parts = final_mse_pos_and_energy(self.func.net, batch_energy, pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.normalize_loss, 1e-6)
+            loss, self.loss_parts = final_mse_pos_and_energy(self.func.net, batch_energy, pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.config.normalize_loss, 1e-6)
         else:
-            loss, self.loss_parts = self.loss_func(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.normalize_loss)
+            loss, self.loss_parts = self.loss_func(pred_y, batch_y, self.training_dataset.stds, self.training_dataset.means, self.config.normalize_loss)
             self.loss_parts += [0]
         return loss
 
-
-
-
-
-
 class BaselineTrainer(Trainer):
 
-    def __init__(self, config):
-        super().__init__(config)
+    def __init__(self, config_file):
+        super().__init__(config_file)
 
         self.training_dataset.update(0)
         self.test_dataset.update(0)

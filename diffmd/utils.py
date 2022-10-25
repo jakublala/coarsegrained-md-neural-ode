@@ -8,6 +8,8 @@ import time
 import random
 import yaml
 
+# TODO: make into utils for nn and for diffmd
+
 def normalize_quat(q):
     # TODO: documentation
     return q / torch.norm(q, dim=-1).unsqueeze(-1)

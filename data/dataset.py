@@ -11,11 +11,13 @@ from diffmd.utils import set_device, set_dtype
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, config, dataset_type, traj_length, dataset_fraction=None, random_dataset=False):
-        self.device = set_device(config['device'])
-        self.dtype = set_dtype(config['dtype'])
+        self.device = set_device(config.device)
+        self.dtype = set_dtype(config.dtype)
         self.traj_length = traj_length
         self.dataset_fraction = dataset_fraction
         self.random_dataset = random_dataset
+
+        # TODO: assert that all trajectories have same dt?
 
         if dataset_type == 'train':
             # TODO: fix after implementing gradual traj length
@@ -28,7 +30,7 @@ class Dataset(torch.utils.data.Dataset):
             # HACK
             # self.max_batch_length = self.batch_length
             self.max_traj_length = traj_length
-            self.eval_init_skip = config['eval_init_skip']
+            self.eval_init_skip = config.eval_init_skip
             
         self.folder = self.set_folder(config, dataset_type)
         self.filenames = self.get_filenames()
@@ -122,7 +124,7 @@ class Dataset(torch.utils.data.Dataset):
 
     def set_folder(self, config, dataset_type):
         if dataset_type in ['train', 'validation', 'test']:
-            return config['folder']+f'/{dataset_type}/'
+            return config.folder+f'/{dataset_type}/'
         else:
             raise ValueError('dataset_type must be either train, test or validation')
 

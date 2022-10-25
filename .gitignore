@@ -24,10 +24,11 @@ experiment.yml
 utils.ipynb
 config.yml
 config-debug.yml
+sweep.yml
 
 # Folders
 dataset/
 figures/
-execution/
 results/
 temp/
+wandb/

@@ -1,6 +1,6 @@
 import torch
 torch.cuda.empty_cache()
-from diffmd.trainer_base import Trainer
+from nn.trainer_base import Trainer
 
 import numpy as np
 

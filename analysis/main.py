@@ -7,7 +7,7 @@ from plotter import Plotter
 
 
 sys.path.insert(0, os.path.abspath('..'))
-from diffmd.trainers import NODETrainer, BaselineTrainer
+from nn.trainers import NODETrainer, BaselineTrainer
 from diffmd.utils import read_yaml
 
 os.chdir("..")
