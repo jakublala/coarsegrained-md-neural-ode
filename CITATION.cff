@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Lála"
+  given-names: "Jakub"
+  orcid: "0000-0002-5424-5260"
+title: "Coarse-graining of Rigid Bodies in Molecular Dynamics with Neural ODEs"
+version: 1.0.0
+date-released: 2022-10-26
+url: "https://github.com/jakublala/coarsegrained-md-neural-ode"
