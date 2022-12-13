@@ -9,11 +9,7 @@ class Config():
             device_id = os.environ['CUDA_VISIBLE_DEVICES']
             assert len(device_id) == 1, 'Only one GPU is supported'
             self.device = f"cuda:{device_id}"
-
-        # print(self.device)
-        self.device = 'cuda:0'
-        # assert 0 == 1
-
+        
         self.assign_folders()
 
         # constants

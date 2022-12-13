@@ -30,9 +30,11 @@ class Trainer():
         
         if self.config.wandb and self.is_master():
             self.wandb = Wandb(self.config)
-            # update config based on wandb sweep
-            self.config.assign_sweep_config(self.wandb.sweep_values)
-            
+
+            if self.config.sweep:
+                # update config based on wandb sweep
+                self.config.assign_sweep_config(self.wandb.sweep_values)
+                
         self.device = set_device(self.config.device)
         self.dtype = set_dtype(self.config.dtype)
         self.activation_functions = get_activation_functions(self.config.activation_function, self.config.nn_widths)
@@ -484,10 +486,6 @@ class Trainer():
             torch.save([self.func.module.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
         else:
             torch.save([self.func.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
-        # self.plot_traj(subfolder, final)
-        # self.plot_losses(subfolder)
-        # self.plot_lr(subfolder)
-        # self.logger.save_csv(subfolder)
         return None
 
     def get_batch_t(self, dt, traj_steps):
