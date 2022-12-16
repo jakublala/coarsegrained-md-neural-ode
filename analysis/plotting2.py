@@ -77,7 +77,7 @@ def animate(index):
     for i in range(XY.shape[0]):
         for j in range(XY.shape[1]):
             inp = np.hstack((XY[i, j], np.array([0, 0, 0, 0, 1, 0, 0, 0, 1])))
-            Z[i, j] = potential(torch.Tensor(inp)).detach().cpu().item()
+            Z[i, j] = potential(torch.tensor(inp)).detach().cpu().item()
 
     Z -= Z.min()
 

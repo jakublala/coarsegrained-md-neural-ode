@@ -19,11 +19,11 @@ def compute_grad(inputs, output, create_graph=True, retain_graph=True, allow_unu
     Compute gradient of the scalar output with respect to inputs.
     
     Args:
-        inputs (torch.Tensor): torch tensor, requires_grad=True
-        output (torch.Tensor): scalar output 
+        inputs (torch.tensor): torch tensor, requires_grad=True
+        output (torch.tensor): scalar output 
     
     Returns:
-        torch.Tensor: gradients with respect to each input component 
+        torch.tensor: gradients with respect to each input component 
     """
     
     assert inputs.requires_grad

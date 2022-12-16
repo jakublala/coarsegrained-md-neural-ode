@@ -219,7 +219,7 @@ def odeint(diffeq, state, t, method=None, options=None):
     Raises:
         ValueError: If method was not specified
         from _check_inputs
-        AssertionError: if elements of state are not type torch.Tensor
+        AssertionError: if elements of state are not type torch.tensor
         TypeError: if state is not a floating point tensor
         TypeError: if t is not a floating point tensor
     """
@@ -268,7 +268,7 @@ def odeint_adjoint(diffeq, state, t, method=None, options=None):
         raise TypeError('diffeq is required to be an instance of nn.Module.')
 
     if torch.is_tensor(state):
-        raise TypeError('The state vectors have to be given as tuples of torch.Tensor`s!')
+        raise TypeError('The state vectors have to be given as tuples of torch.tensor`s!')
         
     if method is None:
         raise ValueError('Method needs to be specified!')
@@ -292,8 +292,8 @@ class OdeintAdjointMethod(torch.autograd.Function):
         Args:
             state: expanded tuple of state vectors
             diffeq: diffeq (nn.module): function that yields acceleration and velocities
-            t (torch.Tensor): time line
-            flate_params: torch.Tensor of diffeq parameters
+            t (torch.tensor): time line
+            flate_params: torch.tensor of diffeq parameters
             method (string): specifying the fitting integrator for diffeq
             options (dict): options for ODE solver
             
@@ -326,7 +326,7 @@ class OdeintAdjointMethod(torch.autograd.Function):
         def augmented_dynamics(state_aug):
             """
             Args:
-                t (torch.Tensor): array of time points
+                t (torch.tensor): array of time points
                 state_aug (tuple): augmented tuple of state vectors, contains info from forward and backward passes
                 
             Returns:

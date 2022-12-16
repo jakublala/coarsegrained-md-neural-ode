@@ -1,16 +1,14 @@
 import os
 import shutil
 import wandb
+import torch
 from diffmd.utils import read_yaml, get_run_ID, count_parameters
 
 class Config():
     def __init__(self, file):
-        config = read_yaml(file)
+        self.file = file
+        config = read_yaml(self.file)
         self.__dict__.update(config)
-        if self.device == 'cuda':
-            device_id = os.environ['CUDA_VISIBLE_DEVICES']
-            assert len(device_id) == 1, 'Only one GPU is supported'
-            self.device = f"cuda:{device_id}"
 
         # constants
         self.nparticles = 2
@@ -67,4 +65,4 @@ class Config():
         return subfolder
 
     def save_config(self):
-        shutil.copyfile('config.yml', f'{self.subfolder}/config.yml')
+        shutil.copyfile(self.file, f'{self.subfolder}/config.yml')

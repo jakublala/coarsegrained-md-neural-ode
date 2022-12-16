@@ -64,10 +64,10 @@ class FixedGridODESolver(object):
             """constructs time grid for given interval and step size
             
             Args:
-                t (torch.Tensor): array of time steps
+                t (torch.tensor): array of time steps
                 
             Returns:
-                t_infer (torch.Tensor): array of inferred time steps 
+                t_infer (torch.tensor): array of inferred time steps 
                 
             Raises:
                 -
@@ -154,7 +154,7 @@ def _check_inputs(diffeq, state, t):
         t: updated
         
     Raises:
-        AssertionError: if elements of state are not type torch.Tensor
+        AssertionError: if elements of state are not type torch.tensor
         TypeError: if state is not a floating point tensor
         TypeError: if t is not a floating point tensor
     
@@ -166,9 +166,9 @@ def _check_inputs(diffeq, state, t):
         state = (state,)
         _base_nontuple_func_ = diffeq
         diffeq = lambda state: (_base_nontuple_func_(state[0]),)
-    assert isinstance(state, tuple), 'The state vecotrs must be either a torch.Tensor or a tuple'
+    assert isinstance(state, tuple), 'The state vecotrs must be either a torch.tensor or a tuple'
     for s_ in state:
-        assert torch.is_tensor(s_), 'each element must be a torch.Tensor but received {}'.format(type(s_))
+        assert torch.is_tensor(s_), 'each element must be a torch.tensor but received {}'.format(type(s_))
 
     # time reversal of the ODE
     if _decreasing(t):

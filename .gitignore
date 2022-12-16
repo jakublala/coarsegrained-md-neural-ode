@@ -22,8 +22,9 @@ sigopt-model.py
 sigopt*
 experiment.yml
 utils.ipynb
+config0.yml
+config1.yml
 config.yml
-config-debug.yml
 sweep.yml
 
 # Folders
