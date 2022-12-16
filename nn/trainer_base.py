@@ -30,10 +30,14 @@ class Trainer():
         
         if self.config.wandb and self.is_master():
             self.wandb = Wandb(self.config)
-
+            self.config.assign_folders(self.wandb.run.name)
+        
             if self.config.sweep:
                 # update config based on wandb sweep
                 self.config.assign_sweep_config(self.wandb.sweep_values)
+        else:
+            self.config.assign_folders()
+        self.config.save_config()
                 
         self.device = set_device(self.config.device)
         self.dtype = set_dtype(self.config.dtype)
@@ -48,13 +52,15 @@ class Trainer():
         self.validation_dataloader = self.get_dataloader(self.validation_dataset)
         assert len(self.training_dataset) > self.config.batch_size, "Batch size is too large for the dataset. Please reduce the batch size or increase the dataset size."
 
+        # TODO: check that loading a folder works well
         if self.config.load_folder != None:
             self.func = self.load_func()
             # self.logger.load_previous(self.load_folder)
-            self.start_epoch = int(self.logger.epoch[-1])
         else:
             self.func = ODEFunc(self.config.nparticles, self.config.dim, self.config.nn_widths, self.activation_functions, self.dtype).to(self.device)
-            self.start_epoch = 0
+        
+        if self.config.wandb:
+            wandb.watch(self.func, log='all', log_freq=10)
 
         self.config.nparameters = count_parameters(self.func)
 
@@ -93,7 +99,7 @@ class Trainer():
         return pred_y
 
     def train(self):
-        for self.epoch in range(self.start_epoch + 1, (self.start_epoch + self.config.epochs) + 1):
+        for self.epoch in range(1, self.config.epochs + 1):
             self.batch_loss = []
             if self.parallel:
                 self.training_dataloader.sampler.set_epoch(self.epoch)
@@ -137,7 +143,6 @@ class Trainer():
         if self.is_master():
             self.checkpoint(final=True)
 
-
     def log_itr(self):
         if self.config.wandb:
             self.wandb.run.log({
@@ -148,64 +153,33 @@ class Trainer():
       
     def log_epoch(self):
         # perform evaluation on validation test
-        if self.epoch % self.config.evaluation_freq == 0 or self.epoch == self.start_epoch + 1:
+        if self.epoch % self.config.evaluation_freq == 0 or self.epoch == 1 or self.epoch == self.config.epochs:
             validation_loss = self.evaluate('validation')
         else:
             validation_loss = None
 
-        
         if self.config.wandb:
             self.wandb.run.log({
                 'epoch': self.epoch, 
                 'training_loss': np.mean(self.batch_loss),
                 'validation_loss': validation_loss,
+                'learning_rate': self.optimizer.param_groups[0]['lr'],
                 # 'epoch_time': time.perf_counter() - self.start_time,
                 })
         
-
     def after_epoch(self):
-        print(f'Epoch {self.epoch}, train loss: {np.mean(self.batch_loss)}, validation loss: {self.evaluate("validation")}, epoch time: {time.perf_counter() - self.start_time:.2f}s')
+        print(f'Epoch {self.epoch}, train loss: {np.mean(self.batch_loss)}, epoch time: {time.perf_counter() - self.start_time:.2f}s')
 
         if self.config.scheduler == 'CyclicLR':
             self.scheduler.step()
         elif self.epoch % self.config.scheduling_freq == 0 and self.config.scheduler != None:
             self.scheduler.step()
 
-        # if self.epoch % self.evaluation_freq == 0 or self.epoch == self.start_epoch + 1:
-        #     self.logger.test_loss[-1] = self.evaluate('test')
-
         if self.epoch % self.config.checkpoint_freq == 0:
             self.checkpoint()
 
-        # TODO: implement
-        # if self.epoch % self.batch_length_freq == 0:
-        #     self.increase_batch_length()
-
-        # early stopping
-        # if self.epoch % self.stopping_freq == 0:
-
-            
-            # divergent / non-convergent
-            # if len(self.loss_meter.checkpoints) > 1 + self.stopping_look_back:
-            #     if self.loss_meter.checkpoints[-1-self.stopping_look_back] < self.loss_meter.checkpoints[-1]:
-            #         print('early stopping as non-convergent')
-            #         self.early_stopping = True
-            # TODO: add proper stale convergence and test it out
-            # stale convergence
-            # if np.sd(self.loss_meter.losses[-self.stopping_freq:]) > 0.001:
-            #     print('early stopping as stale convergence')
-            #     return self.func, self.loss_meter
-        
-    # TODO: not implemented
-    # def increase_batch_length(self):
-    #     self.batch_length += self.batch_length_step
-    #     self.training_dataset.update(self.batch_length)
-    #     self.loss_meter.reset()
-
-    # def avg_epoch_loss(self):
-    #     indices = [i for i, e in enumerate(self.logger.epoch) if e == self.epoch]
-    #     self.logger.avg_train_loss[-1] = np.mean([self.logger.train_loss[i] for i in indices])
-    #     self.logger.run_avg_train_loss[-1] = self.loss_meter.avg
+        # TODO: implement increasing batch length
+        # TODO: implement early stopping via WandB
         
     def load_func(self):
         loaded_state = torch.load(f'{self.config.load_folder}/model.pt')
@@ -219,7 +193,6 @@ class Trainer():
         else:
             state_dict = loaded_state
             # raise ValueError('model.pt should be a list of kwargs and state_dict, the previous behaviour has been depreciated')
-        
         
         # in case we load a DDP model checkpoint to a non-DDP model
         model_dict = OrderedDict()
@@ -235,6 +208,7 @@ class Trainer():
         return func
         
     def plot_traj(self, subfolder, final):
+        # TODO: remove this function and do it all in analysis folder
         def get_anchored_text():
             at = AnchoredText(f'epoch: {self.epoch}', prop=dict(size=10), frameon=True, loc='upper left')
             at.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
@@ -260,7 +234,6 @@ class Trainer():
             dataset_steps = 100
             steps_per_dt = self.config.steps_per_dt
             
-        
         traj_steps = dataset_steps * self.config.steps_per_dt
         
         # TODO: remove this update and do the plotting differently so that we don't have to change the traj length inside plotting
@@ -322,46 +295,7 @@ class Trainer():
 
         # revert changes to traj length
         # self.training_dataset.update(self.dataset_steps)
-            
-    def plot_losses(self, subfolder):
-        fig, ax = plt.subplots()
 
-        if self.config.loss_func == 'energy':
-            ax.plot(self.logger.epoch, self.logger.train_loss_energy, label='train')
-        else:
-            avg_train_loss = [i for i in self.logger.avg_train_loss if i is not None]
-            ax.plot(range(1, self.epoch+1), avg_train_loss, 'b-', label='train')
-            run_avg_train_loss = [i for i in self.logger.run_avg_train_loss if i is not None]
-            ax.plot(range(1, self.epoch+1), run_avg_train_loss, 'b-', alpha=0.5)
-
-        eval_epochs = []
-        test_loss = []
-        for i, tl in enumerate(self.logger.test_loss):
-            if tl is not None:
-                eval_epochs.append(self.logger.epoch[i])
-                test_loss.append(tl)
-        ax.plot(eval_epochs, test_loss, 'r-', label='test')
-
-        ax.set_xlabel('Number of Epochs')
-        ax.set_ylabel('Loss')
-        ax.legend()
-        fig.savefig(f'{subfolder}/loss.png')
-        plt.close(fig)
-        return
-
-    def plot_lr(self, subfolder):
-        fig, ax = plt.subplots()
-        ax.set_title('learning rate evolution')
-        ax.plot(self.loss_meter.lrs)
-        fig.savefig(f'{subfolder}/lr.png')
-        plt.close(fig)
-        return
-
-    def log_metadata(self, config):
-        if not os.path.exists(f'{self.config.subfolder}'):
-                os.makedirs(f'{self.config.subfolder}')
-        shutil.copyfile('config.yml', f'{self.config.subfolder}/config_{self.epoch}.yaml')
-        
     def set_loss_func(self, loss_func):
         if 'all-mse' == loss_func:
             raise NotImplementedError('all-mse loss function not implemented with new steps_per_dt')
@@ -479,13 +413,14 @@ class Trainer():
         return (self.parallel and is_main_process()) or not self.parallel
 
     def checkpoint(self, final=False):
-        subfolder = f'{self.config.subfolder}/{self.epoch}'
-        if not os.path.exists(f'{subfolder}'):
-            os.makedirs(f'{subfolder}')
+        path = f'{self.config.subfolder}/checkpoints/{self.epoch}'
+        if not os.path.exists(path):
+            os.makedirs(path)
         if self.parallel:
-            torch.save([self.func.module.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
+            torch.save([self.func.module.kwargs, self.func.state_dict()], f'{path}/model.pt')
         else:
-            torch.save([self.func.kwargs, self.func.state_dict()], f'{subfolder}/model.pt')
+            torch.save([self.func.kwargs, self.func.state_dict()], f'{path}/model.pt')
+        
         return None
 
     def get_batch_t(self, dt, traj_steps):
