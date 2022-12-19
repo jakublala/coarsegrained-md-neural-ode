@@ -47,7 +47,7 @@ checkpoint_freq: 3
 
 # W&B Logging
 wandb: True
-sweep: True
+sweep: False
 project: 'cg-node-hexagon'
 sweep_id: null
 n_count: 50
