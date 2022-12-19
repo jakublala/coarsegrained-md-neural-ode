@@ -1,45 +1,53 @@
-folder: 'dataset/single_temp'
-training_fraction: 0.1
+# Dataset and previous model
+folder: 'dataset/2022-10-09'
+training_fraction: 1.0
 random_dataset: False
-
-device : 'cuda' 
-dtype: 'float32'
-
-start_epoch : 0
-load_folder: null
-
-optimizer : 'Adamax'
-weight_decay: 0
-loss_func : 'final-mse-pos'
-normalize_loss : True
-
-epochs : 1
-learning_rate: 0.02
-nn_widths: [64, 48, 32]
-activation_function: 'tanh'
-
-dataset_steps: 10
-steps_per_dt: 3
-
 batch_size: 10000
 shuffle: True
 num_workers: 0
 
-eval_dataset_steps: 20
-eval_steps_per_dt: 100
-eval_init_skip: 1
+# Model
+load_folder: null
+nn_widths: [32, 32, 32]
+activation_function: 'elu'
+
+# Technical parameters
+device : 'cuda:0' 
+dtype: 'float32'
+
+# Training
+epochs : 50
+optimizer : 'AdamW'
+log_lr: -1
+log_weight: -4
+loss_func : 'final-mse-pos'
+normalize_loss : True
+
+# Scheduling
+scheduler: 'LambdaLR'
+scheduling_factor: 0.8
+scheduling_freq: 500
+
+# Neural ODE parameters
+dataset_steps: 2
+steps_per_dt: 4
+
+# Evaluation
+eval_dataset_steps: 2
+eval_steps_per_dt: 4
+eval_init_skip: 100
 evaluation_freq: 5
 
-itr_printing_freq: 1
-printing_freq: 1
-
-stopping_freq: 5
+# Early stopping
+stopping_freq: 20
 stopping_look_back: 2
 
-checkpoint_freq: 5
+# Checkpointing
+checkpoint_freq: 3
 
-scheduler: null 
-scheduling_factor: 0.5
-scheduling_freq: 25
-
-sigopt: True
+# W&B Logging
+wandb: True
+sweep: True
+project: 'cg-node-hexagon'
+sweep_id: null
+n_count: 50

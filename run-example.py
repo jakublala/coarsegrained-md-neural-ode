@@ -1,40 +1,28 @@
 import torch
 torch.cuda.empty_cache()
-from nn.trainer_base import Trainer
+import wandb
+from diffmd.utils import read_yaml
+from nn.trainers import NODETrainer, BaselineTrainer
 
-import numpy as np
+import os
 
-# TODO: make this dictionary a file that is read
-config = dict(
-    folder = 'dataset/single_temp_overfit', 
-    device = torch.device('cpu'), 
-    epochs = 100,
-    start_epoch = 0,
-    optimizer = 'Adam',
-    batch_length=20,
-    batch_size=600,
-    shuffle=True,
-    num_workers=0,
-    learning_rate=0.0003,
-    nn_depth=2,
-    nn_width=1000,
-    activation_function=None,
-    eval_batch_length=1000,
-    load_folder=None,
-    dtype=torch.float32,
-    itr_printing_freq=1,
-    printing_freq=20,
-    plotting_freq=20,
-    stopping_freq=20,
-    scheduler='LambdaLR',
-    scheduling_factor=0.95,
-    scheduling_freq=25,
-    evaluation_freq=20,
-    checkpoint_freq=20,
-    loss_func = 'all',
-    )
+def run():
+    trainer = NODETrainer(config_file)
+    trainer.train()
+    del trainer
 
-trainer = Trainer(config)
-model, train_loss = trainer.train()
-trainer.save()
+if __name__ == '__main__':
+    sweep_config = read_yaml('sweep.yml')
+    config_file = 'config.yml'
+    config = read_yaml(config_file)
 
+    if config['sweep']:
+        if config['sweep_id'] is None:
+            print('Starting new sweep')
+            sweep_id = wandb.sweep(sweep_config, project=config['project'])
+        else:
+            print('Resuming sweep')
+            sweep_id = config['sweep_id']
+        wandb.agent(sweep_id=sweep_id, project=config['project'], function=run, count=config['n_count'])
+    else:
+        run()
