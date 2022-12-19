@@ -5,9 +5,10 @@ import torch
 from diffmd.utils import read_yaml, get_run_ID, count_parameters
 
 class Config():
-    def __init__(self, file):
-        self.file = file
-        config = read_yaml(self.file)
+    def __init__(self, config):
+        if isinstance(config, str):
+            self.file = config
+            config = read_yaml(self.file)
         self.__dict__.update(config)
 
         # constants
@@ -30,6 +31,9 @@ class Config():
         self.nn_widths = [self.nn_width] * self.nn_depth
         # additional (computed) parameters
         self.compute_params()
+
+        # update wandb config
+        wandb.config.update(self.__dict__)
 
         print('Config of Current Run in the Sweep:')
         for key, value in self.__dict__.items():

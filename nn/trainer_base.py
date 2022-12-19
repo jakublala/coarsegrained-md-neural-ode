@@ -21,11 +21,19 @@ from nn.losses import *
 
 class Trainer():
 
-    def __init__(self, config_file):
+    def __init__(self, config):
+        """
+            Base class for all trainers
+
+            Args:
+                config (str or dict): string of path to config file or dictionary of config parameters
+
+        """
+
         self.parallel = False
         self.early_stopping = False
 
-        self.config = Config(config_file)
+        self.config = Config(config)
         
         if self.config.wandb and self.is_master():
             self.wandb = wandb.init(project=self.config.project, config=self.config)
@@ -33,7 +41,8 @@ class Trainer():
             self.config.assign_sweep_config(self.wandb.config)
         else:
             self.config.assign_folders()
-        self.config.save_config()
+        if not self.config.analysis:
+            self.config.save_config()
                 
         self.device = set_device(self.config.device)
         self.dtype = set_dtype(self.config.dtype)
@@ -51,7 +60,6 @@ class Trainer():
         # TODO: check that loading a folder works well
         if self.config.load_folder != None:
             self.func = self.load_func()
-            # self.logger.load_previous(self.load_folder)
         else:
             self.func = ODEFunc(self.config.nparticles, self.config.dim, self.config.nn_widths, self.activation_functions, self.dtype).to(self.device)
         
@@ -183,9 +191,9 @@ class Trainer():
             kwargs, state_dict = torch.load(f'{self.config.load_folder}/model.pt')
 
             # get specific NN architecture
-            self.dim = kwargs['dim']
-            self.nn_widths = kwargs['widths']
-            self.activation_functions = kwargs['functions']
+            self.config.dim = kwargs['dim']
+            self.config.nn_widths = kwargs['widths']
+            self.config.activation_functions = kwargs['functions']
         else:
             state_dict = loaded_state
             # raise ValueError('model.pt should be a list of kwargs and state_dict, the previous behaviour has been depreciated')
@@ -199,99 +207,10 @@ class Trainer():
                 model_dict[re.sub(pattern, '', k)] = v
             else:
                 model_dict = state_dict
-        func = ODEFunc(self.nparticles, self.dim, self.nn_widths, self.activation_functions, self.dtype).to(self.device)
+        func = ODEFunc(self.config.nparticles, self.config.dim, self.config.nn_widths, self.config.activation_functions, self.dtype).to(self.device)
         func.load_state_dict(model_dict)
         return func
-        
-    def plot_traj(self, subfolder, final):
-        # TODO: remove this function and do it all in analysis folder
-        def get_anchored_text():
-            at = AnchoredText(f'epoch: {self.epoch}', prop=dict(size=10), frameon=True, loc='upper left')
-            at.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
-            return at
-
-        def plot(indices, body_id, title, filename):
-            colours = ['r-', 'b-', 'g-', 'm-']
-            fig, ax = plt.subplots()
-            for c, i in enumerate(indices):
-                ax.set_title(title)
-                ax.plot(batch_t, batch_y[:,body_id,i], 'k--', alpha=0.3, label=f'true {i}')
-                ax.plot(pred_t, pred_y[:,body_id,i], colours[c], alpha=0.5, label=f'pred {i}')
-            ax.add_artist(get_anchored_text())
-            plt.xlabel('Time')
-            fig.savefig(f'{subfolder}/{filename}.png')
-            plt.close(fig)            
-
-        # temporarily change traj length for plotting
-        if final:
-            dataset_steps = 100
-            steps_per_dt = self.config.steps_per_dt * 10
-        else:
-            dataset_steps = 100
-            steps_per_dt = self.config.steps_per_dt
-            
-        traj_steps = dataset_steps * self.config.steps_per_dt
-        
-        # TODO: remove this update and do the plotting differently so that we don't have to change the traj length inside plotting
-        # this especially caused problems with using a fraction of the dataset
-        # self.training_dataset.update(dataset_steps)
-        with torch.no_grad():
-            # get the earliest init conditions to ensure trajectories are long enough
-            init_index = self.training_dataset.init_IDS.index(min(self.training_dataset.init_IDS, key=len))
-            batch_input, batch_y, _ = self.training_dataset[init_index]
-            batch_input = list(batch_input)
-            batch_input[0] = batch_input[0].unsqueeze(0)
-            dataset_dt = batch_input[1]
-            
-            # if final:
-            #     traj_index = int(self.training_dataset.init_IDS[init_index].split('-')[0])
-            #     dt = self.training_dataset.trajs[traj_index].lammps_dt
-            #     batch_input[1] = dt
-            #     traj_steps = 10000
-            #     subfolder = f'results/temp/plot'
-            #     steps_per_dt = 1
-
-            # else:
-            #     dt = batch_input[1] / self.steps_per_dt
-            #     steps_per_dt = self.steps_per_dt
-            #     subfolder = f'results/temp/plot2'
-
-            dt = batch_input[1] / steps_per_dt
-            start = time.perf_counter()
-            pred_y = self.predict_traj(batch_input, traj_steps=traj_steps, steps_per_dt=steps_per_dt).squeeze().cpu().numpy()
-            batch_y = batch_y.cpu().numpy()
-            
-            pred_t = self.get_batch_t(dt, traj_steps).cpu().numpy()
-            batch_t = self.get_batch_t(dataset_dt, dataset_steps).cpu().numpy()
-
-            ind_vel = [0, 1, 2]
-            ind_ang = [3, 4, 5]
-            ind_quat = [9, 10, 11, 12]
-
-            for i in [0, 1]:
-                plot(ind_vel, i, f'velocities {i+1}', f'vel{i+1}')
-                plot(ind_ang, i, f'angular velocities {i+1}', f'angvel{i+1}')
-                plot(ind_quat, i, f'quaternions {i+1}', f'quat{i+1}')
-            
-            # centre of mass positions (set initial position of first COM to zero)
-            batch_y[:,:,6:9] = batch_y[:,:,6:9] - batch_y[:,[0],6:9]
-            pred_y[:,:,6:9] = pred_y[:,:,6:9] - pred_y[:,[0],6:9]
-            
-            # centre of mass separation
-            batch_y_sep = np.linalg.norm(batch_y[:,1,6:9] - batch_y[:,0,6:9], axis=-1)
-            pred_y_sep = np.linalg.norm(pred_y[:,1,6:9] - pred_y[:,0,6:9], axis=-1)
-
-            fig, ax = plt.subplots()
-            ax.set_title('separation')
-            ax.plot(batch_t, batch_y_sep, 'k--', alpha=0.3, label=f'true')
-            ax.plot(pred_t, pred_y_sep, 'r-', alpha=0.5, label=f'pred')
-            ax.add_artist(get_anchored_text())
-            fig.savefig(f'{subfolder}/sep.png')
-            plt.close(fig)
-
-        # revert changes to traj length
-        # self.training_dataset.update(self.dataset_steps)
-
+     
     def set_loss_func(self, loss_func):
         if 'all-mse' == loss_func:
             raise NotImplementedError('all-mse loss function not implemented with new steps_per_dt')

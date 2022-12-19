@@ -8,9 +8,10 @@ from matplotlib.offsetbox import AnchoredText
 
 class Plotter():
 
-    def __init__(self, trainer, dataset_steps = 10):
+    def __init__(self, trainer, run_id, dataset_steps = 10):
         self.trainer = trainer
-        self.folder = self.trainer.load_folder
+        self.run_id = run_id
+        self.subfolder = f'figures/{self.run_id}'
         
         self.create_folders()
         
@@ -31,7 +32,7 @@ class Plotter():
             print('no LAMMPS pair potential file found')
             
     def create_folders(self):
-        folders = ["figures/energies/lammps", "figures/energies/nn"]
+        folders = [f"{self.subfolder}/energies/lammps", f"{self.subfolder}/energies/nn"]
         for f in folders:
             if not os.path.exists(f):
                 os.makedirs(f)
@@ -88,6 +89,7 @@ class Plotter():
         return harmonic_energy
 
     def get_kinetic_energy(self, v, w):
+        # HACK
         M = 7.0
         kinetic_energy_trans = torch.sum(torch.sum(0.5 * M * v**2, dim=-1), dim=-1)
         batch_input, _, _ = self.trainer.training_dataset[0]
@@ -99,7 +101,7 @@ class Plotter():
         plt.plot(kinetic_energy_trans.detach().cpu(), label='trans')
         plt.plot(kinetic_energy, label='tot')
         plt.legend()
-        plt.savefig('figures/test.png')
+        plt.savefig(f'{self.subfolder}/test.png')
         plt.close()
 
         return kinetic_energy
@@ -114,7 +116,7 @@ class Plotter():
         plt.legend()
         plt.xlabel('Time step')
         plt.ylabel('Energy')
-        plt.savefig('figures/energies/LAMMPS_energy.png')
+        plt.savefig(f'{self.subfolder}/energies/LAMMPS_energy.png')
         plt.close()
 
     def plot_parity(self):
@@ -136,14 +138,13 @@ class Plotter():
         ax.set_xlim([min_x, max_x])
         ax.set_ylim([min_y, max_y])
         ax.plot([min_x, min_x], [max_x, max_x], 'k-')
-        fig.savefig('figures/energies/energy_matrix.png')
+        fig.savefig(f'{self.subfolder}/energies/energy_matrix.png')
         plt.close(fig)
-
 
     def plot_pair_potential(self):
         plt.plot(self.LAMMPS_potential[:, 0], self.LAMMPS_potential[:, 1], label='energy')
         plt.legend()
-        plt.savefig('figures/energies/pair_potential.png')
+        plt.savefig(f'{self.subfolder}/energies/pair_potential.png')
         plt.close()
 
     def plot_hexagon_potential(self):
@@ -171,7 +172,7 @@ class Plotter():
         plt.xlabel('z-axis')
         plt.ylabel('Energy')
         plt.ylim(-20, predicted.max() + 0.01 * predicted.max())
-        plt.savefig('figures/energies/hexagon_potential_1Dface.png')
+        plt.savefig(f'{self.subfolder}/energies/hexagon_potential_1Dface.png')
         plt.close()
 
         # case 2: hexagons in a single plane (i.e. varying x-axis)
@@ -191,7 +192,7 @@ class Plotter():
         plt.ylabel('Energy')
         plt.ylim(-20, predicted.max() + 0.01 * predicted.max())
     
-        plt.savefig('figures/energies/hexagon_potential_1DplaneX.png')
+        plt.savefig(f'{self.subfolder}/energies/hexagon_potential_1DplaneX.png')
         plt.close()
 
         # case 3: hexagons in a single plane (i.e. varying y-axis)
@@ -211,7 +212,7 @@ class Plotter():
         plt.ylabel('Energy')
         plt.ylim(-20, predicted.max() + 0.01 * predicted.max())
     
-        plt.savefig('figures/energies/hexagon_potential_1DplaneY.png')
+        plt.savefig(f'{self.subfolder}/energies/hexagon_potential_1DplaneY.png')
         plt.close()
 
     def plot_traj_potential(self, num_steps):
@@ -220,7 +221,7 @@ class Plotter():
         plt.ylabel('Energy')
         plt.xlabel('Time step')
         plt.legend()
-        plt.savefig('figures/energies/trajectory_potential.png')
+        plt.savefig(f'{self.subfolder}/energies/trajectory_potential.png')
         plt.close()
 
     def get_predicted_trajectories(self, dataset_steps):
@@ -259,12 +260,9 @@ class Plotter():
         plt.ylabel('Energy')
         plt.xlabel('Time (s)')
         plt.legend()
-        plt.savefig('figures/energies/traj_energies.png')
+        plt.savefig(f'{self.subfolder}/energies/traj_energies.png')
         plt.close()
     
-
-
-
     def NN_energy(self, num_steps):
         plt.plot(self.predicted_energies[:num_steps], 'b-', label='Potential')
         plt.plot(self.harmonic_energy[:num_steps], 'g-', label='Harmonic')
@@ -275,7 +273,7 @@ class Plotter():
         plt.title('NN Energy based on LAMMPS trajectory')
         plt.xlabel('Time step')
         plt.ylabel('Energy')
-        plt.savefig('figures/energies/NN_energy.png')
+        plt.savefig(f'{self.subfolder}/energies/NN_energy.png')
         plt.close()
 
     def traj_distribution(self, var='r'):
@@ -283,13 +281,12 @@ class Plotter():
         plt.hist(r_norm.flatten().detach().cpu().numpy(), bins=100)
         plt.ylabel('Occurences')
         plt.xlabel(f'{var}')
-        plt.savefig(f'figures/hist_{var}.png')
+        plt.savefig(f'{self.subfolder}/hist_{var}.png')
         plt.close()
 
-
     def plot_traj(self, dataset, num_steps=100, checkpoint=False):
-        # TODO: finish this and make it work, so that we can call it from Trainer
         def get_anchored_text():
+            # TODO: get epoch from checkpoint
             at = AnchoredText(f'epoch: Final', prop=dict(size=10), frameon=True, loc='upper left')
             at.patch.set_boxstyle("round,pad=0.,rounding_size=0.2")
             return at
@@ -305,7 +302,7 @@ class Plotter():
             fig.savefig(f'{subfolder}/{filename}.png')
             plt.close(fig)            
 
-        subfolder = f'figures/trajs/{dataset}'
+        subfolder = f'{self.subfolder}/trajs/{dataset}'
         if not os.path.exists(subfolder):
             os.makedirs(subfolder)
         
@@ -320,7 +317,7 @@ class Plotter():
 
         dataset_steps = num_steps
 
-        traj_steps = dataset_steps * self.trainer.steps_per_dt
+        traj_steps = dataset_steps * self.trainer.config.steps_per_dt
         
         dataset.update(dataset_steps)
         with torch.no_grad():
@@ -331,20 +328,12 @@ class Plotter():
             batch_input[0] = batch_input[0].unsqueeze(0)
             batch_input = tuple(batch_input)
 
-            print(traj_steps)
-            print(self.trainer.steps_per_dt)
-            pred_y = self.trainer.predict_traj(batch_input, traj_steps=traj_steps, steps_per_dt=self.trainer.steps_per_dt).squeeze().cpu().numpy()
+            pred_y = self.trainer.predict_traj(batch_input, traj_steps=traj_steps, steps_per_dt=self.trainer.config.steps_per_dt).squeeze().cpu().numpy()
             batch_y = batch_y.cpu().numpy()
             
-            effective_dt = batch_input[1] / self.trainer.steps_per_dt
+            effective_dt = batch_input[1] / self.trainer.config.steps_per_dt
             pred_t = self.trainer.get_batch_t(effective_dt, traj_steps).cpu().numpy()
             batch_t = self.trainer.get_batch_t(batch_input[1], dataset_steps).cpu().numpy()
-
-            print(pred_t.shape)
-            print(batch_t.shape)
-
-            print(pred_y.shape)
-            print(batch_y.shape)
 
             ind_vel = [0, 1, 2]
             ind_ang = [3, 4, 5]
@@ -371,8 +360,5 @@ class Plotter():
             fig.savefig(f'{subfolder}/sep.png')
             plt.close(fig)
 
-        # revert changes to traj length
-        dataset.update(self.trainer.dataset_steps)
-    
 
 

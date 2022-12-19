@@ -1,7 +1,9 @@
 import sys
 import os
+import argparse
 import shutil
 import torch
+import wandb
 
 from plotter import Plotter
 
@@ -13,31 +15,59 @@ from diffmd.utils import read_yaml
 os.chdir("..")
 
 if __name__ == '__main__':
-    config = read_yaml('config.yml')
-    # config['folder'] = 'dataset/archive/oscillation'
-    config['load_folder'] = 'results/archive/2022-10-09/17-10-14/320'
-    config['device'] = 'cpu'
- 
+    # parser arguments
+    parser = argparse.ArgumentParser(
+                    prog = 'CG Neural ODE: Analysis',
+                    description = 'Plots various quantities from the NN training',
+                    epilog = 'Enjoy the program! :)')
+    parser.add_argument('-id', '--run_id', type=str, default=None, help='Run ID to plot')    
+    parser.add_argument('-p', '--project', type=str, default='cg-node-hexagon', help='Project name')
+    args = parser.parse_args()
+    run_id = args.run_id
+    project_name = args.project
+
+    # HACK
+    user = 'jakublala'
+
+    # download checkpoints
+    os.makedirs(f'temp/{run_id}')
+    os.chdir(f'temp/{run_id}')
+    wandb.restore('output/config.yml', run_path=f"{user}/{project_name}/{run_id}")
+    config = read_yaml('output/config.yml')
+    for i in range(config['checkpoint_freq'], config['epochs'], config['checkpoint_freq']):
+        wandb.restore(f'output/checkpoints/{i}/model.pt', run_path=f"{user}/{project_name}/{run_id}")
+    wandb.restore(f"output/checkpoints/{config['epochs']}/model.pt", run_path=f"{user}/{project_name}/{run_id}")
+    os.chdir('../..')
+
+    # edit config for plotting purposes
+    config['wandb'] = False
+    config['sweep'] = False
+    config['sweep_id'] = None
+    config['load_folder'] = f'temp/{run_id}/output/checkpoints/{config["epochs"]}'
+    config['analysis'] = True
+
     trainer = NODETrainer(config)
-    # for p in trainer.func.net.parameters():
-    #     if p.requires_grad:
-    #         print(p)
 
     dataset_steps = 1
-    plotter = Plotter(trainer, dataset_steps)
+    plotter = Plotter(trainer, run_id, dataset_steps)
     plotter.traj_distribution()
-    plotter.LAMMPS_energy_plot(500)
-    plotter.NN_energy(500)
+    plotter.LAMMPS_energy_plot(10)
+    plotter.NN_energy(10)
     plotter.plot_parity()
-    plotter.plot_pair_potential()
-    plotter.plot_hexagon_potential()
-    plotter.plot_traj_potential(1000)
+    plotter.plot_traj_potential(10)
     plotter.traj_energies()
+    plotter.get_kinetic_energy(plotter.pred_v, plotter.pred_w)
 
-    # plotter.get_kinetic_energy(plotter.pred_v, plotter.pred_w)
+    # currently not working
+    # plotter.plot_pair_potential()
+    # plotter.plot_hexagon_potential()
+    
 
-    # TODO: finish this plotting
+    # # TODO: finish this plotting
     plotter.plot_traj(dataset='train')
+
+    # delete temp folder
+    shutil.rmtree(f'temp/{run_id}')
 
 
 
