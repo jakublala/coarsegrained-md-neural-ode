@@ -15,14 +15,8 @@ class Config():
         self.dim = 3 + (2*4)
 
         # additional (computed) parameters
-        self.traj_steps = self.dataset_steps * self.steps_per_dt
-        self.learning_rate = 10**(self.log_lr)
-        self.weight_decay = 10**(self.log_weight)
+        self.compute_params()
         
-        # TODO: currently not implemented
-        # self.batch_length_step = config['batch_length_step']
-        # self.batch_length_freq = config['batch_length_freq']
-
         if not self.sweep:
             print('Config:')
             for key, value in self.__dict__.items():
@@ -32,7 +26,12 @@ class Config():
         for key, value in values.items():
             self.__dict__[key] = value
 
-        print('Sweep Config:')
+        # nn widths
+        self.nn_widths = [self.nn_width] * self.nn_depth
+        # additional (computed) parameters
+        self.compute_params()
+
+        print('Config of Current Run in the Sweep:')
         for key, value in self.__dict__.items():
             print(f'{key}: {value}')
 
@@ -50,6 +49,11 @@ class Config():
                 self.subfolder = '/'.join(self.load_folder.split('/')[:-1])
         os.makedirs(self.subfolder, exist_ok=True)
             
+    def compute_params(self):
+        self.traj_steps = self.dataset_steps * self.steps_per_dt
+        self.learning_rate = 10**(self.log_lr)
+        self.weight_decay = 10**(self.log_weight)
+    
     def get_subfolder(self):
 
         def add_second(time):

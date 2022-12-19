@@ -10,7 +10,6 @@ import re
 import copy
 from collections import OrderedDict
 
-from nn.wandb import Wandb
 from nn.config import Config
 from data.dataset import Dataset
 from diffmd.diffeqs import ODEFunc
@@ -29,12 +28,9 @@ class Trainer():
         self.config = Config(config_file)
         
         if self.config.wandb and self.is_master():
-            self.wandb = Wandb(self.config)
-            self.config.assign_folders(self.wandb.run.name)
-        
-            if self.config.sweep:
-                # update config based on wandb sweep
-                self.config.assign_sweep_config(self.wandb.sweep_values)
+            self.wandb = wandb.init(project=self.config.project, config=self.config)
+            self.config.assign_folders(self.wandb.name)
+            self.config.assign_sweep_config(self.wandb.config)
         else:
             self.config.assign_folders()
         self.config.save_config()
@@ -145,7 +141,7 @@ class Trainer():
 
     def log_itr(self):
         if self.config.wandb:
-            self.wandb.run.log({
+            self.wandb.log({
                 # TODO: make train loss into a dictionary that is pased, WANDB should understand this
                 'batch_training_loss': self.loss.item(),
                 # 'itr_time': time.perf_counter() - self.itr_start_time,
@@ -159,7 +155,7 @@ class Trainer():
             validation_loss = None
 
         if self.config.wandb:
-            self.wandb.run.log({
+            self.wandb.log({
                 'epoch': self.epoch, 
                 'training_loss': np.mean(self.batch_loss),
                 'validation_loss': validation_loss,
