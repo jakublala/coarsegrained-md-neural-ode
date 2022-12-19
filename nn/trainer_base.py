@@ -16,7 +16,7 @@ from diffmd.diffeqs import ODEFunc
 from diffmd.solvers import odeint_adjoint
 from nn.activations import get_activation_functions
 from diffmd.utils import *
-from nn.losses import set_loss_func
+from nn.losses import set_loss_func, final_mse_pos
 
 
 class Trainer():
@@ -273,12 +273,18 @@ class Trainer():
             if dataset == 'validation':
                 dataloader = self.validation_dataloader
                 dataset = self.validation_dataset
+                steps_per_dt = self.config.eval_steps_per_dt
+                dataset_steps = self.config.eval_dataset_steps
             elif dataset == 'test':
                 dataloader = self.test_dataloader
                 dataset = self.test_dataset
+                steps_per_dt = self.config.eval_steps_per_dt
+                dataset_steps = self.config.eval_dataset_steps
             elif dataset == 'train':
                 dataloader = self.training_dataloader
                 dataset = self.training_dataset
+                steps_per_dt = self.config.steps_per_dt
+                dataset_steps = self.config.dataset_steps
             else:
                 raise ValueError(f'dataset {dataset} not recognised')
             
@@ -286,13 +292,13 @@ class Trainer():
             # TODO: finish this similar to plot_traj
             # dataset.update(self.eval_dataset_steps)
 
-            traj_steps = self.config.eval_dataset_steps * self.config.steps_per_dt
+            traj_steps = dataset_steps * steps_per_dt
 
             eval_loss = []
             for batch_input, batch_y, _ in dataloader:
                 # forward pass
                 # TODO: traj_steps and steps_per_dt should take into account which dataset is used
-                pred_y = self.predict_traj(batch_input, traj_steps=traj_steps, steps_per_dt=self.config.eval_steps_per_dt)
+                pred_y = self.predict_traj(batch_input, traj_steps=traj_steps, steps_per_dt=steps_per_dt)
                 
                 # loss of the projected trajectory by one dt
                 loss, loss_parts = final_mse_pos(pred_y, batch_y, dataset.stds, dataset.means, True)
