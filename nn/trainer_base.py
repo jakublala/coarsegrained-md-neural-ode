@@ -16,7 +16,7 @@ from diffmd.diffeqs import ODEFunc
 from diffmd.solvers import odeint_adjoint
 from nn.activations import get_activation_functions
 from diffmd.utils import *
-from nn.losses import *
+from nn.losses import set_loss_func
 
 
 class Trainer():
@@ -68,7 +68,7 @@ class Trainer():
 
         self.config.nparameters = count_parameters(self.func)
 
-        self.loss_func = self.set_loss_func(self.config.loss_func)
+        self.loss_func = set_loss_func(self.config.loss_func)
         self.optimizer = self.set_optimizer(self.config.optimizer)
         self.scheduler = self.set_scheduler(self.config.scheduler, self.config.scheduling_factor)
 
@@ -210,25 +210,6 @@ class Trainer():
         func = ODEFunc(self.config.nparticles, self.config.dim, self.config.nn_widths, self.config.activation_functions, self.dtype).to(self.device)
         func.load_state_dict(model_dict)
         return func
-     
-    def set_loss_func(self, loss_func):
-        if 'all-mse' == loss_func:
-            raise NotImplementedError('all-mse loss function not implemented with new steps_per_dt')
-            return all_mse
-        elif 'final-mse' == loss_func:
-            return final_mse
-        elif 'all-mse-pos' == loss_func:
-            raise NotImplementedError('all-mse loss function not implemented with new steps_per_dt')
-            return all_mse_pos
-        elif 'final-mse-pos' == loss_func:
-            return final_mse_pos
-        elif 'energy' == loss_func:
-            return energy
-        elif 'final-mse-pos-and-energy':
-            return final_mse_pos_and_energy
-        else:
-            raise ValueError(f'loss function {loss_func} not recognised')
-
         
     def get_dataloader(self, dataset, no_batch=False, shuffle=False):
         # TODO: make this cleaner
