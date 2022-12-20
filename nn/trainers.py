@@ -10,7 +10,7 @@ class NODETrainer(Trainer):
     def forward_pass(self, batch_input, batch_y, batch_energy):
         # forward pass                
         pred_y = self.predict_traj(batch_input, self.config.traj_steps, self.config.steps_per_dt)
-
+        
         # compute loss
         if self.config.loss_func == 'energy':
             if self.parallel:

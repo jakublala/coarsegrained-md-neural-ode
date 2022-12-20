@@ -360,6 +360,10 @@ class OdeintAdjointMethod(torch.autograd.Function):
 
             return (*time_derivatives, *grad_state, grad_params)
         
+        # comment in to save the forward pass
+        # import numpy as np
+        # np.save('temp/quat_forward_normal_discrete.npy', traj[-1].detach().numpy())
+        # quat_back_traj = [traj[-1][-1, :, :, :]]
         
         n_time_steps = traj[0].shape[0]
         with torch.no_grad():
@@ -389,16 +393,10 @@ class OdeintAdjointMethod(torch.autograd.Function):
                 aug_traj = odeint(augmented_dynamics, aug_state,
                     torch.tensor([t[i], t[i - 1]]), method=method, options=options)
 
-                # quat = aug_traj[3][1, 0, 0, :]
-                # with open('quat_backward.txt', 'a') as f:
-                #     quat = list(quat.detach().cpu().numpy())
-                #     f.write(','.join([str(q) for q in quat]) + '\n')
+                # comment in to track the backward pass
+                # quat = aug_traj[3][-1, :, :, :].detach().numpy()
+                # quat_back_traj.append(quat)
                 
-                # pos = aug_traj[2][1, 0, 0, :]
-                # with open('pos_backward.txt', 'a') as f:
-                #     pos = list(pos.detach().cpu().numpy())
-                #     f.write(','.join([str(q) for q in pos]) + '\n')
-
                 # Unpack aug_traj
                 adj_state = aug_traj[n_statevecs:2 * n_statevecs]
                 adj_params = aug_traj[2 * n_statevecs]
@@ -409,17 +407,11 @@ class OdeintAdjointMethod(torch.autograd.Function):
                 adj_state = tuple(adj_statevec_ + grad_output_[i - 1] for adj_statevec_, grad_output_ in zip(adj_state, grad_output))
 
                 del aug_state, aug_traj
-                
+
+            # comment in to save the backward pass
+            # quat_back_traj = np.stack(quat_back_traj)
+            # np.save('temp/quat_backward_normal_discrete.npy', quat_back_traj)
+
             time_vjps.append(adj_time)     
             time_vjps = torch.cat(time_vjps[::-1])
             return (*adj_state, None, time_vjps, adj_params, None, None, None, None, None)
-
-
-def quatvec(a, b):
-    # TODO: add documentation
-    c = torch.zeros(a.shape).to(a.device).type(a.type())
-    c[:, :, 0] = -a[:, :, 1] * b[:, :, 0] - a[:, :, 2] * b[:, :, 1] - a[:, :, 3] * b[:, :, 2]
-    c[:, :, 1] = a[:, :, 0] * b[:, :, 0] + a[:, :, 2] * b[:, :, 2] - a[:, :, 3] * b[:, :, 1]
-    c[:, :, 2] = a[:, :, 0] * b[:, :, 1] + a[:, :, 3] * b[:, :, 0] - a[:, :, 1] * b[:, :, 2]
-    c[:, :, 3] = a[:, :, 0] * b[:, :, 2] + a[:, :, 1] * b[:, :, 1] - a[:, :, 2] * b[:, :, 0]
-    return c
