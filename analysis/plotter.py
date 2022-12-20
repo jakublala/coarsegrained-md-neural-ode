@@ -56,12 +56,11 @@ class Plotter():
         predicted_energies = potential(self.rq).detach().cpu().numpy()  
 
         return true_energies, predicted_energies
-
-        
+ 
     def read_pair_potential(self):
         lines = []
         skip = True
-        with open(f'{self.trainer.folder}/train/pair_potential.txt', 'r') as f:
+        with open(f'{self.trainer.config.folder}/train/pair_potential.txt', 'r') as f:
             for line in f.readlines():
                 if line[0] == "1":
                     skip = False

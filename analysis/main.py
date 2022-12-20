@@ -53,17 +53,16 @@ if __name__ == '__main__':
 
     dataset_steps = 1
     plotter = Plotter(trainer, run_id, dataset_steps)
-    plotter.traj_distribution()
-    plotter.LAMMPS_energy_plot(100)
-    plotter.NN_energy(100)
-    plotter.plot_parity()
-    plotter.plot_traj_potential(100)
-    plotter.traj_energies()
-    plotter.get_kinetic_energy(plotter.pred_v, plotter.pred_w)
+    # plotter.traj_distribution()
+    # plotter.LAMMPS_energy_plot(100)
+    # plotter.NN_energy(100)
+    # plotter.plot_parity()
+    # plotter.plot_traj_potential(100)
+    # plotter.traj_energies()
+    # plotter.get_kinetic_energy(plotter.pred_v, plotter.pred_w)
 
-    # currently not working
-    # plotter.plot_pair_potential()
-    # plotter.plot_hexagon_potential()
+    plotter.plot_pair_potential()
+    plotter.plot_hexagon_potential()
     
 
     # # TODO: finish this plotting

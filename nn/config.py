@@ -56,7 +56,7 @@ class Config():
     def compute_params(self):
         self.traj_steps = self.dataset_steps * self.steps_per_dt
         self.learning_rate = 10**(self.log_lr)
-        self.weight_decay = 10**(self.log_weight)
+        self.weight_decay = 10**(self.log_w)
     
     def get_subfolder(self):
 
