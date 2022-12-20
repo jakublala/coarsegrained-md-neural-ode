@@ -33,7 +33,7 @@ class Config():
         self.compute_params()
 
         # update wandb config
-        wandb.config.update(self.__dict__)
+        wandb.config.update(self.__dict__, allow_val_change=True)
 
         print('Config of Current Run in the Sweep:')
         for key, value in self.__dict__.items():

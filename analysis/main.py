@@ -30,6 +30,9 @@ if __name__ == '__main__':
     user = 'jakublala'
 
     # download checkpoints
+    # TODO: how to deal with early stopping, i.e when there is not all checkpoints?
+    if os.path.exists(f'temp/{run_id}'):
+        shutil.rmtree(f'temp/{run_id}')
     os.makedirs(f'temp/{run_id}')
     os.chdir(f'temp/{run_id}')
     wandb.restore('output/config.yml', run_path=f"{user}/{project_name}/{run_id}")
@@ -51,10 +54,10 @@ if __name__ == '__main__':
     dataset_steps = 1
     plotter = Plotter(trainer, run_id, dataset_steps)
     plotter.traj_distribution()
-    plotter.LAMMPS_energy_plot(10)
-    plotter.NN_energy(10)
+    plotter.LAMMPS_energy_plot(100)
+    plotter.NN_energy(100)
     plotter.plot_parity()
-    plotter.plot_traj_potential(10)
+    plotter.plot_traj_potential(100)
     plotter.traj_energies()
     plotter.get_kinetic_energy(plotter.pred_v, plotter.pred_w)
 
