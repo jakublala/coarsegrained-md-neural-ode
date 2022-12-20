@@ -48,6 +48,7 @@ if __name__ == '__main__':
     config['sweep_id'] = None
     config['load_folder'] = f'temp/{run_id}/output/checkpoints/{config["epochs"]}'
     config['analysis'] = True
+    config['device'] = 'cpu'
 
     trainer = NODETrainer(config)
 

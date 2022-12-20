@@ -232,13 +232,9 @@ class Trainer():
         elif optimizer == 'Adagrad':
             return torch.optim.Adagrad(self.func.parameters(), lr=self.config.learning_rate)
         elif optimizer == 'Adam':
-            return torch.optim.Adam(self.func.parameters(), lr=self.config.learning_rate)
+            return torch.optim.Adam(self.func.parameters(), lr=self.config.learning_rate, weight_decay=self.config.weight_decay)
         elif optimizer == 'AdamW':
-            return torch.optim.AdamW(self.func.parameters(), lr=self.config.learning_rate)
-        elif optimizer == 'NAdam':
-            return torch.optim.NAdam(self.func.parameters(), lr=self.config.learning_rate)
-        elif optimizer == 'RAdam':
-            return torch.optim.RAdam(self.func.parameters(), lr=self.config.learning_rate)
+            return torch.optim.AdamW(self.func.parameters(), lr=self.config.learning_rate, weight_decay=self.config.weight_decay)
         elif optimizer == 'Adamax':
             return torch.optim.Adamax(self.func.parameters(), lr=self.config.learning_rate, betas=(0.9, 0.999), weight_decay=self.config.weight_decay)
         elif optimizer == 'SGD':
