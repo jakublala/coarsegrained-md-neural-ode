@@ -38,7 +38,8 @@ class Trainer():
         if self.config.wandb and self.is_master():
             self.wandb = wandb.init(project=self.config.project, config=self.config)
             self.config.assign_folders(self.wandb.name)
-            self.config.assign_sweep_config(self.wandb.config)
+            if self.config.sweep:
+                self.config.assign_sweep_config(self.wandb.config)
         else:
             self.config.assign_folders()
         if not self.config.analysis:
@@ -157,8 +158,8 @@ class Trainer():
       
     def log_epoch(self):
         # perform evaluation on validation test
-        if self.epoch % self.config.evaluation_freq == 0 or self.epoch == 1 or self.epoch == self.config.epochs:
-            validation_loss = self.evaluate('validation')
+        if self.epoch % self.config.eval_freq == 0 or self.epoch == 1 or self.epoch == self.config.epochs:
+            validation_loss = self.evaluate(self.config.eval_dataset)
         else:
             validation_loss = None
 
@@ -279,8 +280,8 @@ class Trainer():
             elif dataset == 'train':
                 dataloader = self.training_dataloader
                 dataset = self.training_dataset
-                steps_per_dt = self.config.steps_per_dt
-                dataset_steps = self.config.dataset_steps
+                steps_per_dt = self.config.eval_steps_per_dt
+                dataset_steps = self.config.eval_dataset_steps
             else:
                 raise ValueError(f'dataset {dataset} not recognised')
             

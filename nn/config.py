@@ -28,7 +28,8 @@ class Config():
             self.__dict__[key] = value
 
         # nn widths
-        self.nn_widths = [self.nn_width] * self.nn_depth
+        if not hasattr(self, 'nn_width'):
+            self.nn_widths = [self.nn_width] * self.nn_depth
         # additional (computed) parameters
         self.compute_params()
 
