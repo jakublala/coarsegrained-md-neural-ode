@@ -28,7 +28,7 @@ class Config():
             self.__dict__[key] = value
 
         # nn widths
-        if not hasattr(self, 'nn_width'):
+        if not hasattr(self, 'nn_widths'):
             self.nn_widths = [self.nn_width] * self.nn_depth
         # additional (computed) parameters
         self.compute_params()
@@ -57,7 +57,11 @@ class Config():
     def compute_params(self):
         self.traj_steps = self.dataset_steps * self.steps_per_dt
         self.learning_rate = 10**(self.log_lr)
-        self.weight_decay = 10**(self.log_w)
+
+        if self.log_w == None:
+            self.weight_decay = 0
+        else:    
+            self.weight_decay = 10**(self.log_w)
     
     def get_subfolder(self):
 

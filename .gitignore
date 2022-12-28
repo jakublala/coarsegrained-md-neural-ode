@@ -8,6 +8,10 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Jupyter Notebook
+.ipynb_checkpoints/
+notebook.ipynb
+
 # Run on Cluster files
 *.sh
 HPC*

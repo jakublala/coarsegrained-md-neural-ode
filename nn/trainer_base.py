@@ -157,17 +157,17 @@ class Trainer():
             })
       
     def log_epoch(self):
-        # perform evaluation on validation test
+        # perform evaluation on evaluation dataset
         if self.epoch % self.config.eval_freq == 0 or self.epoch == 1 or self.epoch == self.config.epochs:
-            validation_loss = self.evaluate(self.config.eval_dataset)
+            eval_loss = self.evaluate(self.config.eval_dataset)
         else:
-            validation_loss = None
+            eval_loss = None
 
         if self.config.wandb:
             self.wandb.log({
                 'epoch': self.epoch, 
                 'training_loss': np.mean(self.batch_loss),
-                'validation_loss': validation_loss,
+                'eval_loss': eval_loss,
                 'learning_rate': self.optimizer.param_groups[0]['lr'],
                 # 'epoch_time': time.perf_counter() - self.start_time,
                 })
@@ -263,32 +263,32 @@ class Trainer():
         else:
             raise Exception('scheduler not implemented')
 
-    def evaluate(self, dataset):
+    def evaluate(self, dataset_name):
         with torch.no_grad():
             # TODO: maybe move this elsewhere and make it more robust? maybe have an Evaluation class
             
-            if dataset == 'validation':
+            if dataset_name == 'validation':
                 dataloader = self.validation_dataloader
                 dataset = self.validation_dataset
                 steps_per_dt = self.config.eval_steps_per_dt
                 dataset_steps = self.config.eval_dataset_steps
-            elif dataset == 'test':
+            elif dataset_name == 'test':
                 dataloader = self.test_dataloader
                 dataset = self.test_dataset
                 steps_per_dt = self.config.eval_steps_per_dt
                 dataset_steps = self.config.eval_dataset_steps
-            elif dataset == 'train':
+            elif dataset_name == 'train':
                 dataloader = self.training_dataloader
                 dataset = self.training_dataset
                 steps_per_dt = self.config.eval_steps_per_dt
                 dataset_steps = self.config.eval_dataset_steps
-            else:
-                raise ValueError(f'dataset {dataset} not recognised')
-            
-            # orig_length = copy.copy(dataset.traj_length)
-            # TODO: finish this similar to plot_traj
-            # dataset.update(self.eval_dataset_steps)
 
+                # change Dataset for training
+                orig_dataset_steps = copy.copy(dataset.traj_length)
+                dataset.update(self.config.eval_dataset_steps)
+            else:
+                raise ValueError(f'dataset {dataset_name} not recognised')
+            
             traj_steps = dataset_steps * steps_per_dt
 
             eval_loss = []
@@ -305,8 +305,9 @@ class Trainer():
             
             eval_loss = np.mean(eval_loss)
 
-            # dataset.update(orig_length)
-        return eval_loss
+            if dataset_name == 'train':
+                dataset.update(orig_dataset_steps)
+            return eval_loss
 
     def is_master(self):
         return (self.parallel and is_main_process()) or not self.parallel
