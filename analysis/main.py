@@ -37,16 +37,20 @@ if __name__ == '__main__':
     os.chdir(f'temp/{run_id}')
     wandb.restore('output/config.yml', run_path=f"{user}/{project_name}/{run_id}")
     config = read_yaml('output/config.yml')
-    for i in range(config['checkpoint_freq'], config['epochs'], config['checkpoint_freq']):
-        wandb.restore(f'output/checkpoints/{i}/model.pt', run_path=f"{user}/{project_name}/{run_id}")
-    wandb.restore(f"output/checkpoints/{config['epochs']}/model.pt", run_path=f"{user}/{project_name}/{run_id}")
+    max_i = config['checkpoint_freq']
+    for i in range(config['checkpoint_freq'], config['epochs']+1, config['checkpoint_freq']):
+        try:
+            wandb.restore(f'output/checkpoints/{i}/model.pt', run_path=f"{user}/{project_name}/{run_id}")
+            max_i = i
+        except:
+            print(f'Checkpoint {i} not found')
     os.chdir('../..')
 
     # edit config for plotting purposes
     config['wandb'] = False
     config['sweep'] = False
     config['sweep_id'] = None
-    config['load_folder'] = f'temp/{run_id}/output/checkpoints/{config["epochs"]}'
+    config['load_folder'] = f'temp/{run_id}/output/checkpoints/{max_i}'
     config['analysis'] = True
     config['device'] = 'cpu'
 
