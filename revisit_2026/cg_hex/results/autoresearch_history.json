@@ -1,0 +1,79 @@
+[
+  {
+    "iter": 0,
+    "short": "Paper Baseline",
+    "kept": true,
+    "exact_floor": 0.01545929208909027,
+    "D": 0.91484,
+    "dx_mae": 0.00759,
+    "dv_mae": 0.1287,
+    "L_mae": 0.3339,
+    "deg_mae": 0.69
+  },
+  {
+    "iter": 1,
+    "short": "SO(3)+Cutoff",
+    "kept": true,
+    "exact_floor": 0.01545929208909027,
+    "D": 0.785,
+    "dx_mae": 0.0049,
+    "dv_mae": 0.089,
+    "L_mae": 0.275,
+    "deg_mae": 0.48
+  },
+  {
+    "iter": 2,
+    "short": "ResD6+Twist+RBF",
+    "kept": true,
+    "exact_floor": 0.01545929208909027,
+    "D": 0.55297,
+    "dx_mae": 0.00351,
+    "dv_mae": 0.0557,
+    "L_mae": 0.197,
+    "deg_mae": 0.365
+  },
+  {
+    "iter": 3,
+    "short": "3D LatentSite",
+    "kept": true,
+    "exact_floor": 0.01545929208909027,
+    "D": 0.0301787675766154,
+    "dx_mae": 0.00010598367225611582,
+    "dv_mae": 0.0023495834320783615,
+    "L_mae": 0.00797472707927227,
+    "deg_mae": 0.03605239168780015
+  },
+  {
+    "iter": 4,
+    "short": "Disk-Init Sites",
+    "kept": false,
+    "exact_floor": 0.01545929208909027,
+    "D": 0.75231,
+    "dx_mae": 0.0048,
+    "dv_mae": 0.0869,
+    "L_mae": 0.2619,
+    "deg_mae": 0.453
+  },
+  {
+    "iter": 5,
+    "short": "Long-H Polish",
+    "kept": true,
+    "exact_floor": 0.01545929208909027,
+    "D": 0.017881504250741295,
+    "dx_mae": 2.9663848181371577e-05,
+    "dv_mae": 0.00042245289660058916,
+    "L_mae": 0.0012882862938567996,
+    "deg_mae": 0.03489682713989553
+  },
+  {
+    "iter": 6,
+    "short": "Precision Polish",
+    "kept": false,
+    "exact_floor": 0.01545929208909027,
+    "D": 0.017913642201894394,
+    "dx_mae": 2.865984606614802e-05,
+    "dv_mae": 0.0004377048753667623,
+    "L_mae": 0.001321012619882822,
+    "deg_mae": 0.03494174903619056
+  }
+]

@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+    color: var(--foreground);
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
+  .stepper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+  .step-btn {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 8px);
+    padding: 6px 10px;
+    color: var(--muted-foreground);
+    font-size: 11.5px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .step-btn:hover { border-color: var(--primary); color: var(--foreground); }
+  .step-btn.active {
+    background: var(--accent-surface, rgba(59,130,246,0.14));
+    border-color: var(--primary);
+    color: var(--foreground);
+    font-weight: 600;
+  }
+  .step-num {
+    font-family: var(--font-mono, monospace);
+    font-size: 10px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: var(--code-background, rgba(128,128,128,0.15));
+    color: var(--foreground);
+  }
+  .step-btn.active .step-num {
+    background: var(--primary);
+    color: var(--primary-foreground, #fff);
+  }
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  @media (max-width: 580px) {
+    .main-grid { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 8px);
+    padding: 14px;
+  }
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+  .panel-title {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+  .delta-badge {
+    font-family: var(--font-mono, monospace);
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .badge-good {
+    background: rgba(34, 197, 94, 0.16);
+    color: var(--success, #22c55e);
+  }
+  .badge-base {
+    background: var(--destructive-surface, rgba(239, 68, 68, 0.15));
+    color: var(--destructive, #ef4444);
+  }
+  .explain-box {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted-foreground);
+  }
+  .explain-box strong { color: var(--foreground); }
+  .explain-list { margin-top: 5px; padding-left: 15px; }
+  .explain-list li { margin-bottom: 3px; }
+  .metrics-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    margin-top: 10px;
+  }
+  .metric-chip {
+    background: var(--code-background, rgba(128,128,128,0.1));
+    border-radius: 6px;
+    padding: 6px 5px;
+    text-align: center;
+  }
+  .metric-label { font-size: 10px; color: var(--muted-foreground); display: block; }
+  .metric-val {
+    font-family: var(--font-mono, monospace);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--foreground);
+  }
+  .diff-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11.5px;
+    margin-top: 6px;
+  }
+  .diff-table th {
+    text-align: left;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted-foreground);
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .diff-table td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .diff-table tr:last-child td { border-bottom: none; }
+  .col-orig { color: var(--muted-foreground); }
+  .col-new { color: var(--foreground); font-weight: 500; }
+  .mono { font-family: var(--font-mono, monospace); font-size: 11px; }
+  .nav-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+  }
+  .nav-btn {
+    background: var(--secondary, rgba(128,128,128,0.14));
+    border: 1px solid var(--border);
+    color: var(--foreground);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .nav-btn:disabled { opacity: 0.35; cursor: default; }
+</style>
+</head>
+<body>
+
+<div class="stepper" id="stepper"></div>
+
+<div class="main-grid">
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title" id="archTitle"></span>
+      <span class="delta-badge" id="stepBadge"></span>
+    </div>
+    <svg id="archSvg" viewBox="0 0 360 185" width="100%" height="185" style="display:block;"></svg>
+    <div class="explain-box">
+      <div id="stepSummary"></div>
+      <ul class="explain-list" id="stepBullets"></ul>
+    </div>
+    <div class="nav-row">
+      <button class="nav-btn" id="prevBtn">&#8592; Prev</button>
+      <span class="mono" id="stepCounter" style="color:var(--muted-foreground);"></span>
+      <button class="nav-btn" id="nextBtn">Next &#8594;</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Held-Out Trajectory Deviation D (log)</span>
+      <span class="mono" style="font-size:10.5px; color:var(--muted-foreground);">Floor = 0.0155</span>
+    </div>
+    <svg id="chartSvg" viewBox="0 0 320 195" width="100%" height="195" style="display:block;"></svg>
+    <div class="metrics-row" id="metricsRow"></div>
+    <div class="explain-box" style="margin-top:10px; font-size:11px;">
+      <strong>Data prerequisite fixed first:</strong> Keeping a single <span class="mono">fix rigid/nve/small</span> from <span class="mono">t=0</span> prevented LAMMPS from assigning a random in-plane principal axis angle <span class="mono">&#952;&#8320;</span> per trajectory (due to degenerate <span class="mono">I_x = I_y = 3</span>).
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header" style="margin-bottom:2px;">
+    <span class="panel-title">Original Network (EUROCON 2023) vs. Winning Neural ODE (Latent-Site CG)</span>
+    <span class="delta-badge badge-good">51x lower trajectory error</span>
+  </div>
+  <table class="diff-table">
+    <thead>
+      <tr>
+        <th style="width:18%;">Component</th>
+        <th style="width:40%;">Original Paper Network</th>
+        <th style="width:42%;">Winning Neural ODE (Iter 5)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Architecture</strong></td>
+        <td class="col-orig">Raw 11D lab-frame <span class="mono">[&#916;x, q&#8321;, q&#8322;]</span> &#8594; 68-48-32 <span class="mono">tanh</span> MLP &#8594; scalar <span class="mono">V</span></td>
+        <td class="col-new"><span class="mono">K=7</span> learnable 3D body-frame sites <span class="mono">{s_k}</span> + shared radial NN <span class="mono">&#966;(d)</span> with RBF + <span class="mono">softplus&#178;</span></td>
+      </tr>
+      <tr>
+        <td><strong>Symmetries</strong></td>
+        <td class="col-orig">None — breaks under global 3D rotation, <span class="mono">q &#8594; &#8722;q</span> sign flip, and <span class="mono">1 &#8596; 2</span> swap</td>
+        <td class="col-new">Exact <span class="mono">SO(3)</span>, <span class="mono">q &#8801; &#8722;q</span> (via <span class="mono">R(q)</span>), and <span class="mono">1 &#8596; 2</span> exchange invariance by construction</td>
+      </tr>
+      <tr>
+        <td><strong>Cutoff Prior</strong></td>
+        <td class="col-orig">Unconstrained — produces spurious hills outside <span class="mono">r_max</span> (<span class="mono">0.90 &#949;</span> error)</td>
+        <td class="col-new"><span class="mono">C&#178;</span> smooth quintic cutoff <span class="mono">f_cut(d)</span> &#8594; exact <span class="mono">V = F = &#964; = 0</span> outside interaction range</td>
+      </tr>
+      <tr>
+        <td><strong>Batch Sampling</strong></td>
+        <td class="col-orig">Uniform over trajectory (~95% free flight &#8594; L2 reg collapses to <span class="mono">V &#8801; 0</span>)</td>
+        <td class="col-new">Trajectory-only <span class="mono">||&#916;L|| &gt; 10&#8315;&#8308;</span> collision detector + impulse weighting (<span class="mono">&#8733; ||&#916;L||^0.6</span>)</td>
+      </tr>
+      <tr>
+        <td><strong>Loss Function</strong></td>
+        <td class="col-orig">Unnormalized final-state MSE; Euclidean <span class="mono">||q &#8722; q&#770;||&#178;</span> penalizes <span class="mono">q &#8594; &#8722;q</span></td>
+        <td class="col-new">Multi-step normalized MSE (scaled by change-std) + sign-invariant chordal <span class="mono">1 &#8722; (q&#183;q&#770;)&#178;</span></td>
+      </tr>
+      <tr>
+        <td><strong>Held-Out Result</strong></td>
+        <td class="col-orig"><span class="mono">D = 0.9148</span> (<span class="mono">&#916;x = 7.6e-3</span>, <span class="mono">0.69&#176;</span>); fails to generalize to test set</td>
+        <td class="col-new"><span class="mono">D = 0.0179</span> (<span class="mono">&#916;x = 3.0e-5</span>, <span class="mono">0.035&#176;</span>); discovers exact hexagon radii <span class="mono">[0.0001, 1.0001x6]</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+const STEPS = [
+  {
+    id: 0, tab: "Original", title: "0. Original Paper Network (2023)",
+    D: 0.9148, badge: "Baseline · D = 0.9148", badgeClass: "badge-base",
+    dx: "7.59e-3", dv: "0.1287", L: "0.3339", deg: "0.690 deg",
+    summary: "<strong>Starting point:</strong> Unconstrained 11D lab-frame MLP trained with uniform sampling and unnormalized final-state MSE.",
+    bullets: [
+      "Must re-learn the same collision at every global 3D orientation and q / -q sign.",
+      "~95% of uniform batches are free flight, so L2 reg collapses it to V = 0.",
+      "No cutoff envelope causes spurious energy hills outside r_max = 3.12 sigma."
+    ]
+  },
+  {
+    id: 1, tab: "SO(3) + Cutoff", title: "1. SO(3) Invariants + C2 Cutoff + dL Sampling",
+    D: 0.7850, badge: "-14% · D = 0.7850", badgeClass: "badge-good",
+    dx: "4.90e-3", dv: "0.0890", L: "0.2750", deg: "0.480 deg",
+    summary: "<strong>First structural fix:</strong> Enforce exact physical symmetries and eliminate non-interacting noise.",
+    bullets: [
+      "Convert (q1, q2) to rotation matrices R(q) for exact SO(3), q = -q, and 1 <-> 2 invariance.",
+      "Multiply output by C2 cutoff f_cut(r): outer spurious energy drops 0.90 -> 0.00.",
+      "Stratify batches via trajectory-only ||dL|| > 1e-4 + normalized multi-step chordal loss."
+    ]
+  },
+  {
+    id: 2, tab: "D6 + RBF ResNet", title: "2. D6 Harmonics + Twist + RBF ResNet + Impulse",
+    D: 0.5530, badge: "-30% · D = 0.5530", badgeClass: "badge-good",
+    dx: "3.51e-3", dv: "0.0557", L: "0.1970", deg: "0.365 deg",
+    summary: "<strong>Sharper anisotropy & harder collisions:</strong> Upgrade MLP features and emphasize strong impacts.",
+    bullets: [
+      "Add 6-fold hexagonal harmonics cos(6 phi), relative twist cos(6 psi), and 12 Gaussian RBFs on r.",
+      "Residual skip blocks + steeper softplus^2.5 head better fit the sharp r^-12 wall.",
+      "Weight collision sampling by ||dL||^0.6 so hard impacts are not drowned out by grazing touches."
+    ]
+  },
+  {
+    id: 3, tab: "3D Latent-Site", title: "3. 3D Latent-Site Neural CG (Breakthrough)",
+    D: 0.0302, badge: "-95% · D = 0.0302", badgeClass: "badge-good",
+    dx: "1.10e-4", dv: "0.0023", L: "0.0080", deg: "0.036 deg",
+    summary: "<strong>The architectural leap:</strong> Learn K=7 3D interaction sites {s_k} + a shared radial neural potential phi(d) end-to-end.",
+    bullets: [
+      "Initialized from <strong>7 random 3D points</strong> (no hexagon prior, no LJ formula, trajectories only).",
+      "Pair distances d_ab pass through a shared C2-cut radial MLP, capturing exact 3D steric collisions.",
+      "Trajectory error plummets <strong>18x in a single iteration</strong> (0.553 -> 0.030)."
+    ]
+  },
+  {
+    id: 4, tab: "Long-H Polish", title: "4. Long-Horizon Curriculum Polish (Winner)",
+    D: 0.0179, badge: "-41% · D = 0.0179", badgeClass: "badge-good",
+    dx: "3.00e-5", dv: "0.0004", L: "0.0013", deg: "0.035 deg",
+    summary: "<strong>Near-exact atomistic recovery:</strong> Extend ODE rollout horizon T = 12 -> 20 -> 30 with low-LR cosine decay.",
+    bullets: [
+      "Reaches D = 0.0179 — right on top of the exact 7-bead LJ floor (0.0155).",
+      "Discovers exact hexagon radii [0.0001, 1.0001 x 6] and planarity |z| <= 0.0001.",
+      "Position MAE 3.0e-5 and orientation MAE 0.035 deg across 10 unseen collisions."
+    ]
+  }
+];
+
+let current = 4;
+
+function drawArch(stepIdx) {
+  const svg = document.getElementById("archSvg");
+  const cCard = "var(--code-background, rgba(128,128,128,0.12))";
+  const cFg = "var(--foreground)";
+  const cMuted = "var(--muted-foreground)";
+  const cBlue = "var(--chart-1, #3b82f6)";
+  const cGreen = "var(--success, #22c55e)";
+  const cRed = "var(--destructive, #ef4444)";
+  const cPurple = "var(--chart-2, #8b5cf6)";
+
+  function box(x, y, w, h, title, sub, stroke) {
+    let out = '<rect x="' + x + '" y="' + y + '" width="' + w + '" height="' + h + '" rx="7" fill="' + cCard + '" stroke="' + stroke + '" stroke-width="1.3"/>';
+    out += '<text x="' + (x+w/2) + '" y="' + (y + (sub ? h/2 - 3 : h/2 + 4)) + '" text-anchor="middle" fill="' + cFg + '" font-size="10.5" font-weight="600">' + title + '</text>';
+    if (sub) out += '<text x="' + (x+w/2) + '" y="' + (y + h/2 + 11) + '" text-anchor="middle" fill="' + cMuted + '" font-size="9" font-family="var(--font-mono, monospace)">' + sub + '</text>';
+    return out;
+  }
+
+  function arrow(x1, y1, x2, y2, col) {
+    return '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + (x2-4) + '" y2="' + y2 + '" stroke="' + col + '" stroke-width="1.4"/>' +
+           '<polygon points="' + x2 + ',' + y2 + ' ' + (x2-6) + ',' + (y2-3.5) + ' ' + (x2-6) + ',' + (y2+3.5) + '" fill="' + col + '"/>';
+  }
+
+  let s = "";
+  if (stepIdx === 0) {
+    s += box(8, 52, 82, 54, "Raw 11D", "[dx, q1, q2]", cRed);
+    s += arrow(90, 79, 118, 79, cRed);
+    s += box(118, 44, 112, 70, "68-48-32 MLP", "tanh · no sym", cRed);
+    s += arrow(230, 79, 258, 79, cRed);
+    s += box(258, 52, 92, 54, "Raw V_CG", "unbounded", cRed);
+    s += '<text x="180" y="24" text-anchor="middle" fill="' + cRed + '" font-size="10" font-weight="600">Breaks under 3D rotation &amp; q -&gt; -q</text>';
+    s += '<text x="180" y="148" text-anchor="middle" fill="' + cMuted + '" font-size="9.5">Uniform batches (95% free flight) · Unnormalized final-state MSE</text>';
+    s += '<text x="180" y="165" text-anchor="middle" fill="' + cRed + '" font-size="9.5">Result: jagged outer hills (0.90) or V = 0 collapse under L2</text>';
+  } else if (stepIdx === 1) {
+    s += box(6, 48, 86, 56, "R(q1), R(q2)", "16D SO(3) inv", cBlue);
+    s += arrow(92, 76, 114, 76, cBlue);
+    s += box(114, 48, 92, 56, "Sym MLP", "0.5(p12+p21)", cBlue);
+    s += arrow(206, 76, 228, 76, cBlue);
+    s += box(228, 48, 124, 56, "C2 Cutoff Gate", "f_cut(r)*softplus", cGreen);
+    s += '<text x="180" y="24" text-anchor="middle" fill="' + cGreen + '" font-size="10" font-weight="600">Exact SO(3), q = -q, 1 &lt;-&gt; 2 &amp; Zero Force past r_max</text>';
+    s += '<text x="180" y="140" text-anchor="middle" fill="' + cMuted + '" font-size="9.5">Trajectory-only ||dL|| &gt; 1e-4 collision sampling</text>';
+    s += '<text x="180" y="157" text-anchor="middle" fill="' + cMuted + '" font-size="9.5">Normalized multi-step MSE + chordal 1 - (q.q_hat)^2</text>';
+  } else if (stepIdx === 2) {
+    s += box(6, 44, 98, 62, "25D Features", "RBF+D6+twist", cPurple);
+    s += arrow(104, 75, 124, 75, cPurple);
+    s += box(124, 44, 100, 62, "ResNet MLP", "2 skip blocks", cPurple);
+    s += arrow(224, 75, 244, 75, cPurple);
+    s += box(244, 44, 110, 62, "Steep Cutoff", "f_cut*sp^2.5", cGreen);
+    s += '<text x="180" y="24" text-anchor="middle" fill="' + cPurple + '" font-size="10" font-weight="600">Explicit 6-fold Harmonics + Impulse Weighting</text>';
+    s += '<text x="180" y="140" text-anchor="middle" fill="' + cMuted + '" font-size="9.5">Sharper edge-vs-vertex anisotropy, but still smoothing 25D space</text>';
+    s += '<text x="180" y="157" text-anchor="middle" fill="' + cBlue + '" font-size="9.5">Drops D: 0.785 -&gt; 0.553</text>';
+  } else {
+    const polished = (stepIdx === 4);
+    const col = cGreen;
+    s += '<rect x="6" y="24" width="118" height="120" rx="7" fill="' + cCard + '" stroke="' + col + '" stroke-width="1.3"/>';
+    s += '<text x="65" y="40" text-anchor="middle" fill="' + cFg + '" font-size="9.5" font-weight="600">7 Learned 3D Sites</text>';
+    const cx = 65, cy = 88, rad = 30;
+    let pts = "";
+    for (let k = 0; k < 6; k++) {
+      const a = k * Math.PI / 3 + Math.PI / 2;
+      pts += (cx + rad * Math.cos(a)).toFixed(1) + "," + (cy - rad * Math.sin(a)).toFixed(1) + " ";
+    }
+    s += '<polygon points="' + pts + '" fill="' + col + '" fill-opacity="0.12" stroke="' + col + '" stroke-width="1.1"/>';
+    s += '<circle cx="' + cx + '" cy="' + cy + '" r="4.2" fill="' + col + '"/>';
+    for (let k = 0; k < 6; k++) {
+      const a = k * Math.PI / 3 + Math.PI / 2;
+      s += '<circle cx="' + (cx + rad * Math.cos(a)).toFixed(1) + '" cy="' + (cy - rad * Math.sin(a)).toFixed(1) + '" r="4.2" fill="' + col + '"/>';
+    }
+    s += '<text x="65" y="136" text-anchor="middle" fill="' + cMuted + '" font-size="8.5" font-family="var(--font-mono, monospace)">' + (polished ? "r=1.0001 z<=1e-4" : "from 7 rand 3D pts") + '</text>';
+    s += arrow(124, 84, 144, 84, col);
+    s += box(144, 52, 94, 64, "Pairwise d_ab", "R1 s_a - R2 s_b", cBlue);
+    s += arrow(238, 84, 256, 84, col);
+    s += box(256, 52, 98, 64, "Sum phi(d_ab)", "f_cut*sp(MLP)^2", col);
+    s += '<text x="180" y="168" text-anchor="middle" fill="' + col + '" font-size="10" font-weight="600">' +
+      (polished ? "Long-horizon polish (T=12-&gt;30) -&gt; D = 0.0179 (floor 0.0155)" : "Auto-discovers exact 3D hexagon geometry from trajectories!") + '</text>';
+  }
+  svg.innerHTML = s;
+}
+
+function drawChart(stepIdx) {
+  const svg = document.getElementById("chartSvg");
+  const W = 320, H = 195;
+  const padL = 42, padR = 14, padT = 14, padB = 34;
+  const pw = W - padL - padR, ph = H - padT - padB;
+  const logMin = Math.log10(0.01), logMax = Math.log10(1.5);
+  const sy = d => padT + ph * (1 - (Math.log10(d) - logMin) / (logMax - logMin));
+  const sx = i => padL + (i / (STEPS.length - 1)) * pw;
+
+  let p = "";
+  for (const val of [0.01, 0.03, 0.1, 0.3, 1.0]) {
+    const yy = sy(val);
+    p += '<line x1="' + padL + '" y1="' + yy + '" x2="' + (padL+pw) + '" y2="' + yy + '" stroke="var(--border)" stroke-width="0.6" opacity="0.65"/>';
+    p += '<text x="' + (padL-6) + '" y="' + (yy+3) + '" text-anchor="end" fill="var(--muted-foreground)" font-size="9" font-family="var(--font-mono, monospace)">' + val + '</text>';
+  }
+  const yFloor = sy(0.0155);
+  p += '<line x1="' + padL + '" y1="' + yFloor + '" x2="' + (padL+pw) + '" y2="' + yFloor + '" stroke="var(--success, #22c55e)" stroke-width="1.2" stroke-dasharray="4 3"/>';
+  p += '<text x="' + (padL+pw-2) + '" y="' + (yFloor-4) + '" text-anchor="end" fill="var(--success, #22c55e)" font-size="8.5" font-weight="600">Exact LJ Floor (0.0155)</text>';
+
+  let dPath = "";
+  for (let i = 0; i < STEPS.length; i++) {
+    const x = sx(i), y = sy(STEPS[i].D);
+    if (i === 0) dPath += "M " + x + " " + y;
+    else dPath += " L " + x + " " + sy(STEPS[i-1].D) + " L " + x + " " + y;
+  }
+  p += '<path d="' + dPath + '" fill="none" stroke="var(--chart-1, #3b82f6)" stroke-width="2.2" opacity="0.85"/>';
+
+  for (let i = 0; i < STEPS.length; i++) {
+    const x = sx(i), y = sy(STEPS[i].D);
+    const active = i === stepIdx;
+    const r = active ? 6.5 : 4.2;
+    const fill = i === 0 ? "var(--destructive, #ef4444)" : (i >= 3 ? "var(--success, #22c55e)" : "var(--chart-1, #3b82f6)");
+    if (active) p += '<circle cx="' + x + '" cy="' + y + '" r="11" fill="' + fill + '" fill-opacity="0.22"/>';
+    p += '<circle cx="' + x + '" cy="' + y + '" r="' + r + '" fill="' + fill + '" stroke="var(--card)" stroke-width="1.5" style="cursor:pointer;" onclick="selectStep(' + i + ')"/>';
+    p += '<text x="' + x + '" y="' + (padT+ph+15) + '" text-anchor="middle" fill="' + (active ? "var(--foreground)" : "var(--muted-foreground)") + '" font-size="8.5" font-weight="' + (active ? "700" : "400") + '">S' + i + '</text>';
+    if (active || i === 0 || i === 4) {
+      p += '<text x="' + x + '" y="' + (y - 10) + '" text-anchor="middle" fill="var(--foreground)" font-size="8.5" font-family="var(--font-mono, monospace)" font-weight="600">' + STEPS[i].D.toFixed(i >= 3 ? 4 : 3) + '</text>';
+    }
+  }
+  p += '<text x="' + (padL + pw/2) + '" y="' + (H - 3) + '" text-anchor="middle" fill="var(--muted-foreground)" font-size="9.5">Adjustment Step (click any point)</text>';
+  svg.innerHTML = p;
+}
+
+function render(idx) {
+  current = idx;
+  const st = STEPS[idx];
+  document.getElementById("stepper").innerHTML = STEPS.map((s, i) =>
+    '<button class="step-btn ' + (i === idx ? "active" : "") + '" onclick="selectStep(' + i + ')">' +
+    '<span class="step-num">' + i + '</span><span>' + s.tab + '</span></button>'
+  ).join("");
+  document.getElementById("archTitle").textContent = st.title;
+  const badge = document.getElementById("stepBadge");
+  badge.textContent = st.badge;
+  badge.className = "delta-badge " + st.badgeClass;
+  document.getElementById("stepSummary").innerHTML = st.summary;
+  document.getElementById("stepBullets").innerHTML = st.bullets.map(b => "<li>" + b + "</li>").join("");
+  document.getElementById("stepCounter").textContent = "Step " + (idx + 1) + " / " + STEPS.length;
+  document.getElementById("prevBtn").disabled = idx === 0;
+  document.getElementById("nextBtn").disabled = idx === STEPS.length - 1;
+  document.getElementById("metricsRow").innerHTML = [
+    ["dx MAE", st.dx], ["dv MAE", st.dv], ["L MAE", st.L], ["Angle MAE", st.deg]
+  ].map(([k, v]) =>
+    '<div class="metric-chip"><span class="metric-label">' + k + '</span><span class="metric-val">' + v + '</span></div>'
+  ).join("");
+  drawArch(idx);
+  drawChart(idx);
+}
+
+window.selectStep = i => render(i);
+document.getElementById("prevBtn").onclick = () => { if (current > 0) render(current - 1); };
+document.getElementById("nextBtn").onclick = () => { if (current < STEPS.length - 1) render(current + 1); };
+render(current);
+</script>
+</body>
+</html>

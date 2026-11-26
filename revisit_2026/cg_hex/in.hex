@@ -1,0 +1,66 @@
+# Input file for LAMMPS 2 hexagonal rigid bodies (fixed principal-axis frame!)
+# Keeps the SAME rigid/nve/small fix from t=0 (aligned with hex.conf) and uses
+# Langevin thermostat during equilibration so degenerate Ix=Iy principal axes
+# NEVER get randomly rotated between trajectories!
+
+units           lj
+dimension       3
+boundary        p p p
+atom_style      full
+
+variable        sigma     equal 1.0
+variable        epsilon   equal 1.0
+variable        cut       equal 1.122462048309373
+variable        temp      equal 0.5
+variable        K         equal 6.0*v_temp/v_cut/v_cut
+variable        r0        equal 2.0
+variable        log_freq  equal 100
+variable        timestep  equal 0.00001
+
+read_data       hex.conf
+read_data       hex.conf add append offset 0 0 0 0 0 shift 3.5 0.0 0.0
+
+group           hex_1 id 1 2 3 4 5 6 7
+group           hex_2 id 8 9 10 11 12 13 14
+
+pair_style      lj/cut ${cut}
+pair_coeff      * * ${epsilon} ${sigma}
+pair_modify     shift yes
+
+# Define rigid bodies ONCE at t=0 when hexagons are aligned with hex.conf!
+fix             rig_hex_1 hex_1 rigid/nve/small molecule
+fix             rig_hex_2 hex_2 rigid/nve/small molecule
+fix             hex_spring hex_1 spring couple hex_2 ${K} 0.0 0.0 0.0 ${r0}
+
+# --- Thermalisation with Langevin thermostat (preserves rigid body frame!) ---
+fix             thermo_eq all langevin ${temp} ${temp} 0.5 ${seed}
+velocity        all create ${temp} ${seed} dist gaussian
+timestep        ${timestep}
+run             100000
+
+unfix           thermo_eq
+
+# --- NVE production ---
+reset_timestep  0
+
+compute         com_1 all rigid/local rig_hex_1 xu yu zu
+compute         com_2 all rigid/local rig_hex_2 xu yu zu
+compute         vel_1 all rigid/local rig_hex_1 vx vy vz
+compute         vel_2 all rigid/local rig_hex_2 vx vy vz
+compute         q_1   all rigid/local rig_hex_1 quatw quati quatj quatk
+compute         q_2   all rigid/local rig_hex_2 quatw quati quatj quatk
+compute         av_1  all rigid/local rig_hex_1 omegax omegay omegaz
+compute         av_2  all rigid/local rig_hex_2 omegax omegay omegaz
+compute         am_1  all rigid/local rig_hex_1 angmomx angmomy angmomz
+compute         am_2  all rigid/local rig_hex_2 angmomx angmomy angmomz
+compute         i_1   all rigid/local rig_hex_1 inertiax inertiay inertiaz
+compute         i_2   all rigid/local rig_hex_2 inertiax inertiay inertiaz
+
+dump            2 all local ${log_freq} ${outdir}/traj_${seed}.dat &
+                c_com_1[*] c_com_2[*] c_vel_1[*] c_vel_2[*] &
+                c_q_1[*] c_q_2[*] c_av_1[*] c_av_2[*] &
+                c_am_1[*] c_am_2[*] c_i_1[*] c_i_2[*]
+
+thermo          500000
+thermo_style    custom step temp pe ke etotal
+run             ${runsteps}
